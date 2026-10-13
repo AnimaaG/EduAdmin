@@ -1,0 +1,333 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta
+    name="description"
+    content="Create an EduAdmin account or join an existing academy."
+  >
+  <title>Create Account | EduAdmin</title>
+
+  <link rel="stylesheet" href="../css/app.css">
+
+  <script src="../js/main.js" defer></script>
+<script src="../js/navigation.js" defer></script>
+<script type="module" src="../js/auth.js"></script>
+</head>
+
+<body>
+  <header class="main-header">
+    <div class="container header-inner">
+      <a class="brand" href="../index.html">EduAdmin</a>
+
+      <nav class="header-nav" aria-label="Main navigation">
+        <a href="../index.html">Home</a>
+        <a href="login.html">Sign in</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="auth-main">
+    <section class="register-card" aria-labelledby="register-title">
+
+      <div class="auth-heading">
+        <p class="eyebrow">Get started</p>
+        <h1 id="register-title">Create your account</h1>
+        <p>
+          Register a new academy or join an existing academy
+          to get started with EduAdmin.
+        </p>
+      </div>
+
+      <div
+        id="register-message"
+        class="message"
+        role="status"
+        aria-live="polite"
+        hidden
+      ></div>
+
+      <form id="register-form" class="register-form">
+
+        <!-- Personal Information -->
+        <h2>Personal Information</h2>
+
+        <div class="register-grid">
+
+          <div class="form-group">
+            <label for="register-name">Full name</label>
+            <input
+              type="text"
+              id="register-name"
+              name="name"
+              placeholder="Enter your full name"
+              autocomplete="name"
+              required
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="register-role">Account type</label>
+            <select id="register-role" name="role" required>
+              <option value="" disabled selected>
+                Choose account type
+              </option>
+              <option value="admin">Academy Admin</option>
+              <option value="teacher">Teacher</option>
+              <option value="student">Student</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="register-email">Email address</label>
+            <input
+              type="email"
+              id="register-email"
+              name="email"
+              placeholder="you@example.com"
+              autocomplete="email"
+              required
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="register-phone">Phone number</label>
+            <input
+              type="tel"
+              id="register-phone"
+              name="phone"
+              placeholder="Enter your phone number"
+              autocomplete="tel"
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="register-password">Password</label>
+            <input
+              type="password"
+              id="register-password"
+              name="password"
+              placeholder="Create a password"
+              autocomplete="new-password"
+              minlength="8"
+              required
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="register-confirm-password">
+              Confirm password
+            </label>
+            <input
+              type="password"
+              id="register-confirm-password"
+              name="confirmPassword"
+              placeholder="Enter password again"
+              autocomplete="new-password"
+              minlength="8"
+              required
+            >
+          </div>
+
+        </div>
+
+        <!-- Academy Registration Type -->
+        <h2>Academy Information</h2>
+
+        <div class="form-group">
+          <label for="academy-registration-type">
+            Academy registration option
+          </label>
+
+          <select
+            id="academy-registration-type"
+            name="academyRegistrationType"
+            required
+          >
+            <option value="" disabled selected>
+              Choose an option
+            </option>
+            <option value="new">
+              Register a new academy
+            </option>
+            <option value="existing">
+              Join an existing academy
+            </option>
+          </select>
+        </div>
+
+        <!-- New Academy Fields -->
+        <div id="new-academy-fields" hidden>
+
+          <div class="form-group">
+            <label for="register-academy-name">
+              Official academy name
+            </label>
+
+            <input
+              type="text"
+              id="register-academy-name"
+              name="academyName"
+              placeholder="Enter your academy's official name"
+              minlength="2"
+            >
+
+            <p class="form-help">
+              Use the official name of your academy.
+              This option is intended for academy administrators.
+            </p>
+          </div>
+
+          <div class="form-group">
+            <label for="register-academy-address">
+              Academy address
+            </label>
+
+            <textarea
+              id="register-academy-address"
+              name="academyAddress"
+              placeholder="Enter the academy address"
+              rows="3"
+            ></textarea>
+          </div>
+
+        </div>
+
+        <!-- Existing Academy Fields -->
+        <div id="existing-academy-fields" hidden>
+
+          <div class="form-group">
+            <label for="register-academy-code">
+              Academy code
+            </label>
+
+            <input
+              type="text"
+              id="register-academy-code"
+              name="academyCode"
+              placeholder="Enter the academy code"
+              autocomplete="off"
+            >
+
+            <p class="form-help">
+              Ask your academy administrator for the correct code.
+              The code helps prevent joining the wrong academy.
+            </p>
+          </div>
+
+        </div>
+
+        <!-- Terms -->
+        <div class="form-group">
+          <label>
+            <input
+              type="checkbox"
+              id="register-terms"
+              name="terms"
+              required
+            >
+            I confirm that the information provided is correct.
+          </label>
+        </div>
+
+        <button
+          type="submit"
+          id="register-submit"
+          class="btn btn-primary"
+        >
+          Create account
+        </button>
+
+      </form>
+
+      <p class="auth-switch">
+        Already have an account?
+        <a href="login.html">Sign in</a>
+      </p>
+
+    </section>
+  </main>
+
+  <footer class="main-footer">
+    <p>&copy; 2026 EduAdmin. All rights reserved.</p>
+  </footer>
+
+  <!-- Registration form interactions -->
+  <script>
+    (function () {
+      "use strict";
+
+      const roleField = document.getElementById("register-role");
+      const registrationTypeField = document.getElementById(
+        "academy-registration-type"
+      );
+
+      const newAcademyFields = document.getElementById(
+        "new-academy-fields"
+      );
+
+      const existingAcademyFields = document.getElementById(
+        "existing-academy-fields"
+      );
+
+      const academyNameField = document.getElementById(
+        "register-academy-name"
+      );
+
+      const academyCodeField = document.getElementById(
+        "register-academy-code"
+      );
+
+      function updateAcademyFields() {
+        const role = roleField.value;
+        const registrationType = registrationTypeField.value;
+
+        const isAdmin = role === "admin";
+        const isNewAcademy = registrationType === "new";
+        const isExistingAcademy = registrationType === "existing";
+
+        newAcademyFields.hidden = !isNewAcademy;
+        existingAcademyFields.hidden = !isExistingAcademy;
+
+        academyNameField.required = isNewAcademy;
+        academyCodeField.required = isExistingAcademy;
+
+        // Only academy admins can register a new academy.
+        const newAcademyOption = registrationTypeField.querySelector(
+          'option[value="new"]'
+        );
+
+        newAcademyOption.disabled = !isAdmin;
+
+        if (!isAdmin && isNewAcademy) {
+          registrationTypeField.value = "";
+          newAcademyFields.hidden = true;
+          academyNameField.required = false;
+          academyNameField.value = "";
+        }
+
+        if (!isNewAcademy) {
+          academyNameField.value = "";
+          document.getElementById(
+            "register-academy-address"
+          ).value = "";
+        }
+
+        if (!isExistingAcademy) {
+          academyCodeField.value = "";
+        }
+      }
+
+      roleField.addEventListener("change", updateAcademyFields);
+      registrationTypeField.addEventListener(
+        "change",
+        updateAcademyFields
+      );
+
+      updateAcademyFields();
+    })();
+  </script>
+</body>
+</html>

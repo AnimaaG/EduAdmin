@@ -1,0 +1,278 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f5f7fb">
+  <title>Schedules | EduAdmin</title>
+
+  <link rel="stylesheet" href="../../css/app.css">
+
+  <script src="../../js/main.js" defer></script>
+  <script src="../../js/navigation.js" defer></script>
+  <script src="../../js/admin-sidebar.js" defer></script>
+  <script src="../../js/admin-schedules.js" defer></script>
+</head>
+
+<body>
+  <div class="dashboard-layout">
+
+    <div id="admin-sidebar-mount"></div>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <main class="dashboard-main">
+
+      <header class="dashboard-topbar">
+        <button
+          type="button"
+          class="sidebar-toggle"
+          id="sidebar-toggle"
+          aria-label="Toggle navigation"
+          aria-controls="admin-sidebar"
+          aria-expanded="false"
+        >☰</button>
+
+        <div>
+          <p class="eyebrow">ACADEMIC MANAGEMENT</p>
+          <h1>Schedules</h1>
+          <p>Plan classes and manage teaching schedules.</p>
+        </div>
+      </header>
+
+      <section class="dashboard-section">
+        <div class="section-heading">
+          <div>
+            <h2>Class Schedule</h2>
+            <p>Create and organize class timings, subjects, and assigned teachers.</p>
+          </div>
+
+          <button
+            type="button"
+            class="btn btn-primary"
+            id="add-schedule-button"
+          >+ Add Schedule</button>
+        </div>
+
+        <div class="stats-grid">
+          <article class="stat-card">
+            <p class="stat-label">Total Schedules</p>
+            <h3>—</h3>
+            <p class="stat-description">Awaiting data connection</p>
+          </article>
+
+          <article class="stat-card">
+            <p class="stat-label">Today's Classes</p>
+            <h3>—</h3>
+            <p class="stat-description">Awaiting data connection</p>
+          </article>
+
+          <article class="stat-card">
+            <p class="stat-label">Assigned Teachers</p>
+            <h3>—</h3>
+            <p class="stat-description">Awaiting data connection</p>
+          </article>
+        </div>
+      </section>
+
+      <section
+        class="dashboard-section form-section"
+        id="schedule-form-section"
+        hidden
+      >
+        <div class="section-heading">
+          <div>
+            <h2 id="schedule-form-title">Add Schedule</h2>
+            <p>Enter the class timing and teaching details.</p>
+          </div>
+        </div>
+
+        <div id="schedules-message" class="form-message" role="status" hidden></div>
+
+        <form id="schedule-form">
+          <div class="form-grid">
+
+            <div class="form-group">
+              <label for="schedule-title">Schedule Title *</label>
+              <input
+                type="text"
+                id="schedule-title"
+                name="title"
+                maxlength="120"
+                required
+                placeholder="e.g. Mathematics - Morning Batch"
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="schedule-class">Class / Course *</label>
+              <select id="schedule-class" name="class" required>
+                <option value="">Select a class</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="schedule-subject">Subject *</label>
+              <input
+                type="text"
+                id="schedule-subject"
+                name="subject"
+                maxlength="100"
+                required
+                placeholder="Enter subject"
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="schedule-teacher">Assigned Teacher *</label>
+              <select id="schedule-teacher" name="teacher" required>
+                <option value="">Select a teacher</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="schedule-date">Date *</label>
+              <input type="date" id="schedule-date" name="date" required>
+            </div>
+
+            <div class="form-group">
+              <label for="schedule-day">Recurring Day (optional)</label>
+              <select id="schedule-day" name="day">
+                <option value="">One-time class</option>
+                <option value="Monday">Monday</option>
+                <option value="Tuesday">Tuesday</option>
+                <option value="Wednesday">Wednesday</option>
+                <option value="Thursday">Thursday</option>
+                <option value="Friday">Friday</option>
+                <option value="Saturday">Saturday</option>
+                <option value="Sunday">Sunday</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="schedule-start-time">Start Time *</label>
+              <input
+                type="time"
+                id="schedule-start-time"
+                name="startTime"
+                required
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="schedule-end-time">End Time *</label>
+              <input
+                type="time"
+                id="schedule-end-time"
+                name="endTime"
+                required
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="schedule-room">Room / Online Link</label>
+              <input
+                type="text"
+                id="schedule-room"
+                name="room"
+                maxlength="200"
+                placeholder="Room number or meeting link"
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="schedule-status">Schedule Status *</label>
+              <select id="schedule-status" name="status" required>
+                <option value="scheduled">Scheduled</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+
+            <div class="form-group form-group-full">
+              <label for="schedule-notes">Notes (optional)</label>
+              <textarea
+                id="schedule-notes"
+                name="notes"
+                rows="3"
+                maxlength="1000"
+                placeholder="Additional instructions"
+              ></textarea>
+            </div>
+
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary" id="save-schedule-button">
+              Validate Schedule
+            </button>
+
+            <button
+              type="button"
+              class="btn btn-secondary"
+              id="cancel-schedule-button"
+            >Cancel</button>
+          </div>
+
+          <p class="form-help">
+            Class and teacher lists require connected records. Schedules are not
+            saved or published until backend storage is connected.
+          </p>
+        </form>
+      </section>
+
+      <section class="dashboard-section">
+        <div class="section-heading">
+          <div>
+            <h2>All Schedules</h2>
+            <p>Review and filter scheduled classes.</p>
+          </div>
+        </div>
+
+        <div class="table-toolbar">
+          <div class="form-group">
+            <label for="schedule-search">Search schedules</label>
+            <input
+              type="search"
+              id="schedule-search"
+              placeholder="Search by title or subject"
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="schedule-date-filter">Filter by date</label>
+            <input type="date" id="schedule-date-filter">
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Schedule</th>
+                <th>Class</th>
+                <th>Subject</th>
+                <th>Teacher</th>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+
+            <tbody id="schedules-table-body">
+              <tr>
+                <td colspan="7" class="empty-state">
+                  <strong>No schedule records loaded</strong>
+                  <p>
+                    Connect the backend to load and manage actual schedules.
+                  </p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</body>
+</html>

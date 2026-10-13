@@ -1,0 +1,202 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Manage academy classes in EduAdmin.">
+  <title>Classes | EduAdmin</title>
+
+  <link rel="stylesheet" href="../../css/app.css">
+
+  <script src="../../js/main.js" defer></script>
+  <script src="../../js/navigation.js" defer></script>
+  <script src="../../js/admin-sidebar.js" defer></script>
+  <script src="../../js/admin-classes.js" defer></script>
+</head>
+
+<body>
+  <div class="dashboard-layout">
+    <div id="admin-sidebar-mount"></div>
+
+    <main class="dashboard-main">
+      <header class="dashboard-topbar">
+        <div class="topbar-left">
+          <button
+            type="button"
+            class="sidebar-toggle"
+            id="sidebar-toggle"
+            aria-label="Open navigation menu"
+            aria-controls="admin-sidebar"
+            aria-expanded="false"
+          >☰</button>
+
+          <div>
+            <h1>Classes</h1>
+            <p>Manage your academy's classes and schedules.</p>
+          </div>
+        </div>
+      </header>
+
+      <div class="dashboard-content">
+        <section class="page-heading">
+          <div>
+            <h1>Class management</h1>
+            <p>Create classes and assign teachers when academy data is connected.</p>
+          </div>
+
+          <button
+            type="button"
+            class="primary-button"
+            id="add-class-button"
+          >
+            + Add class
+          </button>
+        </section>
+
+        <div
+          id="classes-message"
+          class="message info"
+          role="status"
+          hidden
+        ></div>
+
+        <!-- Class form -->
+        <section class="card" id="class-form-section" hidden>
+          <div class="section-title-row">
+            <div>
+              <h2 id="class-form-title">Add class</h2>
+              <p>Enter the class details below.</p>
+            </div>
+          </div>
+
+          <form id="class-form" class="form-grid">
+            <div class="form-group">
+              <label for="class-name">Class name *</label>
+              <input
+                type="text"
+                id="class-name"
+                name="className"
+                placeholder="Enter class name"
+                maxlength="100"
+                required
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="class-subject">Subject *</label>
+              <input
+                type="text"
+                id="class-subject"
+                name="subject"
+                placeholder="Enter subject"
+                maxlength="100"
+                required
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="class-teacher">Assigned teacher</label>
+              <select id="class-teacher" name="teacherId">
+                <option value="">No teacher selected</option>
+              </select>
+              <p class="form-help">
+                Teacher options will be available when teacher records are connected.
+              </p>
+            </div>
+
+            <div class="form-group">
+              <label for="class-schedule">Schedule</label>
+              <input
+                type="text"
+                id="class-schedule"
+                name="schedule"
+                placeholder="e.g. Monday and Wednesday, 4:00 PM"
+                maxlength="150"
+              >
+            </div>
+
+            <div class="form-group full-width">
+              <label for="class-description">Description</label>
+              <textarea
+                id="class-description"
+                name="description"
+                placeholder="Optional class description"
+                maxlength="1000"
+              ></textarea>
+            </div>
+
+            <div class="full-width" style="display:flex; gap:10px; flex-wrap:wrap;">
+              <button type="submit" class="primary-button" id="save-class-button">
+                Save class
+              </button>
+
+              <button
+                type="button"
+                class="secondary-button"
+                id="cancel-class-button"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <!-- Search and filter -->
+        <section class="dashboard-section">
+          <div class="toolbar">
+            <input
+              type="search"
+              id="class-search"
+              aria-label="Search classes"
+              placeholder="Search classes..."
+              disabled
+            >
+
+            <select id="class-status-filter" aria-label="Filter by status" disabled>
+              <option value="">All statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th scope="col">Class name</th>
+                  <th scope="col">Subject</th>
+                  <th scope="col">Assigned teacher</th>
+                  <th scope="col">Schedule</th>
+                  <th scope="col">Status</th>
+                </tr>
+              </thead>
+
+              <tbody id="classes-table-body">
+                <tr>
+                  <td colspan="5">
+                    <div class="empty-state">
+                      <h3>No class records loaded</h3>
+                      <p>Class data is not connected yet.</p>
+                      <small>
+                        Connect the academy data service to load and save real class records.
+                      </small>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <footer class="dashboard-footer">
+        <span>EduAdmin</span>
+        <span>Class management</span>
+      </footer>
+    </main>
+  </div>
+
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+</body>
+</html>

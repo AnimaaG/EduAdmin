@@ -1,0 +1,115 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f5f7fb">
+  <title>Student Dashboard | EduAdmin</title>
+
+  <link rel="stylesheet" href="../../css/app.css">
+
+  <script src="../../js/main.js" defer></script>
+  <script src="../../js/navigation.js" defer></script>
+  <script src="../../js/student-sidebar.js" defer></script>
+  <script src="../../js/student-dashboard.js" defer></script>
+</head>
+
+<body>
+  <div class="dashboard-layout">
+
+    <div id="student-sidebar-mount"></div>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <main class="dashboard-main">
+
+      <header class="dashboard-topbar">
+        <button
+          type="button"
+          class="sidebar-toggle"
+          id="sidebar-toggle"
+          aria-label="Toggle navigation"
+          aria-controls="student-sidebar"
+          aria-expanded="false"
+        >☰</button>
+
+        <div>
+          <p class="eyebrow">STUDENT PORTAL</p>
+          <h1>Dashboard</h1>
+          <p>Access your learning resources, classes, and academic information.</p>
+        </div>
+      </header>
+
+      <section class="dashboard-section">
+        <div class="section-heading">
+          <div>
+            <h2>My Learning Overview</h2>
+            <p>Your academic information will appear here after your account is connected.</p>
+          </div>
+        </div>
+
+        <div class="stats-grid">
+
+          <article class="stat-card">
+            <p class="stat-label">My Classes</p>
+            <h3>—</h3>
+            <p class="stat-description">Class records not connected</p>
+          </article>
+
+          <article class="stat-card">
+            <p class="stat-label">Upcoming Classes</p>
+            <h3>—</h3>
+            <p class="stat-description">Schedule data not connected</p>
+          </article>
+
+          <article class="stat-card">
+            <p class="stat-label">Study Materials</p>
+            <h3>—</h3>
+            <p class="stat-description">Material data not connected</p>
+          </article>
+
+          <article class="stat-card">
+            <p class="stat-label">Attendance</p>
+            <h3>—</h3>
+            <p class="stat-description">Attendance data not connected</p>
+          </article>
+
+        </div>
+      </section>
+
+
+      <section class="dashboard-section">
+        <div class="section-heading">
+          <div>
+            <h2>Recent Updates</h2>
+            <p>Important academic announcements and account updates.</p>
+          </div>
+        </div>
+
+        <div class="empty-state">
+          <strong>No updates available</strong>
+          <p>
+            Announcements and notifications will appear here when the relevant
+            services are connected.
+          </p>
+        </div>
+      </section>
+
+      <section class="dashboard-section">
+        <div class="section-heading">
+          <div>
+            <h2>Account Status</h2>
+            <p>Student account information and access status.</p>
+          </div>
+        </div>
+
+        <div class="form-message" role="status">
+          Student authentication and account records are not connected yet.
+          Sign-in status and personal details cannot be verified.
+        </div>
+      </section>
+
+    </main>
+  </div>
+</body>
+</html>

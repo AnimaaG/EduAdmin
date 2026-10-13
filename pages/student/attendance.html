@@ -1,0 +1,158 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f5f7fb">
+  <title>My Attendance | EduAdmin</title>
+
+  <link rel="stylesheet" href="../../css/app.css">
+
+  <script src="../../js/main.js" defer></script>
+  <script src="../../js/navigation.js" defer></script>
+  <script src="../../js/student-sidebar.js" defer></script>
+  <script src="../../js/student-attendance.js" defer></script>
+</head>
+
+<body>
+  <div class="dashboard-layout">
+
+    <div id="student-sidebar-mount"></div>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <main class="dashboard-main">
+
+      <header class="dashboard-topbar">
+        <button
+          type="button"
+          class="sidebar-toggle"
+          id="sidebar-toggle"
+          aria-label="Toggle navigation"
+          aria-controls="student-sidebar"
+          aria-expanded="false"
+        >☰</button>
+
+        <div>
+          <p class="eyebrow">STUDENT PORTAL</p>
+          <h1>My Attendance</h1>
+          <p>Review your attendance records and class attendance history.</p>
+        </div>
+      </header>
+
+      <section class="dashboard-section">
+        <div class="section-heading">
+          <div>
+            <h2>Attendance Overview</h2>
+            <p>Your attendance summary will appear when records are connected.</p>
+          </div>
+        </div>
+
+        <div class="stats-grid">
+          <article class="stat-card">
+            <p class="stat-label">Attendance Percentage</p>
+            <h3>—</h3>
+            <p class="stat-description">Attendance data not connected</p>
+          </article>
+
+          <article class="stat-card">
+            <p class="stat-label">Classes Attended</p>
+            <h3>—</h3>
+            <p class="stat-description">Attendance data not connected</p>
+          </article>
+
+          <article class="stat-card">
+            <p class="stat-label">Classes Missed</p>
+            <h3>—</h3>
+            <p class="stat-description">Attendance data not connected</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="dashboard-section">
+        <div class="section-heading">
+          <div>
+            <h2>Attendance History</h2>
+            <p>Filter your recorded attendance by date and status.</p>
+          </div>
+        </div>
+
+        <div class="table-toolbar">
+          <div class="form-group">
+            <label for="student-attendance-date">Filter by date</label>
+            <input type="date" id="student-attendance-date">
+          </div>
+
+          <div class="form-group">
+            <label for="student-attendance-status">Attendance status</label>
+            <select id="student-attendance-status">
+              <option value="all">All statuses</option>
+              <option value="present">Present</option>
+              <option value="absent">Absent</option>
+              <option value="late">Late</option>
+              <option value="excused">Excused</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="student-attendance-search">Search records</label>
+            <input
+              type="search"
+              id="student-attendance-search"
+              placeholder="Search by class or subject"
+            >
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Class</th>
+                <th>Subject</th>
+                <th>Teacher</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+
+            <tbody id="student-attendance-table-body">
+              <tr>
+                <td colspan="5" class="empty-state">
+                  <strong>No attendance records available</strong>
+                  <p>
+                    Your attendance history will appear here after the academy
+                    records and connects your attendance.
+                  </p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="dashboard-section">
+        <div class="section-heading">
+          <div>
+            <h2>Attendance Information</h2>
+            <p>Important details about attendance records.</p>
+          </div>
+        </div>
+
+        <ul>
+          <li>Attendance is recorded by authorized academy staff or teachers.</li>
+          <li>Only attendance entries associated with your account should be displayed.</li>
+          <li>Contact your teacher or academy administrator if you believe a record is incorrect.</li>
+          <li>Attendance percentages should be calculated from verified attendance records.</li>
+        </ul>
+
+        <p class="form-help">
+          No attendance percentage or individual attendance status is available
+          until actual records are connected.
+        </p>
+      </section>
+
+    </main>
+  </div>
+</body>
+</html>

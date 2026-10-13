@@ -1,0 +1,227 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f5f7fb">
+  <title>Fees & Payments | EduAdmin</title>
+
+  <link rel="stylesheet" href="../../css/app.css">
+
+  <script src="../../js/main.js" defer></script>
+  <script src="../../js/navigation.js" defer></script>
+  <script src="../../js/admin-sidebar.js" defer></script>
+  <script src="../../js/admin-fees.js" defer></script>
+</head>
+
+<body>
+  <div class="dashboard-layout">
+
+    <div id="admin-sidebar-mount"></div>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <main class="dashboard-main">
+
+      <header class="dashboard-topbar">
+        <button
+          type="button"
+          class="sidebar-toggle"
+          id="sidebar-toggle"
+          aria-label="Toggle navigation"
+          aria-controls="admin-sidebar"
+          aria-expanded="false"
+        >☰</button>
+
+        <div>
+          <p class="eyebrow">FINANCE MANAGEMENT</p>
+          <h1>Fees & Payments</h1>
+          <p>Review student payments and manage paid study-material access.</p>
+        </div>
+      </header>
+
+      <section class="dashboard-section">
+        <div class="section-heading">
+          <div>
+            <h2>Payment Overview</h2>
+            <p>Payment totals will appear when real financial records are connected.</p>
+          </div>
+        </div>
+
+        <div class="stats-grid">
+          <article class="stat-card">
+            <p class="stat-label">Payments Received</p>
+            <h3>—</h3>
+            <p class="stat-description">Awaiting verified payment records</p>
+          </article>
+
+          <article class="stat-card">
+            <p class="stat-label">Pending Approvals</p>
+            <h3 id="pending-approvals-count">—</h3>
+            <p class="stat-description">Awaiting payment submissions</p>
+          </article>
+
+          <article class="stat-card">
+            <p class="stat-label">Rejected Payments</p>
+            <h3>—</h3>
+            <p class="stat-description">Awaiting review records</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="dashboard-section">
+        <div class="section-heading">
+          <div>
+            <h2>Payment Approvals</h2>
+            <p>
+              Verify UPI transactions against your bank or UPI account before
+              granting paid-material access.
+            </p>
+          </div>
+        </div>
+
+        <div class="form-message" role="status">
+          Manual approval is planned. No live payment requests are available
+          until the backend is connected.
+        </div>
+
+        <div class="table-toolbar">
+          <div class="form-group">
+            <label for="payment-search">Search payment requests</label>
+            <input
+              type="search"
+              id="payment-search"
+              placeholder="Search by student or transaction reference"
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="payment-status-filter">Payment status</label>
+            <select id="payment-status-filter">
+              <option value="all">All statuses</option>
+              <option value="pending">Pending Review</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+              <option value="refunded">Refunded</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th>Material / Fee</th>
+                <th>Amount</th>
+                <th>UPI Reference</th>
+                <th>Submitted</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+
+            <tbody id="payment-approvals-table-body">
+              <tr>
+                <td colspan="7" class="empty-state">
+                  <strong>No payment requests loaded</strong>
+                  <p>
+                    Actual student submissions will appear here after backend
+                    integration.
+                  </p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="dashboard-section">
+        <div class="section-heading">
+          <div>
+            <h2>UPI Payment Settings</h2>
+            <p>Configure the payment details students will use to pay.</p>
+          </div>
+        </div>
+
+        <div class="form-message" role="status">
+          Payment settings are not saved yet. Do not enter sensitive banking
+          credentials here.
+        </div>
+
+        <form id="upi-settings-form">
+          <div class="form-grid">
+
+            <div class="form-group">
+              <label for="upi-id">UPI ID</label>
+              <input
+                type="text"
+                id="upi-id"
+                name="upiId"
+                placeholder="yourname@bank"
+                autocomplete="off"
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="upi-payee-name">Payee Name</label>
+              <input
+                type="text"
+                id="upi-payee-name"
+                name="payeeName"
+                placeholder="Name displayed to students"
+                maxlength="100"
+              >
+            </div>
+
+            <div class="form-group form-group-full">
+              <label for="upi-qr-file">UPI QR Code Image</label>
+              <input
+                type="file"
+                id="upi-qr-file"
+                name="qrFile"
+                accept="image/png,image/jpeg,image/webp"
+              >
+              <small>
+                Selecting a QR image will not upload or publish it until storage
+                is connected.
+              </small>
+            </div>
+
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">
+              Validate Payment Settings
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section class="dashboard-section">
+        <div class="section-heading">
+          <div>
+            <h2>Approval Rules</h2>
+            <p>These are the intended payment-processing rules.</p>
+          </div>
+        </div>
+
+        <ul>
+          <li>New payment submissions start as Pending Review.</li>
+          <li>Admins must verify the actual received payment before approval.</li>
+          <li>Approved payments grant access only to the associated material or fee.</li>
+          <li>Rejected and pending payments do not grant paid-material access.</li>
+          <li>Repeated transaction references must not approve multiple purchases.</li>
+          <li>Payment decisions should be recorded with the reviewer and timestamp.</li>
+        </ul>
+
+        <p class="form-help">
+          Approval actions, secure access control, payment notifications, and
+          audit history are not active until backend services are implemented.
+        </p>
+      </section>
+
+    </main>
+  </div>
+</body>
+</html>

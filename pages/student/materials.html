@@ -1,0 +1,185 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f5f7fb">
+  <title>Study Materials | EduAdmin Student</title>
+
+  <link rel="stylesheet" href="../../css/app.css">
+
+  <script src="../../js/main.js" defer></script>
+  <script src="../../js/navigation.js" defer></script>
+  <script src="../../js/student-sidebar.js" defer></script>
+  <script src="../../js/student-materials.js" defer></script>
+</head>
+
+<body>
+  <div class="dashboard-layout">
+
+    <div id="student-sidebar-mount"></div>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <main class="dashboard-main">
+
+      <header class="dashboard-topbar">
+        <button
+          type="button"
+          class="sidebar-toggle"
+          id="sidebar-toggle"
+          aria-label="Toggle navigation"
+          aria-controls="student-sidebar"
+          aria-expanded="false"
+        >☰</button>
+
+        <div>
+          <p class="eyebrow">STUDENT PORTAL</p>
+          <h1>Study Materials</h1>
+          <p>Browse your learning resources and check access to paid materials.</p>
+        </div>
+      </header>
+
+      <section class="dashboard-section">
+        <div class="section-heading">
+          <div>
+            <h2>Browse Materials</h2>
+            <p>Search for notes, worksheets, assignments, and other resources.</p>
+          </div>
+        </div>
+
+        <div class="table-toolbar">
+          <div class="form-group">
+            <label for="student-material-search">Search materials</label>
+            <input
+              type="search"
+              id="student-material-search"
+              placeholder="Search by title or subject"
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="student-material-type-filter">Material type</label>
+            <select id="student-material-type-filter">
+              <option value="all">All types</option>
+              <option value="notes">Notes</option>
+              <option value="worksheet">Worksheets</option>
+              <option value="assignment">Assignments</option>
+              <option value="question-paper">Question papers</option>
+              <option value="answer-key">Answer keys</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="student-material-access-filter">Access</label>
+            <select id="student-material-access-filter">
+              <option value="all">All materials</option>
+              <option value="free">Free</option>
+              <option value="paid">Paid</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Material</th>
+                <th>Subject</th>
+                <th>Class</th>
+                <th>Access</th>
+                <th>Price</th>
+                <th>Availability</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+
+            <tbody id="student-materials-table-body">
+              <tr>
+                <td colspan="7" class="empty-state">
+                  <strong>No materials available</strong>
+                  <p>
+                    Study materials will appear here when published materials
+                    are connected to your student account.
+                  </p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="dashboard-section">
+        <div class="section-heading">
+          <div>
+            <h2>Paid Material Access</h2>
+            <p>Understand how payment verification controls access.</p>
+          </div>
+        </div>
+
+        <div class="stats-grid">
+
+          <article class="stat-card">
+            <p class="stat-label">Payment Pending</p>
+            <h3>Pending Review</h3>
+            <p class="stat-description">
+              The admin must verify the UPI transaction. Material access remains locked.
+            </p>
+          </article>
+
+          <article class="stat-card">
+            <p class="stat-label">Payment Approved</p>
+            <h3>Access Granted</h3>
+            <p class="stat-description">
+              Access becomes available after the backend records the approval.
+            </p>
+          </article>
+
+          <article class="stat-card">
+            <p class="stat-label">Payment Rejected</p>
+            <h3>Access Locked</h3>
+            <p class="stat-description">
+              Check the payment details and contact the academy if necessary.
+            </p>
+          </article>
+
+        </div>
+
+        <p class="form-help">
+          These are workflow explanations, not your personal payment status.
+          No payment has been verified by this page.
+        </p>
+      </section>
+
+      <section
+        class="dashboard-section"
+        id="student-material-payment-section"
+        aria-labelledby="student-material-payment-title"
+      >
+        <div class="section-heading">
+          <div>
+            <h2 id="student-material-payment-title">Payment Instructions</h2>
+            <p>Instructions for requesting access to a paid material.</p>
+          </div>
+        </div>
+
+        <ol>
+          <li>Select a paid material from the list once materials are available.</li>
+          <li>Review the price and the academy's configured UPI payment details.</li>
+          <li>Pay using the displayed QR code or UPI details.</li>
+          <li>Submit the transaction reference through the payment form when available.</li>
+          <li>Wait for the admin to verify the payment.</li>
+          <li>Open the material after approval is recorded.</li>
+        </ol>
+
+        <div class="form-message" role="status">
+          UPI details, QR code, payment submission, and material unlocking are
+          not connected yet. Do not make a payment based on this placeholder page.
+        </div>
+      </section>
+
+    </main>
+  </div>
+</body>
+</html>

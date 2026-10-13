@@ -1,0 +1,307 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f5f7fb">
+  <title>Study Materials | EduAdmin</title>
+  <link rel="stylesheet" href="../../css/app.css">
+
+  <script src="../../js/main.js" defer></script>
+  <script src="../../js/navigation.js" defer></script>
+  <script src="../../js/admin-sidebar.js" defer></script>
+  <script src="../../js/admin-materials.js" defer></script>
+</head>
+
+<body>
+  <div class="dashboard-layout">
+
+    <div id="admin-sidebar-mount"></div>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <main class="dashboard-main">
+      <header class="dashboard-topbar">
+        <button
+          type="button"
+          class="sidebar-toggle"
+          id="sidebar-toggle"
+          aria-label="Toggle navigation"
+          aria-controls="admin-sidebar"
+          aria-expanded="false"
+        >
+          ☰
+        </button>
+
+        <div>
+          <p class="eyebrow">ACADEMIC MANAGEMENT</p>
+          <h1>Study Materials</h1>
+          <p>Manage learning resources and paid-material approval settings.</p>
+        </div>
+      </header>
+
+      <section class="dashboard-section" aria-labelledby="materials-overview-title">
+        <div class="section-heading">
+          <div>
+            <h2 id="materials-overview-title">Material Library</h2>
+            <p>Publish resources for students and configure free or paid access.</p>
+          </div>
+
+          <button
+            type="button"
+            class="btn btn-primary"
+            id="add-material-button"
+          >
+            + Add Material
+          </button>
+        </div>
+
+        <div class="stats-grid">
+          <article class="stat-card">
+            <p class="stat-label">Total Materials</p>
+            <h3 id="total-materials-count">—</h3>
+            <p class="stat-description">Awaiting data connection</p>
+          </article>
+
+          <article class="stat-card">
+            <p class="stat-label">Paid Materials</p>
+            <h3 id="paid-materials-count">—</h3>
+            <p class="stat-description">Awaiting data connection</p>
+          </article>
+
+          <article class="stat-card">
+            <p class="stat-label">Pending Payment Reviews</p>
+            <h3 id="pending-material-payments-count">—</h3>
+            <p class="stat-description">
+              Payment requests will be managed under Fees
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section
+        class="dashboard-section form-section"
+        id="material-form-section"
+        hidden
+        aria-labelledby="material-form-title"
+      >
+        <div class="section-heading">
+          <div>
+            <h2 id="material-form-title">Add Study Material</h2>
+            <p>Enter the resource details and access conditions.</p>
+          </div>
+        </div>
+
+        <div id="materials-message" class="form-message" role="status" hidden></div>
+
+        <form id="material-form">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="material-title">Material Title *</label>
+              <input
+                type="text"
+                id="material-title"
+                name="title"
+                required
+                maxlength="150"
+                placeholder="Enter material title"
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="material-subject">Subject *</label>
+              <input
+                type="text"
+                id="material-subject"
+                name="subject"
+                required
+                maxlength="100"
+                placeholder="Enter subject"
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="material-class">Class / Course *</label>
+              <input
+                type="text"
+                id="material-class"
+                name="class"
+                required
+                maxlength="100"
+                placeholder="Enter class or course"
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="material-type">Material Type *</label>
+              <select id="material-type" name="type" required>
+                <option value="">Select material type</option>
+                <option value="notes">Notes</option>
+                <option value="worksheet">Worksheet</option>
+                <option value="assignment">Assignment</option>
+                <option value="question-paper">Question Paper</option>
+                <option value="answer-key">Answer Key</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="material-access">Access Type *</label>
+              <select id="material-access" name="access" required>
+                <option value="free">Free</option>
+                <option value="paid">Paid — requires manual payment approval</option>
+              </select>
+            </div>
+
+            <div class="form-group" id="material-price-group" hidden>
+              <label for="material-price">Price (INR) *</label>
+              <input
+                type="number"
+                id="material-price"
+                name="price"
+                min="1"
+                max="100000"
+                step="0.01"
+                placeholder="Enter price in ₹"
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="material-resource-url">Resource URL</label>
+              <input
+                type="url"
+                id="material-resource-url"
+                name="resourceUrl"
+                maxlength="2048"
+                placeholder="https://..."
+              >
+              <small>Use a link to the resource if one is available.</small>
+            </div>
+
+            <div class="form-group">
+              <label for="material-file">Select a File (optional)</label>
+              <input
+                type="file"
+                id="material-file"
+                name="file"
+                accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.jpeg,.png"
+              >
+              <small>
+                File selection is for the interface only. Upload and storage
+                are not connected yet.
+              </small>
+            </div>
+
+            <div class="form-group form-group-full">
+              <label for="material-description">Description</label>
+              <textarea
+                id="material-description"
+                name="description"
+                rows="4"
+                maxlength="1000"
+                placeholder="Describe what students will learn from this material"
+              ></textarea>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary" id="save-material-button">
+              Validate Material
+            </button>
+            <button
+              type="button"
+              class="btn btn-secondary"
+              id="cancel-material-button"
+            >
+              Cancel
+            </button>
+          </div>
+
+          <p class="form-help">
+            Materials cannot be published or saved until backend storage is connected.
+            Paid materials must remain locked until an admin verifies the UPI payment.
+          </p>
+        </form>
+      </section>
+
+      <section class="dashboard-section" aria-labelledby="materials-list-title">
+        <div class="section-heading">
+          <div>
+            <h2 id="materials-list-title">All Materials</h2>
+            <p>Search and filter your learning resources.</p>
+          </div>
+        </div>
+
+        <div class="table-toolbar">
+          <div class="form-group">
+            <label for="material-search">Search materials</label>
+            <input
+              type="search"
+              id="material-search"
+              placeholder="Search by title or subject"
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="material-access-filter">Access type</label>
+            <select id="material-access-filter">
+              <option value="all">All materials</option>
+              <option value="free">Free</option>
+              <option value="paid">Paid</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Material</th>
+                <th>Class / Course</th>
+                <th>Type</th>
+                <th>Access</th>
+                <th>Price</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+
+            <tbody id="materials-table-body">
+              <tr>
+                <td colspan="6" class="empty-state">
+                  <strong>No material records loaded</strong>
+                  <p>
+                    Connect the backend to manage, publish, and retrieve study materials.
+                  </p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="dashboard-section" aria-labelledby="material-approval-note-title">
+        <div class="section-heading">
+          <div>
+            <h2 id="material-approval-note-title">Paid Material Approval</h2>
+            <p>How paid access will work after backend integration.</p>
+          </div>
+        </div>
+
+        <ul>
+          <li>Students submit UPI payment details for a paid material.</li>
+          <li>The payment request appears under Fees → Payment Approvals.</li>
+          <li>The admin verifies the payment against the actual UPI or bank record.</li>
+          <li>Only approved payments unlock the purchased material.</li>
+          <li>Pending and rejected payments remain locked.</li>
+        </ul>
+
+        <p class="form-help">
+          Payment verification, live notifications, and material access control
+          are not active until the backend is connected.
+        </p>
+      </section>
+
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,144 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Manage student attendance in EduAdmin.">
+  <title>Attendance | EduAdmin</title>
+
+  <link rel="stylesheet" href="../../css/app.css">
+
+  <script src="../../js/main.js" defer></script>
+  <script src="../../js/navigation.js" defer></script>
+  <script src="../../js/admin-sidebar.js" defer></script>
+  <script src="../../js/admin-attendance.js" defer></script>
+</head>
+
+<body>
+  <div class="dashboard-layout">
+    <div id="admin-sidebar-mount"></div>
+
+    <main class="dashboard-main">
+      <header class="dashboard-topbar">
+        <div class="topbar-left">
+          <button
+            type="button"
+            class="sidebar-toggle"
+            id="sidebar-toggle"
+            aria-label="Open navigation menu"
+            aria-controls="admin-sidebar"
+            aria-expanded="false"
+          >☰</button>
+
+          <div>
+            <h1>Attendance</h1>
+            <p>Record and review student attendance.</p>
+          </div>
+        </div>
+      </header>
+
+      <div class="dashboard-content">
+        <section class="page-heading">
+          <div>
+            <h1>Attendance management</h1>
+            <p>Select a class and date to manage attendance records.</p>
+          </div>
+        </section>
+
+        <div
+          id="attendance-message"
+          class="message info"
+          role="status"
+          hidden
+        ></div>
+
+        <section class="card dashboard-section">
+          <div class="section-title-row">
+            <div>
+              <h2>Attendance session</h2>
+              <p>Choose the class and date for the session.</p>
+            </div>
+          </div>
+
+          <form id="attendance-filter-form" class="form-grid">
+            <div class="form-group">
+              <label for="attendance-class">Class *</label>
+              <select id="attendance-class" name="classId" required>
+                <option value="">Select a class</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="attendance-date">Attendance date *</label>
+              <input
+                id="attendance-date"
+                name="date"
+                type="date"
+                required
+              >
+            </div>
+
+            <div class="full-width">
+              <button type="submit" class="primary-button">
+                Load students
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <section class="dashboard-section">
+          <div class="section-title-row">
+            <div>
+              <h2>Student attendance</h2>
+              <p>Attendance records for the selected session.</p>
+            </div>
+          </div>
+
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th scope="col">Student name</th>
+                  <th scope="col">Attendance status</th>
+                </tr>
+              </thead>
+
+              <tbody id="attendance-table-body">
+                <tr>
+                  <td colspan="2">
+                    <div class="empty-state">
+                      <h3>No attendance records loaded</h3>
+                      <p>Student and attendance data are not connected yet.</p>
+                      <small>
+                        Connect the academy data service to load students
+                        and save attendance for the selected class and date.
+                      </small>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div style="display:flex; justify-content:flex-end; margin-top:16px;">
+            <button
+              type="button"
+              class="primary-button"
+              id="save-attendance-button"
+              disabled
+            >Save attendance</button>
+          </div>
+        </section>
+      </div>
+
+      <footer class="dashboard-footer">
+        <span>EduAdmin</span>
+        <span>Attendance management</span>
+      </footer>
+    </main>
+  </div>
+
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+</body>
+</html>

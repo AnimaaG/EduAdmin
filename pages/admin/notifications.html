@@ -1,0 +1,221 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f5f7fb">
+  <title>Notifications | EduAdmin</title>
+
+  <link rel="stylesheet" href="../../css/app.css">
+
+  <script src="../../js/main.js" defer></script>
+  <script src="../../js/navigation.js" defer></script>
+  <script src="../../js/admin-sidebar.js" defer></script>
+  <script src="../../js/admin-notifications.js" defer></script>
+</head>
+
+<body>
+  <div class="dashboard-layout">
+
+    <div id="admin-sidebar-mount"></div>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <main class="dashboard-main">
+
+      <header class="dashboard-topbar">
+        <button
+          type="button"
+          class="sidebar-toggle"
+          id="sidebar-toggle"
+          aria-label="Toggle navigation"
+          aria-controls="admin-sidebar"
+          aria-expanded="false"
+        >☰</button>
+
+        <div>
+          <p class="eyebrow">ALERT CENTER</p>
+          <h1>Notifications</h1>
+          <p>Monitor payment submissions and important academy updates.</p>
+        </div>
+      </header>
+
+      <section class="dashboard-section">
+        <div class="section-heading">
+          <div>
+            <h2>Notification Overview</h2>
+            <p>Counts will update when notification data is connected.</p>
+          </div>
+
+          <button
+            type="button"
+            class="btn btn-secondary"
+            id="mark-all-read-button"
+            disabled
+          >
+            Mark All as Read
+          </button>
+        </div>
+
+        <div class="stats-grid">
+          <article class="stat-card">
+            <p class="stat-label">Unread Notifications</p>
+            <h3 id="unread-notifications-count">—</h3>
+            <p class="stat-description">Awaiting notification data</p>
+          </article>
+
+          <article class="stat-card">
+            <p class="stat-label">Pending Payment Alerts</p>
+            <h3 id="pending-payment-alerts-count">—</h3>
+            <p class="stat-description">Awaiting payment submissions</p>
+          </article>
+
+          <article class="stat-card">
+            <p class="stat-label">System Alerts</p>
+            <h3 id="system-alerts-count">—</h3>
+            <p class="stat-description">Awaiting system events</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="dashboard-section">
+        <div class="section-heading">
+          <div>
+            <h2>All Notifications</h2>
+            <p>Review alerts and navigate to the relevant admin section.</p>
+          </div>
+        </div>
+
+        <div class="table-toolbar">
+          <div class="form-group">
+            <label for="notification-search">Search notifications</label>
+            <input
+              type="search"
+              id="notification-search"
+              placeholder="Search notification title or details"
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="notification-type-filter">Notification type</label>
+            <select id="notification-type-filter">
+              <option value="all">All notifications</option>
+              <option value="payment">Payment alerts</option>
+              <option value="material">Study materials</option>
+              <option value="system">System alerts</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="notification-status-filter">Read status</label>
+            <select id="notification-status-filter">
+              <option value="all">All statuses</option>
+              <option value="unread">Unread</option>
+              <option value="read">Read</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Notification</th>
+                <th>Type</th>
+                <th>Date & Time</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+
+            <tbody id="notifications-table-body">
+              <tr>
+                <td colspan="5" class="empty-state">
+                  <strong>No notifications loaded</strong>
+                  <p>
+                    Notifications will appear here when real backend events
+                    are connected.
+                  </p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="dashboard-section">
+        <div class="section-heading">
+          <div>
+            <h2>Notification Delivery</h2>
+            <p>Configure delivery channels after the backend is available.</p>
+          </div>
+        </div>
+
+        <div class="form-message" role="status">
+          Live notifications are not active yet. These options describe the
+          planned delivery channels and do not enable notifications.
+        </div>
+
+        <form id="notification-delivery-form">
+
+          <div class="form-group">
+            <label>
+              <input
+                type="checkbox"
+                id="delivery-in-app"
+                name="inApp"
+                checked
+              >
+              In-app notifications
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label>
+              <input
+                type="checkbox"
+                id="delivery-browser-push"
+                name="browserPush"
+              >
+              Browser push notifications
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label>
+              <input
+                type="checkbox"
+                id="delivery-email"
+                name="email"
+              >
+              Email alerts
+            </label>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">
+              Validate Delivery Preferences
+            </button>
+          </div>
+
+          <p class="form-help">
+            Browser push requires permission and push-service configuration.
+            Email alerts require a configured email delivery service. Preferences
+            will not be saved until backend storage is connected.
+          </p>
+
+        </form>
+      </section>
+
+      <div
+        id="notifications-message"
+        class="form-message"
+        role="status"
+        hidden
+        style="margin: 20px 30px;"
+      ></div>
+
+    </main>
+  </div>
+</body>
+</html>
