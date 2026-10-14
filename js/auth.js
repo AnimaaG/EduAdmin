@@ -10,6 +10,7 @@ import {
 
 import {
   doc,
+  getDoc,
   setDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
@@ -33,11 +34,15 @@ function friendlyError(error) {
     "auth/weak-password": "Choose a stronger password.",
     "auth/invalid-credential": "Email or password is incorrect.",
     "auth/too-many-requests": "Too many attempts. Please try again later.",
-    "permission-denied": "Firestore denied access. Security rules must be configured."
+    "auth/network-request-failed": "Network error. Check your internet connection.",
+    "permission-denied": "Firestore denied access. Check your security rules.",
+    "unavailable": "Firebase is temporarily unavailable. Please try again.",
+    "failed-precondition": "Firestore is not configured correctly.",
+    "not-found": "The requested Firebase resource was not found."
   };
 
   return errors[error.code] ||
-    "The operation failed. Check your connection and Firebase configuration.";
+    "The operation failed. Check the browser console for details.";
 }
 
 function initLoginForm() {
@@ -60,19 +65,21 @@ function initLoginForm() {
     button.disabled = true;
 
     try {
-      const result = await signInWithEmailAndPassword(auth, email, password);
-
-      const { getDoc } = await import(
-        "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js"
+      const result = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
       );
 
-      const profile = await getDoc(doc(db, "users", result.user.uid));
+      const profileRef = doc(db, "users", result.user.uid);
+      const profile = await getDoc(profileRef);
 
       if (!profile.exists()) {
         await signOut(auth);
+
         showMessage(
           "login-message",
-          "Your account profile is not ready. Contact the administrator.",
+          `No Firestore profile exists at users/${result.user.uid}. Create or correct the profile using this exact document ID in Firebase Console.`,
           "error"
         );
         return;
@@ -80,26 +87,53 @@ function initLoginForm() {
 
       const userData = profile.data();
 
-      if (userData.isActive !== true || userData.role !== selectedRole) {
+      if (userData.isActive !== true) {
         await signOut(auth);
         showMessage(
           "login-message",
-          "Your account is inactive or the selected account type is incorrect.",
+          "Your account is inactive. Contact the administrator.",
+          "error"
+        );
+        return;
+      }
+
+      if (userData.role !== selectedRole) {
+        await signOut(auth);
+        showMessage(
+          "login-message",
+          "The selected account type does not match your account.",
           "error"
         );
         return;
       }
 
       const destinations = {
-        admin: "../pages/admin/dashboard.html",
-        teacher: "../pages/teacher/dashboard.html",
-        student: "../pages/student/dashboard.html"
+        admin: "admin/dashboard.html",
+        teacher: "teacher/dashboard.html",
+        student: "student/dashboard.html"
       };
 
-      window.location.href = destinations[userData.role];
+      const destination = destinations[userData.role];
+
+      if (!destination) {
+        await signOut(auth);
+        showMessage(
+          "login-message",
+          "This account has an unsupported role.",
+          "error"
+        );
+        return;
+      }
+
+      window.location.href = destination;
     } catch (error) {
       console.error("Login failed:", error);
-      showMessage("login-message", friendlyError(error), "error");
+
+      showMessage(
+        "login-message",
+        friendlyError(error),
+        "error"
+      );
     } finally {
       button.disabled = false;
     }
@@ -124,6 +158,7 @@ function initLoginForm() {
 
       try {
         await sendPasswordResetEmail(auth, email);
+
         showMessage(
           "login-message",
           "If password recovery is available for this account, a reset email will be sent.",
@@ -158,8 +193,14 @@ function initRegisterForm() {
       "academy-registration-type"
     ).value;
 
-    if (!name || !email || !password || !confirmation || !role ||
-        !registrationType) {
+    if (
+      !name ||
+      !email ||
+      !password ||
+      !confirmation ||
+      !role ||
+      !registrationType
+    ) {
       showMessage("register-message", "Complete all required fields.", "error");
       return;
     }
@@ -175,8 +216,6 @@ function initRegisterForm() {
       return;
     }
 
-    // Public registration must not assign privileged roles.
-    // Admin and teacher accounts require a trusted provisioning workflow.
     if (role !== "student") {
       showMessage(
         "register-message",
@@ -219,8 +258,6 @@ function initRegisterForm() {
         password
       );
 
-      // This is a profile write, not academy-code verification.
-      // Firestore rules must enforce the allowed fields and role.
       await setDoc(doc(db, "users", credential.user.uid), {
         fullName: name,
         email,
@@ -241,7 +278,6 @@ function initRegisterForm() {
     } catch (error) {
       console.error("Registration failed:", error);
 
-      // Avoid leaving an Auth account behind if profile creation fails.
       if (credential?.user) {
         try {
           await deleteUser(credential.user);
