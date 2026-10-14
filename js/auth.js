@@ -258,7 +258,7 @@ function initRegisterForm() {
         password
       );
 
-      await setDoc(doc(db, "Users", credential.user.uid), {
+      await setDoc(doc(db, "users", credential.user.uid), {
         fullName: name,
         email,
         phone,
