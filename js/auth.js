@@ -12,7 +12,8 @@ import {
   doc,
   getDoc,
   setDoc,
-  serverTimestamp
+  serverTimestamp,
+  writeBatch
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 
 "use strict";
@@ -33,16 +34,15 @@ function friendlyError(error) {
     "auth/invalid-email": "Enter a valid email address.",
     "auth/weak-password": "Choose a stronger password.",
     "auth/invalid-credential": "Email or password is incorrect.",
-    "auth/too-many-requests": "Too many attempts. Please try again later.",
-    "auth/network-request-failed": "Network error. Check your internet connection.",
-    "permission-denied": "Firestore denied access. Check your security rules.",
-    "unavailable": "Firebase is temporarily unavailable. Please try again.",
-    "failed-precondition": "Firestore is not configured correctly.",
-    "not-found": "The requested Firebase resource was not found."
+    "auth/too-many-requests": "Too many attempts. Try again later.",
+    "auth/network-request-failed": "Network error. Check your connection.",
+    "permission-denied":
+      "Firebase rules denied this operation. Check the users and registrationRequests rules."
   };
 
   return errors[error.code] ||
-    "The operation failed. Check the browser console for details.";
+    error.message ||
+    "The operation failed. Please try again.";
 }
 
 function initLoginForm() {
@@ -65,21 +65,14 @@ function initLoginForm() {
     button.disabled = true;
 
     try {
-      const result = await signInWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-
-      const profileRef = doc(db, "users", result.user.uid);
-      const profile = await getDoc(profileRef);
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      const profile = await getDoc(doc(db, "users", result.user.uid));
 
       if (!profile.exists()) {
         await signOut(auth);
-
         showMessage(
           "login-message",
-          `No Firestore profile exists at users/${result.user.uid}. Create or correct the profile using this exact document ID in Firebase Console.`,
+          "Your account profile is missing. Contact the administrator.",
           "error"
         );
         return;
@@ -87,23 +80,17 @@ function initLoginForm() {
 
       const userData = profile.data();
 
-      if (userData.isActive !== true) {
+      if (userData.isActive !== true || userData.role !== selectedRole) {
         await signOut(auth);
-        showMessage(
-          "login-message",
-          "Your account is inactive. Contact the administrator.",
-          "error"
-        );
-        return;
-      }
 
-      if (userData.role !== selectedRole) {
-        await signOut(auth);
-        showMessage(
-          "login-message",
-          "The selected account type does not match your account.",
-          "error"
-        );
+        const message = userData.registrationStatus === "rejected"
+          ? "Your access request was rejected. Contact the academy administrator."
+          : userData.registrationStatus === "pending" ||
+            userData.role === "pending"
+            ? "Your registration is awaiting administrator approval."
+            : "Your account is inactive or the selected account type is incorrect.";
+
+        showMessage("login-message", message, "error");
         return;
       }
 
@@ -117,23 +104,14 @@ function initLoginForm() {
 
       if (!destination) {
         await signOut(auth);
-        showMessage(
-          "login-message",
-          "This account has an unsupported role.",
-          "error"
-        );
+        showMessage("login-message", "Unsupported account type.", "error");
         return;
       }
 
       window.location.href = destination;
     } catch (error) {
       console.error("Login failed:", error);
-
-      showMessage(
-        "login-message",
-        friendlyError(error),
-        "error"
-      );
+      showMessage("login-message", friendlyError(error), "error");
     } finally {
       button.disabled = false;
     }
@@ -148,20 +126,15 @@ function initLoginForm() {
       const email = document.getElementById("login-email").value.trim();
 
       if (!email) {
-        showMessage(
-          "login-message",
-          "Enter your email address first.",
-          "error"
-        );
+        showMessage("login-message", "Enter your email address first.", "error");
         return;
       }
 
       try {
         await sendPasswordResetEmail(auth, email);
-
         showMessage(
           "login-message",
-          "If password recovery is available for this account, a reset email will be sent.",
+          "If password recovery is available, a reset email will be sent.",
           "info"
         );
       } catch (error) {
@@ -193,15 +166,14 @@ function initRegisterForm() {
       "academy-registration-type"
     ).value;
 
-    if (
-      !name ||
-      !email ||
-      !password ||
-      !confirmation ||
-      !role ||
-      !registrationType
-    ) {
+    if (!name || !email || !password || !confirmation || !role ||
+        !registrationType) {
       showMessage("register-message", "Complete all required fields.", "error");
+      return;
+    }
+
+    if (!["admin", "teacher", "student"].includes(role)) {
+      showMessage("register-message", "Select a valid account type.", "error");
       return;
     }
 
@@ -210,38 +182,31 @@ function initRegisterForm() {
         "register-message",
         password !== confirmation
           ? "Passwords do not match."
-          : "Your password must contain at least 8 characters.",
+          : "Password must contain at least 8 characters.",
         "error"
       );
       return;
     }
 
-    if (role !== "student") {
+    let academyCode = "";
+
+    if (registrationType === "existing") {
+      academyCode = document.getElementById(
+        "register-academy-code"
+      ).value.trim();
+
+      if (!academyCode) {
+        showMessage(
+          "register-message",
+          "Enter the academy code provided to you.",
+          "error"
+        );
+        return;
+      }
+    } else {
       showMessage(
         "register-message",
-        "Public registration is currently available for students only. Admin and teacher accounts must be provisioned securely.",
-        "error"
-      );
-      return;
-    }
-
-    if (registrationType !== "existing") {
-      showMessage(
-        "register-message",
-        "Student registration requires an existing academy and a valid academy code.",
-        "error"
-      );
-      return;
-    }
-
-    const academyCode = document.getElementById(
-      "register-academy-code"
-    ).value.trim();
-
-    if (!academyCode) {
-      showMessage(
-        "register-message",
-        "Enter the academy code provided by your administrator.",
+        "Choose an existing academy and enter its academy code to submit this request.",
         "error"
       );
       return;
@@ -250,6 +215,7 @@ function initRegisterForm() {
     button.disabled = true;
 
     let credential = null;
+    let requestSubmitted = false;
 
     try {
       credential = await createUserWithEmailAndPassword(
@@ -258,31 +224,57 @@ function initRegisterForm() {
         password
       );
 
-      await setDoc(doc(db, "users", credential.user.uid), {
+      const uid = credential.user.uid;
+      const batch = writeBatch(db);
+
+      batch.set(doc(db, "users", uid), {
         fullName: name,
         email,
         phone,
-        role: "student",
+        role: "pending",
+        requestedRole: role,
         isActive: false,
+        registrationStatus: "pending",
         academyCode,
         createdAt: serverTimestamp()
       });
 
-      showMessage(
-        "register-message",
-        "Account created. Access remains inactive until academy membership is verified.",
-        "info"
-      );
+      batch.set(doc(db, "registrationRequests", uid), {
+        uid,
+        fullName: name,
+        email,
+        phone,
+        requestedRole: role,
+        academyCode,
+        status: "pending",
+        createdAt: serverTimestamp()
+      });
+
+      await batch.commit();
+      requestSubmitted = true;
+
+      await signOut(auth);
 
       form.reset();
+
+      showMessage(
+        "register-message",
+        "Registration request submitted. Your account will remain inactive until an administrator reviews it.",
+        "info"
+      );
     } catch (error) {
       console.error("Registration failed:", error);
 
-      if (credential?.user) {
+      if (credential?.user && !requestSubmitted) {
         try {
           await deleteUser(credential.user);
         } catch (cleanupError) {
           console.error("Account cleanup failed:", cleanupError);
+          try {
+            await signOut(auth);
+          } catch (signOutError) {
+            console.error("Sign-out failed:", signOutError);
+          }
         }
       }
 
