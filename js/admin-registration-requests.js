@@ -1,14 +1,17 @@
 import { auth, db } from "./firebase-config.js";
+import { evaluateProvisionalAdmin } from "./admin-activity.js";
 
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   query,
   where,
   writeBatch,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
+
 
 import { onAuthStateChanged, signOut } from
   "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
@@ -130,12 +133,14 @@ function createSection() {
   return section;
 }
 
-async function loadRequests(section) {
+
+async function loadRequests(section, academyId) {
   const list = section.querySelector("#registration-request-list");
 
   try {
     const requestsQuery = query(
       collection(db, "registrationRequests"),
+      where("academyId", "==", academyId),
       where("status", "==", "pending")
     );
 
@@ -143,7 +148,7 @@ async function loadRequests(section) {
 
     if (snapshot.empty) {
       list.replaceChildren();
-      showStatus(section, "There are no pending registration requests.");
+      showStatus(section, "No pending requests for this academy.");
       return;
     }
 
@@ -158,19 +163,14 @@ async function loadRequests(section) {
             <p>Email: ${escapeHTML(request.email || "Not provided")}</p>
             <p>Phone: ${escapeHTML(request.phone || "Not provided")}</p>
             <p>Requested role: ${escapeHTML(request.requestedRole || "Unknown")}</p>
-            <p>Academy code: ${escapeHTML(request.academyCode || "Not provided")}</p>
           </div>
           <div class="registration-actions">
             <button type="button"
               class="registration-approve"
-              data-action="approve">
-              Approve
-            </button>
+              data-action="approve">Approve</button>
             <button type="button"
               class="registration-reject"
-              data-action="reject">
-              Reject
-            </button>
+              data-action="reject">Reject</button>
           </div>
         </article>
       `;
@@ -181,11 +181,12 @@ async function loadRequests(section) {
     console.error("Could not load registration requests:", error);
     showStatus(
       section,
-      "Could not load requests. Check your Firestore rules and admin access.",
+      "Could not load requests. Check academy IDs and Firestore rules.",
       true
     );
   }
 }
+
 
 async function reviewRequest(section, requestUid, decision, article) {
   const buttons = article.querySelectorAll("button");
@@ -217,15 +218,53 @@ async function reviewRequest(section, requestUid, decision, article) {
 
     const request = requestSnapshot.data();
 
+    
+const reviewerSnapshot = await getDoc(
+  doc(db, "users", reviewer.uid)
+);
+
+if (!reviewerSnapshot.exists()) {
+  throw new Error("Administrator profile not found.");
+}
+
+const adminProfile = reviewerSnapshot.data();
+
+if (
+  adminProfile.role !== "admin" ||
+  adminProfile.isActive !== true ||
+  !adminProfile.academyId
+) {
+  throw new Error("Active academy administrator access is required.");
+}
+
+if (
+  request.academyId !== adminProfile.academyId
+) {
+  throw new Error(
+    "Access denied: this request belongs to another academy."
+  );
+}
+
+if (request.requestedRole === "admin") {
+  throw new Error(
+    "New academy admin requests must use the separate academy approval workflow."
+  );
+}
+
+if (!["student", "teacher"].includes(request.requestedRole)) {
+  throw new Error("Invalid requested role.");
+}
+
+
     if (request.status !== "pending") {
       throw new Error("This request has already been reviewed.");
     }
 
     const allowedRoles = ["student", "teacher", "admin"];
 
-    if (!allowedRoles.includes(request.requestedRole)) {
-      throw new Error("The requested role is invalid.");
-    }
+if (!allowedRoles.includes(request.requestedRole)) {
+  throw new Error("The requested role is invalid.");
+}
 
     const batch = writeBatch(db);
     const reviewedAt = serverTimestamp();
@@ -258,16 +297,48 @@ async function reviewRequest(section, requestUid, decision, article) {
       });
     }
 
-    await batch.commit();
+await batch.commit();
 
+if (
+  decision === "approve" &&
+  ["student", "teacher"].includes(request.requestedRole)
+) {
+  const evaluation = await evaluateProvisionalAdmin(reviewer.uid);
+
+  if (!evaluation.allowed) {
     showStatus(
       section,
-      decision === "approve"
-        ? "Request approved. The account is now active."
-        : "Request rejected. The account remains inactive."
+      `Request processed, but admin access is now restricted: ${evaluation.reason}`,
+      true
     );
 
-    await loadRequests(section);
+    await signOut(auth);
+    window.location.href = "../login.html";
+    return;
+  }
+
+  if (evaluation.completed) {
+    showStatus(
+      section,
+      "Request approved. Both onboarding requirements are complete."
+    );
+  } else {
+    showStatus(
+      section,
+      `Request approved. Active students: ${evaluation.studentCount ?? 0}/2. Active teachers: ${evaluation.teacherCount ?? 0}/1.`
+    );
+  }
+} else {
+  showStatus(
+    section,
+    decision === "approve"
+      ? "Request approved. The account is now active."
+      : "Request rejected. The account remains inactive."
+  );
+}
+
+await loadRequests(section, adminProfile.academyId);
+
   } catch (error) {
     console.error("Could not review request:", error);
     showStatus(section, error.message || "Could not review this request.", true);
@@ -308,30 +379,38 @@ function initApprovalQueue() {
       return;
     }
 
-    try {
-      const { getDoc } = await import(
-        "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js"
-      );
+    
+try {
+  const profile = await getDoc(doc(db, "users", user.uid));
 
-      const profile = await getDoc(doc(db, "users", user.uid));
+  if (!profile.exists()) {
+    await signOut(auth);
+    window.location.href = "../login.html";
+    return;
+  }
 
-      if (!profile.exists() ||
-          profile.data().role !== "admin" ||
-          profile.data().isActive !== true) {
-        await signOut(auth);
-        window.location.href = "../login.html";
-        return;
-      }
+  const admin = profile.data();
 
-      await loadRequests(section);
-    } catch (error) {
-      console.error("Admin verification failed:", error);
-      showStatus(
-        section,
-        "Could not verify administrator access. Check Firestore rules.",
-        true
-      );
-    }
+  if (
+    admin.role !== "admin" ||
+    admin.isActive !== true ||
+    !admin.academyId
+  ) {
+    await signOut(auth);
+    window.location.href = "../login.html";
+    return;
+  }
+
+  await loadRequests(section, admin.academyId);
+} catch (error) {
+  console.error("Admin verification failed:", error);
+  showStatus(
+    section,
+    "Could not verify admin access. Check academy assignment and Firestore rules.",
+    true
+  );
+}
+
   });
 }
 

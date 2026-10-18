@@ -195,29 +195,25 @@
 
         </div>
 
+
         <!-- Existing Academy Fields -->
         <div id="existing-academy-fields" hidden>
-
           <div class="form-group">
-            <label for="register-academy-code">
-              Academy code
-            </label>
-
-            <input
-              type="text"
+            <label for="register-academy-code">Select academy</label>
+            <select
               id="register-academy-code"
               name="academyCode"
-              placeholder="Enter the academy code"
-              autocomplete="off"
+              required
             >
-
+              <option value="">Loading academies...</option>
+            </select>
             <p class="form-help">
-              Ask your academy administrator for the correct code.
-              The code helps prevent joining the wrong academy.
+              Select the academy you want to join. Your request will go
+              only to the administrator responsible for that academy.
             </p>
           </div>
-
         </div>
+
 
         <!-- Terms -->
         <div class="form-group">

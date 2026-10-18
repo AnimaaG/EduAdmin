@@ -12,8 +12,9 @@
   <script src="../../js/main.js" defer></script>
   <script src="../../js/navigation.js" defer></script>
   <script src="../../js/admin-sidebar.js" defer></script>
-  <script src="../../js/admin-students.js" defer></script>
+  <script type="module" src="../../js/admin-students.js"></script>
   <script type="module" src="../../js/admin-registration-requests.js"></script>
+  <script type="module" src="../../js/account-menu.js"></script>
 </head>
 
 <body>
@@ -45,173 +46,18 @@
             <h1>Student management</h1>
             <p>Maintain student profiles and enrollment information.</p>
           </div>
-
-          <button
-            type="button"
-            class="primary-button"
-            id="add-student-button"
-          >+ Add student</button>
         </section>
 
         <div
           id="students-message"
           class="message info"
           role="status"
+          aria-live="polite"
           hidden
         ></div>
 
-        <!-- Student enrollment form -->
-        <section class="card" id="student-form-section" hidden>
-          <div class="section-title-row">
-            <div>
-              <h2>Add student</h2>
-              <p>Enter the student's enrollment details.</p>
-            </div>
-          </div>
-
-          <form id="student-form" class="form-grid">
-            <div class="form-group">
-              <label for="student-name">Full name *</label>
-              <input
-                id="student-name"
-                name="name"
-                type="text"
-                maxlength="120"
-                autocomplete="name"
-                placeholder="Enter full name"
-                required
-              >
-            </div>
-
-            <div class="form-group">
-              <label for="student-email">Email address</label>
-              <input
-                id="student-email"
-                name="email"
-                type="email"
-                maxlength="254"
-                autocomplete="email"
-                placeholder="Enter email address"
-              >
-            </div>
-
-            <div class="form-group">
-              <label for="student-phone">Phone number *</label>
-              <input
-                id="student-phone"
-                name="phone"
-                type="tel"
-                maxlength="25"
-                autocomplete="tel"
-                placeholder="Enter phone number"
-                required
-              >
-            </div>
-
-            <div class="form-group">
-              <label for="student-class">Class *</label>
-              <select id="student-class" name="classId" required>
-                <option value="">Select a class</option>
-              </select>
-              <p class="form-help">
-                Class options will appear when class records are connected.
-              </p>
-            </div>
-
-            <div class="form-group">
-              <label for="student-guardian">Parent or guardian name</label>
-              <input
-                id="student-guardian"
-                name="guardianName"
-                type="text"
-                maxlength="120"
-                placeholder="Enter parent or guardian name"
-              >
-            </div>
-
-            <div class="form-group">
-              <label for="student-guardian-phone">Guardian phone</label>
-              <input
-                id="student-guardian-phone"
-                name="guardianPhone"
-                type="tel"
-                maxlength="25"
-                placeholder="Enter guardian phone number"
-              >
-            </div>
-
-            <div class="form-group full-width">
-              <label for="student-address">Address</label>
-              <textarea
-                id="student-address"
-                name="address"
-                maxlength="1000"
-                autocomplete="street-address"
-                placeholder="Enter student address"
-              ></textarea>
-            </div>
-
-            <div class="full-width" style="display:flex; gap:10px; flex-wrap:wrap;">
-              <button type="submit" class="primary-button">
-                Save student
-              </button>
-
-              <button
-                type="button"
-                class="secondary-button"
-                id="cancel-student-button"
-              >Cancel</button>
-            </div>
-          </form>
-        </section>
-
-        <!-- Search and student records -->
-        <section class="dashboard-section">
-          <div class="toolbar">
-            <input
-              type="search"
-              id="student-search"
-              aria-label="Search students"
-              placeholder="Search students..."
-              disabled
-            >
-          </div>
-
-          <div class="table-wrapper">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th scope="col">Student</th>
-                  <th scope="col">Contact</th>
-                  <th scope="col">Class</th>
-                  <th scope="col">Guardian</th>
-                  <th scope="col">Status</th>
-                </tr>
-              </thead>
-
-              <tbody id="students-table-body">
-                <tr>
-                  <td colspan="5">
-                    <div class="empty-state">
-                      <h3>No student records loaded</h3>
-                      <p>Student data is not connected yet.</p>
-                      <small>
-                        Connect the academy data service to load and save
-                        actual student records.
-                      </small>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
+        <!-- Registered Students is rendered by admin-students.js. -->
       </div>
-
-      <footer class="dashboard-footer">
-        <span>EduAdmin</span>
-        <span>Student management</span>
-      </footer>
     </main>
   </div>
 

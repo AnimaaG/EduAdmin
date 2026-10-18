@@ -1148,3 +1148,340 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--primary); }
     width: 100%;
   }
 }
+
+/* Multi-date class calendar */
+.class-calendar {
+  width: 100%;
+  max-width: 480px;
+  margin-top: 12px;
+  padding: 16px;
+  border: 1px solid var(--border-color, #dbe2f0);
+  border-radius: 14px;
+  background: var(--card-background, #fff);
+}
+
+.class-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.class-calendar-header h3 {
+  margin: 0;
+  text-align: center;
+  font-size: 1rem;
+}
+
+.class-calendar-weekdays,
+.class-calendar-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+  text-align: center;
+}
+
+.class-calendar-weekdays {
+  margin-bottom: 8px;
+  color: var(--muted-text, #64748b);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.class-calendar-days button {
+  min-width: 0;
+  min-height: 40px;
+  padding: 4px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.class-calendar-days button:hover:not(:disabled) {
+  border-color: var(--primary-color, #4f46e5);
+}
+
+.class-calendar-days button.is-selected {
+  background: var(--primary-color, #4f46e5);
+  color: #fff;
+  font-weight: 700;
+}
+
+.class-calendar-days button.is-today {
+  border-color: var(--primary-color, #4f46e5);
+}
+
+.class-calendar-days button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.class-calendar-days button:focus-visible,
+.class-calendar-header button:focus-visible {
+  outline: 2px solid var(--primary-color, #4f46e5);
+  outline-offset: 2px;
+}
+
+.class-calendar-days button.calendar-empty {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.selected-session-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+#class-selected-date-count {
+  color: var(--muted-text, #64748b);
+  font-size: 0.875rem;
+}
+
+.selected-session-dates {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.selected-session-date {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color, #dbe2f0);
+  border-radius: 10px;
+}
+
+.selected-session-date small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted-text, #64748b);
+}
+
+.selected-session-date button {
+  flex-shrink: 0;
+}
+
+@media (max-width: 420px) {
+  .class-calendar {
+    padding: 10px;
+  }
+
+  .class-calendar-weekdays,
+  .class-calendar-days {
+    gap: 3px;
+  }
+
+  .class-calendar-days button {
+    min-height: 36px;
+  }
+}
+
+/* ==========================================
+   Upcoming 7-day class timetable
+========================================== */
+
+.weekly-timetable-section {
+  min-width: 0;
+  margin-bottom: 30px;
+}
+
+.weekly-timetable-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.weekly-timetable-heading h2 {
+  margin: 0 0 5px;
+  font-size: 20px;
+}
+
+.weekly-timetable-heading p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.weekly-timetable-label {
+  flex-shrink: 0;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.weekly-timetable-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.04);
+}
+
+.weekly-timetable {
+  width: 100%;
+  min-width: 1100px;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.weekly-timetable th,
+.weekly-timetable td {
+  width: 12%;
+  padding: 12px;
+  vertical-align: top;
+  text-align: left;
+  border-right: 1px solid #edf1f7;
+  border-bottom: 1px solid #edf1f7;
+}
+
+.weekly-timetable th:first-child,
+.weekly-timetable td:first-child {
+  width: 16%;
+}
+
+.weekly-timetable thead th {
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.weekly-timetable thead th.weekly-today {
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.weekly-day-name,
+.weekly-day-date {
+  display: block;
+}
+
+.weekly-day-name {
+  font-size: 12px;
+}
+
+.weekly-day-date {
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: none;
+}
+
+.weekly-timetable tbody td {
+  min-height: 70px;
+  background: #fff;
+  font-size: 12px;
+}
+
+.weekly-timetable tbody tr:hover td {
+  background: #fafbff;
+}
+
+.weekly-timetable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.weekly-timetable tr th:last-child,
+.weekly-timetable tr td:last-child {
+  border-right: none;
+}
+
+.weekly-class-cell strong,
+.weekly-class-cell span,
+.weekly-class-cell small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.weekly-class-cell strong {
+  color: #172554;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.weekly-class-cell span {
+  margin-top: 4px;
+  color: #475569;
+}
+
+.weekly-class-cell small {
+  margin-top: 5px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.weekly-session-cell {
+  min-width: 0;
+}
+
+.weekly-session {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 7px;
+  padding: 9px;
+  border: 1px solid #c7d2fe;
+  border-left: 3px solid #6366f1;
+  border-radius: 8px;
+  background: #f5f6ff;
+  overflow-wrap: anywhere;
+}
+
+.weekly-session:last-child {
+  margin-bottom: 0;
+}
+
+.weekly-session strong {
+  color: #3730a3;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.weekly-session span {
+  color: #475569;
+  font-size: 11px;
+}
+
+.weekly-no-session {
+  color: #c0c8d5;
+  text-align: center !important;
+  vertical-align: middle !important;
+}
+
+.weekly-empty {
+  padding: 28px !important;
+  color: #64748b;
+  text-align: center !important;
+}
+
+@media (max-width: 768px) {
+  .weekly-timetable-heading {
+    align-items: flex-start;
+  }
+
+  .weekly-timetable-heading h2 {
+    font-size: 18px;
+  }
+
+  .weekly-timetable {
+    min-width: 1100px;
+  }
+}
