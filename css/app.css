@@ -1485,3 +1485,600 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--primary); }
     min-width: 1100px;
   }
 }
+
+/* =========================================
+   STUDENT DASHBOARD — RECENT UPDATES
+   ========================================= */
+
+.dashboard-section:has(.upcoming-class-list) {
+  padding: 26px 28px;
+  background: #ffffff;
+  border: 1px solid #e3e8f2;
+  border-radius: 18px;
+  box-shadow: 0 4px 14px rgba(30, 41, 59, 0.04);
+}
+
+.dashboard-section:has(.upcoming-class-list) .section-heading {
+  margin-bottom: 22px;
+}
+
+.dashboard-section:has(.upcoming-class-list) .section-heading h2 {
+  margin: 0;
+  color: #172554;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.35px;
+}
+
+.dashboard-section:has(.upcoming-class-list) .section-heading p {
+  margin-top: 7px;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* Upcoming class list */
+.upcoming-class-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 0;
+}
+
+/* Individual class row */
+.upcoming-class-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 17px 19px;
+  background: #f8faff;
+  border: 1px solid #e7ecf7;
+  border-radius: 12px;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+
+.upcoming-class-item:hover {
+  background: #f1f5ff;
+  border-color: #cdd8ff;
+  transform: translateY(-1px);
+}
+
+/* Class title and subject */
+.upcoming-class-details {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.upcoming-class-details strong {
+  color: #172554;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.upcoming-class-details span {
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Date and time */
+.upcoming-class-item > span {
+  flex-shrink: 0;
+  padding: 8px 11px;
+  color: #3445b4;
+  background: #eef2ff;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  text-align: right;
+}
+
+/* Friendly empty state */
+.dashboard-section:has(.upcoming-class-list) .empty-state {
+  padding: 24px;
+  background: #f8faff;
+  border: 1px dashed #d7deed;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.dashboard-section:has(.upcoming-class-list) .empty-state > strong {
+  display: block;
+  margin-bottom: 7px;
+  color: #334155;
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.dashboard-section:has(.upcoming-class-list) .empty-state > p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+/* Responsive layout */
+@media (max-width: 700px) {
+  .dashboard-section:has(.upcoming-class-list) {
+    padding: 20px 16px;
+    border-radius: 14px;
+  }
+
+  .dashboard-section:has(.upcoming-class-list) .section-heading h2 {
+    font-size: 18px;
+  }
+
+  .upcoming-class-item {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+    padding: 15px;
+  }
+
+  .upcoming-class-item > span {
+    max-width: 100%;
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .upcoming-class-item {
+    transition: none;
+  }
+
+  .upcoming-class-item:hover {
+    transform: none;
+  }
+}
+
+/* ==========================================
+   STUDENT SCHEDULE PAGE
+   ========================================== */
+
+.student-schedule-page {
+  display: grid;
+  gap: 8px;
+}
+
+.student-schedule-page .dashboard-section {
+  min-width: 0;
+  padding: 26px;
+  background: #fff;
+  border: 1px solid #e5eaf2;
+  border-radius: 18px;
+  box-shadow: 0 5px 16px rgba(30, 41, 59, 0.04);
+}
+
+.student-schedule-page .section-heading {
+  margin-bottom: 22px;
+}
+
+.student-schedule-page .section-heading h2 {
+  margin-bottom: 7px;
+  color: #172554;
+  font-size: 19px;
+  font-weight: 750;
+}
+
+.student-schedule-page .section-heading p {
+  margin-bottom: 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.student-schedule-stats {
+  gap: 16px;
+}
+
+.student-schedule-stats .stat-card {
+  min-width: 0;
+  padding: 22px;
+  background: linear-gradient(145deg, #ffffff, #f8faff);
+  border: 1px solid #e5eaf5;
+  border-radius: 14px;
+}
+
+.student-schedule-stats .stat-label {
+  margin-bottom: 12px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.student-schedule-stats .stat-card h3 {
+  margin-bottom: 9px;
+  color: #3730a3;
+  font-size: clamp(22px, 2vw, 29px);
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+.student-schedule-stats .stat-description {
+  margin-bottom: 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.student-schedule-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.5fr) minmax(180px, 1fr) auto;
+  align-items: end;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.student-schedule-reset {
+  display: flex;
+  align-items: end;
+}
+
+.student-schedule-reset .btn {
+  white-space: nowrap;
+}
+
+.student-schedule-table-container {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid #e5eaf2;
+  border-radius: 13px;
+  background: #fff;
+}
+
+.student-schedule-table {
+  width: 100%;
+  min-width: 850px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.student-schedule-table thead th {
+  padding: 15px 16px;
+  background: #f7f8fc;
+  border-bottom: 1px solid #e5eaf2;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.035em;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.student-schedule-table tbody td {
+  padding: 16px;
+  border-bottom: 1px solid #edf0f6;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.6;
+  vertical-align: middle;
+}
+
+.student-schedule-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.student-schedule-table tbody tr:hover td {
+  background: #fafbff;
+}
+
+.student-schedule-table tbody td:first-child {
+  color: #172554;
+  font-weight: 650;
+}
+
+.student-schedule-table tbody td a {
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.student-schedule-table .empty-state {
+  padding: 48px 20px;
+  text-align: center;
+}
+
+.student-schedule-table .empty-state strong {
+  display: block;
+  margin-bottom: 7px;
+  color: #334155;
+  font-size: 14px;
+}
+
+.student-schedule-table .empty-state p {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.student-schedule-table .status-badge {
+  font-size: 11px;
+}
+
+.student-schedule-table .status-badge.active {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.student-schedule-table .status-badge.inactive {
+  color: #475569;
+  background: #f1f5f9;
+}
+
+.student-schedule-message {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+@media (max-width: 900px) {
+  .student-schedule-toolbar {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .student-schedule-reset {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 600px) {
+  .student-schedule-page .dashboard-section {
+    padding: 19px 15px;
+    border-radius: 14px;
+  }
+
+  .student-schedule-page .section-heading h2 {
+    font-size: 17px;
+  }
+
+  .student-schedule-toolbar {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .student-schedule-reset {
+    grid-column: auto;
+  }
+
+  .student-schedule-reset .btn {
+    width: 100%;
+  }
+
+  .student-schedule-stats .stat-card {
+    padding: 17px;
+  }
+}
+
+/* ==========================================
+   STUDENT ATTENDANCE PAGE
+   ========================================== */
+
+.student-attendance-page {
+  display: grid;
+  gap: 8px;
+}
+
+.student-attendance-page .dashboard-section {
+  min-width: 0;
+  padding: 26px;
+  background: #fff;
+  border: 1px solid #e5eaf2;
+  border-radius: 18px;
+  box-shadow: 0 5px 16px rgba(30, 41, 59, 0.04);
+}
+
+.student-attendance-page .section-heading {
+  margin-bottom: 22px;
+}
+
+.student-attendance-page .section-heading h2 {
+  margin-bottom: 7px;
+  color: #172554;
+  font-size: 19px;
+  font-weight: 750;
+}
+
+.student-attendance-page .section-heading p {
+  margin-bottom: 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.attendance-stats {
+  gap: 16px;
+}
+
+.attendance-stats .stat-card {
+  min-width: 0;
+  padding: 22px;
+  background: linear-gradient(145deg, #fff, #f8faff);
+  border: 1px solid #e5eaf5;
+  border-radius: 14px;
+}
+
+.attendance-stats .stat-label {
+  margin-bottom: 12px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.attendance-stats .stat-card h3 {
+  margin-bottom: 9px;
+  color: #3730a3;
+  font-size: clamp(23px, 2vw, 30px);
+  font-weight: 750;
+}
+
+.attendance-stats .stat-description {
+  margin-bottom: 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.attendance-toolbar {
+  display: grid;
+  grid-template-columns: minmax(190px, 1fr) minmax(160px, .8fr) minmax(190px, 1fr) auto;
+  align-items: end;
+  gap: 15px;
+  margin-bottom: 22px;
+}
+
+.attendance-reset {
+  display: flex;
+  align-items: end;
+}
+
+.attendance-reset .btn {
+  white-space: nowrap;
+}
+
+.attendance-table-container {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid #e5eaf2;
+  border-radius: 13px;
+  background: #fff;
+}
+
+.attendance-history-table {
+  width: 100%;
+  min-width: 690px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.attendance-history-table thead th {
+  padding: 15px 16px;
+  background: #f7f8fc;
+  border-bottom: 1px solid #e5eaf2;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: .035em;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.attendance-history-table tbody td {
+  padding: 16px;
+  border-bottom: 1px solid #edf0f6;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.6;
+  vertical-align: middle;
+}
+
+.attendance-history-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.attendance-history-table tbody tr:hover td {
+  background: #fafbff;
+}
+
+.attendance-history-table tbody td:nth-child(2) {
+  color: #172554;
+  font-weight: 650;
+}
+
+.attendance-history-table .empty-state {
+  padding: 48px 20px;
+  text-align: center;
+}
+
+.attendance-history-table .empty-state strong {
+  display: block;
+  margin-bottom: 7px;
+  color: #334155;
+  font-size: 14px;
+}
+
+.attendance-history-table .empty-state p {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.attendance-history-table .status-badge {
+  font-size: 11px;
+}
+
+.attendance-history-table .attendance-present {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.attendance-history-table .attendance-late {
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.attendance-history-table .attendance-absent {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.attendance-history-table .attendance-excused {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+
+.attendance-page-message {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+@media (max-width: 1050px) {
+  .attendance-toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .attendance-reset {
+    align-items: end;
+  }
+}
+
+@media (max-width: 600px) {
+  .student-attendance-page .dashboard-section {
+    padding: 19px 15px;
+    border-radius: 14px;
+  }
+
+  .student-attendance-page .section-heading h2 {
+    font-size: 17px;
+  }
+
+  .attendance-toolbar {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .attendance-reset .btn {
+    width: 100%;
+  }
+
+  .attendance-stats .stat-card {
+    padding: 17px;
+  }
+}

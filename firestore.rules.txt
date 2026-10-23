@@ -1,10 +1,593 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Temporary deny-all policy.
-    // Do not open database access until role assignment
-    // and collection-specific permissions are configured.
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userPath(uid) {
+      return /databases/$(database)/documents/users/$(uid);
+    }
+
+    function academyPath(academyId) {
+      return /databases/$(database)/documents/academies/$(academyId);
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(userPath(request.auth.uid))
+        && get(userPath(request.auth.uid)).data.role == "admin"
+        && get(userPath(request.auth.uid)).data.isActive == true;
+    }
+
+    function isAcademyAdmin(academyId) {
+      return isAdmin()
+        && get(userPath(request.auth.uid)).data.academyId == academyId;
+    }
+
+    function isActiveStudent() {
+      return signedIn()
+        && exists(userPath(request.auth.uid))
+        && get(userPath(request.auth.uid)).data.role == "student"
+        && get(userPath(request.auth.uid)).data.isActive == true;
+    }
+
+    function isAcademyStudent(academyId) {
+      return isActiveStudent()
+        && get(userPath(request.auth.uid)).data.academyId == academyId;
+    }
+
+
+match /academies/{academyId} {
+
+  // Active academies can be read for registration.
+  allow read: if resource.data.status == "active";
+
+  // A new admin creates their academy and profile atomically.
+  allow create: if signedIn()
+    && academyId == request.auth.uid
+    && request.resource.data.ownerUid == request.auth.uid
+    && request.resource.data.status == "active"
+    && getAfter(userPath(request.auth.uid)).data.role == "admin"
+    && getAfter(userPath(request.auth.uid)).data.isActive == true
+    && getAfter(userPath(request.auth.uid)).data.academyId == academyId;
+
+  // Only the active admin of this academy can update settings.
+  allow update: if isAcademyAdmin(academyId)
+    && request.resource.data.ownerUid == resource.data.ownerUid
+    && request.resource.data.status == resource.data.status
+    && request.resource.data.diff(resource.data)
+      .affectedKeys()
+      .hasOnly([
+        "name",
+        "email",
+        "phone",
+        "address",
+        "settings",
+        "updatedAt"
+      ]);
+
+  // Academy records cannot be deleted from the client.
+  allow delete: if false;
+}
+
+
+    // --------------------------------------------------
+    // USER PROFILES
+    // --------------------------------------------------
+    match /users/{uid} {
+
+      // Users can read their own profile.
+      // Admins can read individual profiles.
+      allow get: if signedIn()
+        && (
+          request.auth.uid == uid
+          || isAdmin()
+        );
+
+      // Only admins can query user profiles.
+      allow list: if isAdmin();
+
+      // Profile creation during registration.
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.email == request.auth.token.email
+        && (
+          (
+            request.resource.data.role == "admin"
+            && request.resource.data.isActive == true
+            && request.resource.data.academyId == uid
+            && request.resource.data.provisionalAdmin == true
+            && getAfter(academyPath(uid)).data.ownerUid == uid
+          )
+          ||
+          (
+            request.resource.data.role == "pending"
+            && request.resource.data.isActive == false
+            && request.resource.data.registrationStatus == "pending"
+            && request.resource.data.requestedRole in ["student", "teacher"]
+            && request.resource.data.academyId is string
+            && exists(academyPath(request.resource.data.academyId))
+            && get(academyPath(request.resource.data.academyId)).data.status == "active"
+          )
+        );
+
+      // Admins can approve or reject registration profiles
+      // only within their own academy.
+      allow update: if isAcademyAdmin(resource.data.academyId)
+        && request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            "role",
+            "isActive",
+            "registrationStatus",
+            "reviewedBy",
+            "reviewedAt"
+          ])
+        && request.resource.data.role in ["student", "teacher"]
+        && request.resource.data.isActive == true
+        && request.resource.data.reviewedBy == request.auth.uid;
+
+      // A provisional admin can complete onboarding on their
+      // own profile only. This validates submitted fields, not
+      // the actual student/teacher counts; use a trusted backend
+      // to enforce those counts securely.
+      allow update: if signedIn()
+        && request.auth.uid == uid
+        && resource.data.role == "admin"
+        && resource.data.isActive == true
+        && resource.data.provisionalAdmin == true
+        && request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            "provisionalAdmin",
+            "activityCompleted",
+            "onboardingCompletedAt",
+            "studentCountAtCompletion",
+            "teacherCountAtCompletion"
+          ])
+        && request.resource.data.provisionalAdmin == false
+        && request.resource.data.activityCompleted == true
+        && request.resource.data.studentCountAtCompletion is int
+        && request.resource.data.studentCountAtCompletion >= 2
+        && request.resource.data.teacherCountAtCompletion is int
+        && request.resource.data.teacherCountAtCompletion >= 1
+        && request.resource.data.academyId == resource.data.academyId
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.isActive == resource.data.isActive;
+
+      // Permit expiry restrictions only on the admin's own
+      // provisional profile, without changing its role or academy.
+      allow update: if signedIn()
+        && request.auth.uid == uid
+        && resource.data.role == "admin"
+        && resource.data.provisionalAdmin == true
+        && request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            "isActive",
+            "registrationStatus",
+            "restrictionReason",
+            "restrictedAt"
+          ])
+        && request.resource.data.isActive == false
+        && request.resource.data.registrationStatus == "expired"
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.academyId == resource.data.academyId;
+
+      allow delete: if false;
+    }
+
+    // --------------------------------------------------
+    // REGISTRATION REQUESTS
+    // --------------------------------------------------
+    match /registrationRequests/{uid} {
+
+      // A student or teacher can submit their own request
+      // together with their pending user profile.
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.uid == uid
+        && request.resource.data.requestedRole in ["student", "teacher"]
+        && request.resource.data.status == "pending"
+        && request.resource.data.academyId is string
+        && exists(academyPath(request.resource.data.academyId))
+        && get(academyPath(request.resource.data.academyId)).data.status ==     "active"
+        && getAfter(userPath(uid)).data.role == "pending"
+        && getAfter(userPath(uid)).data.academyId == request.resource.data.academyId;
+
+      allow get: if signedIn()
+        && (
+          request.auth.uid == uid
+          || isAcademyAdmin(resource.data.academyId)
+        );
+
+      allow list: if isAdmin()
+        && resource.data.academyId
+          == get(userPath(request.auth.uid)).data.academyId;
+
+      // Academy admins can approve or reject pending requests.
+      allow update: if isAcademyAdmin(resource.data.academyId)
+        && resource.data.status == "pending"
+        && request.resource.data.status in ["approved", "rejected"]
+        && request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly(["status", "reviewedBy", "reviewedAt"])
+        && request.resource.data.reviewedBy == request.auth.uid;
+
+      allow delete: if false;
+    }
+
+    // --------------------------------------------------
+    // ADMIN ACTIVITY LOGS
+    // --------------------------------------------------
+    match /activityLogs/{logId} {
+
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.academyId
+          == get(userPath(request.auth.uid)).data.academyId
+        && get(userPath(request.auth.uid)).data.role == "admin"
+        && get(userPath(request.auth.uid)).data.isActive == true
+        && request.resource.data.action in [
+          "student_created",
+          "teacher_created"
+        ];
+
+      allow read: if isAcademyAdmin(resource.data.academyId);
+
+      allow update, delete: if false;
+    }
+
+    
+
+    // Academy-scoped class records.
+    match /classes/{classId} {
+
+      // Active admins and students in this academy can read classes.
+      allow read: if isAcademyAdmin(resource.data.academyId)
+        || isAcademyStudent(resource.data.academyId);
+
+      // An active admin can create a class only in their academy.
+      allow create: if isAdmin()
+        && request.resource.data.academyId
+          == get(userPath(request.auth.uid)).data.academyId
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.className is string
+        && request.resource.data.subject is string
+        && request.resource.data.status in ["active", "inactive"];
+
+      // An active admin can edit classes belonging to their academy.
+      // The academy and original creator cannot be changed.
+      allow update: if isAcademyAdmin(resource.data.academyId)
+        && request.resource.data.academyId == resource.data.academyId
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.className is string
+        && request.resource.data.subject is string
+        && request.resource.data.status in ["active", "inactive"];
+
+      // An active admin can delete classes belonging to their academy.
+      allow delete: if isAcademyAdmin(resource.data.academyId);
+    }
+
+      // --------------------------------------------------
+     // ATTENDANCE RECORDS
+    // --------------------------------------------------
+match /attendance/{attendanceId} {
+
+  function classExists(classId) {
+    return exists(
+      /databases/$(database)/documents/classes/$(classId)
+    );
+  }
+
+  function classData(classId) {
+    return get(
+      /databases/$(database)/documents/classes/$(classId)
+    ).data;
+  }
+
+  function validClassSession(data) {
+    return data.classId is string
+      && classExists(data.classId)
+      && classData(data.classId).academyId == data.academyId
+      && classData(data.classId).status == "active"
+      && data.sessionIndex is int
+      && data.sessionIndex >= 0
+      && data.sessionIndex < classData(data.classId).sessions.size()
+      && classData(data.classId).sessions[data.sessionIndex].date
+        == data.date
+      && classData(data.classId).sessions[data.sessionIndex].startTime
+        == data.startTime
+      && classData(data.classId).sessions[data.sessionIndex].endTime
+        == data.endTime
+      && (
+        !("status" in classData(data.classId).sessions[data.sessionIndex])
+        || classData(data.classId).sessions[data.sessionIndex].status
+          == "active"
+      );
+  }
+
+  // Admins can read academy attendance.
+  // Students can read only their own attendance.
+  allow read: if isAcademyAdmin(resource.data.academyId)
+    || (
+      isAcademyStudent(resource.data.academyId)
+      && resource.data.studentId == request.auth.uid
+    );
+
+  // Admins may create manual attendance entries.
+  allow create: if isAcademyAdmin(request.resource.data.academyId)
+    && request.resource.data.classId is string
+    && classExists(request.resource.data.classId)
+    && classData(request.resource.data.classId).academyId
+      == request.resource.data.academyId
+    && request.resource.data.studentId is string
+    && request.resource.data.date is string
+    && request.resource.data.status in [
+      "present", "absent", "late", "excused"
+    ]
+    && request.resource.data.markedBy == request.auth.uid;
+
+  // Students can create one check-in per class session.
+  allow create: if isAcademyStudent(request.resource.data.academyId)
+    && request.resource.data.studentId == request.auth.uid
+    && request.resource.data.date is string
+    && request.resource.data.className is string
+    && request.resource.data.subject is string
+    && request.resource.data.sessionIndex is int
+    && request.resource.data.startTime is string
+    && request.resource.data.endTime is string
+    && request.resource.data.status == "present"
+    && request.resource.data.checkInAt == request.time
+    && request.resource.data.checkOutAt == null
+    && request.resource.data.createdAt == request.time
+    && request.resource.data.updatedAt == request.time
+    && attendanceId == request.resource.data.classId
+      + "_" + request.resource.data.date
+      + "_" + string(request.resource.data.sessionIndex)
+      + "_" + request.auth.uid
+    && validClassSession(request.resource.data)
+    && request.resource.data.keys().hasAll([
+      "academyId",
+      "classId",
+      "className",
+      "subject",
+      "teacherId",
+      "teacherName",
+      "date",
+      "day",
+      "sessionIndex",
+      "startTime",
+      "endTime",
+      "studentId",
+      "studentName",
+      "status",
+      "checkInAt",
+      "checkOutAt",
+      "createdAt",
+      "updatedAt"
+    ])
+    && request.resource.data.keys().hasOnly([
+      "academyId",
+      "classId",
+      "className",
+      "subject",
+      "teacherId",
+      "teacherName",
+      "date",
+      "day",
+      "sessionIndex",
+      "startTime",
+      "endTime",
+      "studentId",
+      "studentName",
+      "status",
+      "checkInAt",
+      "checkOutAt",
+      "createdAt",
+      "updatedAt"
+    ]);
+
+  // Admins may update records in their own academy.
+  allow update: if isAcademyAdmin(resource.data.academyId)
+    && request.resource.data.academyId == resource.data.academyId
+    && request.resource.data.classId == resource.data.classId
+    && request.resource.data.studentId == resource.data.studentId
+    && request.resource.data.date == resource.data.date
+    && request.resource.data.status in [
+      "present", "absent", "late", "excused"
+    ]
+    && request.resource.data.markedBy == request.auth.uid;
+
+  // Students can only add a check-out timestamp to their own record.
+  allow update: if isAcademyStudent(resource.data.academyId)
+    && resource.data.studentId == request.auth.uid
+    && attendanceId == resource.data.classId
+      + "_" + resource.data.date
+      + "_" + string(resource.data.sessionIndex)
+      + "_" + request.auth.uid
+    && resource.data.checkInAt is timestamp
+    && resource.data.checkOutAt == null
+    && request.resource.data.diff(resource.data)
+      .affectedKeys().hasOnly(["checkOutAt", "updatedAt"])
+    && request.resource.data.checkOutAt == request.time
+    && request.resource.data.updatedAt == request.time;
+
+  // Only the academy admin can delete attendance records.
+  allow delete: if isAcademyAdmin(resource.data.academyId);
+}
+    
+    // --------------------------------------------------
+    // SCHEDULES
+    // --------------------------------------------------
+    match /schedules/{scheduleId} {
+
+      allow read: if isAcademyAdmin(resource.data.academyId);
+
+      allow create: if isAcademyAdmin(request.resource.data.academyId)
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.classId is string
+        && request.resource.data.teacherId is string
+        && request.resource.data.title is string
+        && request.resource.data.subject is string
+        && request.resource.data.date is string
+        && request.resource.data.startTime is string
+        && request.resource.data.endTime is string
+        && request.resource.data.status in ["scheduled", "cancelled"]
+        && exists(/databases/$(database)/documents/classes/$(request.resource.data.classId))
+        && get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data.academyId
+          == request.resource.data.academyId
+        && get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data.status
+          == "active"
+        && exists(userPath(request.resource.data.teacherId))
+        && get(userPath(request.resource.data.teacherId)).data.academyId
+          == request.resource.data.academyId
+        && get(userPath(request.resource.data.teacherId)).data.role == "teacher"
+        && get(userPath(request.resource.data.teacherId)).data.isActive == true;
+
+      allow update: if isAcademyAdmin(resource.data.academyId)
+        && request.resource.data.academyId == resource.data.academyId
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.classId is string
+        && request.resource.data.teacherId is string
+        && request.resource.data.title is string
+        && request.resource.data.subject is string
+        && request.resource.data.date is string
+        && request.resource.data.startTime is string
+        && request.resource.data.endTime is string
+        && request.resource.data.status in ["scheduled", "cancelled"]
+        && exists(/databases/$(database)/documents/classes/$(request.resource.data.classId))
+        && get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data.academyId
+          == resource.data.academyId
+        && exists(userPath(request.resource.data.teacherId))
+        && get(userPath(request.resource.data.teacherId)).data.academyId
+          == resource.data.academyId
+        && get(userPath(request.resource.data.teacherId)).data.role == "teacher"
+        && get(userPath(request.resource.data.teacherId)).data.isActive == true;
+
+      allow delete: if isAcademyAdmin(resource.data.academyId);
+    }
+    
+    // --------------------------------------------------
+    // STUDENT FEE ASSIGNMENTS
+    // --------------------------------------------------
+    match /fees/{feeId} {
+
+      // Admins can read fees within their academy.
+      // Students can read only their own fee documents.
+      allow get, list: if isAcademyAdmin(resource.data.academyId)
+        || (
+          signedIn()
+          && resource.data.studentId == request.auth.uid
+          && get(userPath(request.auth.uid)).data.role == "student"
+          && get(userPath(request.auth.uid)).data.academyId
+            == resource.data.academyId
+        );
+
+      // Only an active academy admin can create a fee
+      // for an active student in the same academy.
+      allow create: if isAcademyAdmin(request.resource.data.academyId)
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.studentId is string
+        && request.resource.data.studentName is string
+        && request.resource.data.feeType is string
+        && request.resource.data.amount is number
+        && request.resource.data.amount > 0
+        && request.resource.data.amountPaid == 0
+        && request.resource.data.dueDate is string
+        && request.resource.data.status == "pending"
+        && exists(userPath(request.resource.data.studentId))
+        && get(userPath(request.resource.data.studentId)).data.role
+          == "student"
+        && get(userPath(request.resource.data.studentId)).data.isActive
+          == true
+        && get(userPath(request.resource.data.studentId)).data.academyId
+          == request.resource.data.academyId;
+
+      // Only the academy admin can change payment balance/status.
+      // Fee identity and original amount remain unchanged.
+      allow update: if isAcademyAdmin(resource.data.academyId)
+        && request.resource.data.academyId == resource.data.academyId
+        && request.resource.data.studentId == resource.data.studentId
+        && request.resource.data.amount == resource.data.amount
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(["amountPaid", "status", "updatedAt"])
+        && request.resource.data.amountPaid is number
+        && request.resource.data.amountPaid >= resource.data.amountPaid
+        && request.resource.data.amountPaid <= resource.data.amount
+        && request.resource.data.status in ["pending", "partial", "paid"];
+
+      allow delete: if false;
+    }
+
+    // --------------------------------------------------
+    // PAYMENT SUBMISSIONS
+    // --------------------------------------------------
+    match /paymentSubmissions/{paymentId} {
+
+      // Academy admins can query submissions for their academy.
+      // A student can read only their own submission.
+      allow get, list: if isAcademyAdmin(resource.data.academyId)
+        || (
+          signedIn()
+          && resource.data.studentId == request.auth.uid
+          && get(userPath(request.auth.uid)).data.role == "student"
+          && get(userPath(request.auth.uid)).data.academyId
+            == resource.data.academyId
+        );
+
+      // Students can submit a payment against their own fee.
+      // This records a claim of payment, not proof of payment.
+      allow create: if signedIn()
+        && get(userPath(request.auth.uid)).data.role == "student"
+        && get(userPath(request.auth.uid)).data.isActive == true
+        && request.resource.data.studentId == request.auth.uid
+        && request.resource.data.academyId
+          == get(userPath(request.auth.uid)).data.academyId
+        && request.resource.data.feeId is string
+        && request.resource.data.amount is number
+        && request.resource.data.amount > 0
+        && request.resource.data.transactionReference is string
+        && request.resource.data.status == "pending"
+        && request.resource.data.createdAt == request.time
+        && exists(
+          /databases/$(database)/documents/fees/$(request.resource.data.feeId)
+        )
+        && get(
+          /databases/$(database)/documents/fees/$(request.resource.data.feeId)
+        ).data.academyId == request.resource.data.academyId
+        && get(
+          /databases/$(database)/documents/fees/$(request.resource.data.feeId)
+        ).data.studentId == request.auth.uid
+        && request.resource.data.amount
+          <= get(
+            /databases/$(database)/documents/fees/$(request.resource.data.feeId)
+          ).data.amount
+          - get(
+            /databases/$(database)/documents/fees/$(request.resource.data.feeId)
+          ).data.amountPaid;
+
+      // Only the academy admin can review a pending submission.
+      allow update: if isAcademyAdmin(resource.data.academyId)
+        && resource.data.status == "pending"
+        && request.resource.data.status in ["approved", "rejected"]
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(["status", "reviewedBy", "reviewedAt"])
+        && request.resource.data.reviewedBy == request.auth.uid
+        && request.resource.data.reviewedAt == request.time;
+
+      allow delete: if false;
+    }
+
+
+    // --------------------------------------------------
+    // DENY ALL OTHER COLLECTIONS
+    // --------------------------------------------------
     match /{document=**} {
       allow read, write: if false;
     }

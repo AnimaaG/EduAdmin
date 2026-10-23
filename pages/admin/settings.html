@@ -12,7 +12,7 @@
   <script src="../../js/main.js" defer></script>
   <script src="../../js/navigation.js" defer></script>
   <script src="../../js/admin-sidebar.js" defer></script>
-  <script src="../../js/admin-settings.js" defer></script>
+  <script type="module" src="../../js/admin-settings.js"></script>
   <script type="module" src="../../js/account-menu.js"></script>
 </head>
 
@@ -106,7 +106,7 @@
           </div>
 
           <p class="form-help">
-            Academy information is not saved until backend storage is connected.
+          Academy details are saved to your server record.          
           </p>
         </form>
       </section>
@@ -167,8 +167,7 @@
           </div>
 
           <p class="form-help">
-            These preferences will not affect other pages until settings storage
-            and application-wide preference loading are implemented.
+              Preferences are saved to Server. Other pages must load these preferences before they affect their display.
           </p>
         </form>
       </section>

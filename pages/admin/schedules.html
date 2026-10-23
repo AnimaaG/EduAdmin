@@ -12,7 +12,7 @@
   <script src="../../js/main.js" defer></script>
   <script src="../../js/navigation.js" defer></script>
   <script src="../../js/admin-sidebar.js" defer></script>
-  <script src="../../js/admin-schedules.js" defer></script>
+  <script type="module" src="../../js/admin-schedules.js"></script>
   <script type="module" src="../../js/account-menu.js"></script>
 </head>
 
@@ -215,8 +215,8 @@
           </div>
 
           <p class="form-help">
-            Class and teacher lists require connected records. Schedules are not
-            saved or published until backend storage is connected.
+            Schedules are saved to your academy's Firestore records.
+            Only active classes and teachers from your academy can be selected.
           </p>
         </form>
       </section>

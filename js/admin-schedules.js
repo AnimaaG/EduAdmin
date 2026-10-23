@@ -1,27 +1,61 @@
 
-/**
- * EduAdmin - Admin Schedules
- *
- * Frontend validation only.
- * Schedule records are not saved until backend storage is connected.
- */
+import { auth, db } from "./firebase-config.js";
 
-(() => {
-  "use strict";
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  where,
+  updateDoc,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 
-  const form = document.getElementById("schedule-form");
-  const formSection = document.getElementById("schedule-form-section");
-  const addButton = document.getElementById("add-schedule-button");
-  const cancelButton = document.getElementById("cancel-schedule-button");
-  const message = document.getElementById("schedules-message");
+import {
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
+
+document.addEventListener("DOMContentLoaded", () => {
+  const tableBody = document.getElementById("schedules-table-body");
   const searchInput = document.getElementById("schedule-search");
   const dateFilter = document.getElementById("schedule-date-filter");
-  const tableBody = document.getElementById("schedules-table-body");
-  const saveButton = document.getElementById("save-schedule-button");
+  const message = document.getElementById("schedules-message");
+  const addButton = document.getElementById("add-schedule-button");
+  const formSection = document.getElementById("schedule-form-section");
 
-  if (!form || !formSection || !addButton || !cancelButton) {
-    console.error("EduAdmin: Schedule page elements were not found.");
-    return;
+  const summaryCards = document.querySelectorAll(".stats-grid .stat-card");
+
+  let adminProfile = null;
+  let classes = [];
+  let sessions = [];
+
+  function localDateString(date = new Date()) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  function escapeHTML(value) {
+    return String(value ?? "").replace(/[&<>"']/g, char => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    })[char]);
+  }
+
+  function formatDate(value) {
+    if (!value) return "—";
+
+    const [year, month, day] = value.split("-").map(Number);
+
+    return new Date(year, month - 1, day).toLocaleDateString(
+      undefined,
+      { day: "numeric", month: "short", year: "numeric" }
+    );
   }
 
   function showMessage(text, type = "info") {
@@ -30,133 +64,209 @@
     message.textContent = text;
     message.hidden = false;
     message.className = `form-message ${type}`;
-    message.setAttribute("role", type === "error" ? "alert" : "status");
   }
 
   function hideMessage() {
     if (!message) return;
-
     message.textContent = "";
     message.hidden = true;
   }
 
-  function openForm() {
-    formSection.hidden = false;
-    hideMessage();
-
-    document.getElementById("schedule-title")?.focus();
-
-    formSection.scrollIntoView({
-      behavior: "smooth",
-      block: "start"
-    });
+  function renderEmpty(text) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="8" class="empty-state">
+          <strong>${escapeHTML(text)}</strong>
+          <p>Sessions are read from the existing class records.</p>
+        </td>
+      </tr>
+    `;
   }
 
-  function closeForm() {
-    form.reset();
-    hideMessage();
-    formSection.hidden = true;
+  function expandClassSessions(classRecords) {
+    const result = [];
 
-    if (saveButton) {
-      saveButton.textContent = "Validate Schedule";
-    }
-  }
+    classRecords.forEach(item => {
+      const classSessions = Array.isArray(item.sessions)
+        ? item.sessions
+        : [];
 
-  function renderEmptyState(text) {
-    if (!tableBody) return;
-
-    tableBody.replaceChildren();
-
-    const row = document.createElement("tr");
-    const cell = document.createElement("td");
-    const heading = document.createElement("strong");
-    const description = document.createElement("p");
-
-    cell.colSpan = 7;
-    cell.className = "empty-state";
-
-    heading.textContent = text;
-    description.textContent =
-      "Schedule records will appear here after backend storage is connected.";
-
-    cell.append(heading, description);
-    row.appendChild(cell);
-    tableBody.appendChild(row);
-  }
-
-  function filterSchedules() {
-    const hasSearch = Boolean(searchInput?.value.trim());
-    const hasDate = Boolean(dateFilter?.value);
-
-    if (hasSearch || hasDate) {
-      renderEmptyState("No matching schedule records are available");
-    } else {
-      renderEmptyState("No schedule records loaded");
-    }
-  }
-
-  addButton.addEventListener("click", openForm);
-  cancelButton.addEventListener("click", closeForm);
-
-  searchInput?.addEventListener("input", filterSchedules);
-  dateFilter?.addEventListener("change", filterSchedules);
-
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-    hideMessage();
-
-    if (!form.reportValidity()) return;
-
-    const startTime = document.getElementById("schedule-start-time").value;
-    const endTime = document.getElementById("schedule-end-time").value;
-    const date = document.getElementById("schedule-date").value;
-    const day = document.getElementById("schedule-day").value;
-    const title = document.getElementById("schedule-title").value.trim();
-    const subject = document.getElementById("schedule-subject").value.trim();
-    const classValue = document.getElementById("schedule-class").value;
-    const teacherValue = document.getElementById("schedule-teacher").value;
-
-    if (!title || !subject || !classValue || !teacherValue) {
-      showMessage(
-        "Complete all required fields and select an available class and teacher. These lists need backend data.",
-        "error"
-      );
-      return;
-    }
-
-    if (endTime <= startTime) {
-      showMessage(
-        "End time must be later than start time.",
-        "error"
-      );
-      document.getElementById("schedule-end-time").focus();
-      return;
-    }
-
-    if (day) {
-      const selectedDate = new Date(`${date}T12:00:00`);
-      const actualDay = selectedDate.toLocaleDateString("en-US", {
-        weekday: "long"
+      classSessions.forEach((session, index) => {
+        result.push({
+          rowId: `${item.id}_${session.date}_${index}`,
+          classId: item.id,
+          className: item.className || "Unnamed class",
+          subject: item.subject || "",
+          teacherName: item.teacherName || "",
+          teacherId: item.teacherId || "",
+          date: session.date || "",
+          day: session.day || "",
+          startTime: session.startTime || "",
+          endTime: session.endTime || "",
+          status: session.status || item.status || "active",
+          sessionIndex: index
+        });
       });
+    });
 
-      if (actualDay !== day) {
-        showMessage(
-          `The selected date falls on ${actualDay}, not ${day}. Choose a matching date or select "One-time class".`,
-          "error"
-        );
-        return;
-      }
-    }
+    return result.sort((a, b) =>
+      a.date.localeCompare(b.date) ||
+      a.startTime.localeCompare(b.startTime) ||
+      a.className.localeCompare(b.className)
+    );
+  }
 
-    showMessage(
-      "Validation complete. This schedule has NOT been saved or published because backend storage is not connected.",
-      "info"
+  function updateSummary() {
+    if (summaryCards.length < 3) return;
+
+    const today = localDateString();
+
+    const todaySessions = sessions.filter(item =>
+      item.date === today && item.status === "active"
     );
 
-    if (saveButton) {
-      saveButton.textContent = "Validation Complete";
+    const teacherIds = new Set(
+      sessions
+        .filter(item => item.status === "active" && item.teacherId)
+        .map(item => item.teacherId)
+    );
+
+    summaryCards[0].querySelector("h3").textContent = sessions.length;
+    summaryCards[0].querySelector(".stat-description").textContent =
+      "Sessions from class records";
+
+    summaryCards[1].querySelector("h3").textContent = todaySessions.length;
+    summaryCards[1].querySelector(".stat-description").textContent =
+      "Sessions scheduled for today";
+
+    summaryCards[2].querySelector("h3").textContent = teacherIds.size;
+    summaryCards[2].querySelector(".stat-description").textContent =
+      "Teachers assigned to sessions";
+  }
+
+  function renderSessions() {
+    const term = (searchInput?.value || "").trim().toLowerCase();
+    const selectedDate = dateFilter?.value || "";
+
+    const filtered = sessions.filter(item => {
+      const searchable = [
+        item.className,
+        item.subject,
+        item.teacherName,
+        item.day,
+        item.date
+      ].join(" ").toLowerCase();
+
+      return searchable.includes(term) &&
+        (!selectedDate || item.date === selectedDate);
+    });
+
+    if (filtered.length === 0) {
+      renderEmpty(
+        term || selectedDate
+          ? "No matching class sessions"
+          : "No saved class sessions"
+      );
+      return;
     }
+
+    tableBody.innerHTML = filtered.map(item => `
+      <tr>
+        <td>${escapeHTML(item.className)}</td>
+        <td>${escapeHTML(item.className)}</td>
+        <td>${escapeHTML(item.subject || "—")}</td>
+        <td>${escapeHTML(item.teacherName || "Not assigned")}</td>
+        <td>${escapeHTML(formatDate(item.date))}</td>
+        <td>${escapeHTML(item.startTime || "—")} – ${escapeHTML(item.endTime || "—")}</td>
+        <td>${escapeHTML(item.status)}</td>
+        <td>
+          <button
+            type="button"
+            class="btn btn-secondary"
+            data-reschedule-class="${escapeHTML(item.classId)}"
+          >Edit in Classes</button>
+        </td>
+      </tr>
+    `).join("");
+  }
+
+  async function loadClassSessions() {
+    const result = await getDocs(
+      query(
+        collection(db, "classes"),
+        where("academyId", "==", adminProfile.academyId)
+      )
+    );
+
+    classes = result.docs.map(snapshot => ({
+      id: snapshot.id,
+      ...snapshot.data()
+    }));
+
+    sessions = expandClassSessions(classes);
+    renderSessions();
+    updateSummary();
+  }
+
+  searchInput?.addEventListener("input", renderSessions);
+  dateFilter?.addEventListener("change", renderSessions);
+
+  // The class owns its sessions. Edit them from the Classes page.
+  addButton?.addEventListener("click", () => {
+    window.location.href = "./classes.html";
   });
 
-  renderEmptyState("No schedule records loaded");
-})();
+  tableBody?.addEventListener("click", event => {
+    const button = event.target.closest("[data-reschedule-class]");
+
+    if (!button) return;
+
+    // The current Classes page edits the entire class record.
+    // Open that page rather than creating a duplicate schedule.
+    window.location.href = "./classes.html";
+  });
+
+  if (formSection) {
+    formSection.hidden = true;
+  }
+
+  onAuthStateChanged(auth, async user => {
+    if (!user) {
+      window.location.href = "../login.html";
+      return;
+    }
+
+    try {
+      const profileSnapshot = await getDoc(doc(db, "users", user.uid));
+
+      if (!profileSnapshot.exists()) {
+        throw new Error("Admin profile was not found.");
+      }
+
+      const profile = profileSnapshot.data();
+
+      if (
+        profile.role !== "admin" ||
+        profile.isActive !== true ||
+        !profile.academyId
+      ) {
+        throw new Error("An active academy admin account is required.");
+      }
+
+      adminProfile = profile;
+      await loadClassSessions();
+      hideMessage();
+    } catch (error) {
+      console.error("Could not load class sessions:", error);
+
+      renderEmpty("Could not load sessions from class records.");
+
+      showMessage(
+        error.code === "permission-denied"
+          ? "Firestore denied access. Check your classes read rules."
+          : error.message || "Could not load class sessions.",
+        "error"
+      );
+    }
+  });
+});

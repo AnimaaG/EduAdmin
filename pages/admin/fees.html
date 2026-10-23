@@ -12,7 +12,7 @@
   <script src="../../js/main.js" defer></script>
   <script src="../../js/navigation.js" defer></script>
   <script src="../../js/admin-sidebar.js" defer></script>
-  <script src="../../js/admin-fees.js" defer></script>
+  <script type="module" src="../../js/admin-fees.js"></script>
   <script type="module" src="../../js/account-menu.js"></script>
 </head>
 
@@ -49,25 +49,161 @@
           </div>
         </div>
 
-        <div class="stats-grid">
-          <article class="stat-card">
-            <p class="stat-label">Payments Received</p>
-            <h3>—</h3>
-            <p class="stat-description">Awaiting verified payment records</p>
-          </article>
+        
+<section class="dashboard-section">
+  <div class="section-heading">
+    <div>
+      <h2>Assign Fees</h2>
+      <p>Assign a fee to one student or multiple students with individual amounts.</p>
+    </div>
+  </div>
 
-          <article class="stat-card">
-            <p class="stat-label">Pending Approvals</p>
-            <h3 id="pending-approvals-count">—</h3>
-            <p class="stat-description">Awaiting payment submissions</p>
-          </article>
+  <p id="fees-message" class="form-message" role="status" hidden></p>
 
-          <article class="stat-card">
-            <p class="stat-label">Rejected Payments</p>
-            <h3>—</h3>
-            <p class="stat-description">Awaiting review records</p>
-          </article>
+  <form id="fee-assignment-form">
+    <div class="form-grid">
+      <div class="form-group">
+        <label for="fee-assignment-mode">Assignment method</label>
+        <select id="fee-assignment-mode" required>
+          <option value="individual">Individual student</option>
+          <option value="group">Multiple students — custom amount per student</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="fee-type">Fee type</label>
+        <input id="fee-type" maxlength="80" required
+          placeholder="Tuition, exam, books, transport">
+      </div>
+
+      <div class="form-group">
+        <label for="fee-due-date">Due date</label>
+        <input id="fee-due-date" type="date" required>
+      </div>
+
+      <div class="form-group form-group-full">
+        <label for="fee-description">Description</label>
+        <input id="fee-description" maxlength="250"
+          placeholder="Optional details about this fee">
+      </div>
+    </div>
+
+    <div id="individual-fee-fields">
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="fee-student">Student</label>
+          <select id="fee-student" required>
+            <option value="">Loading students...</option>
+          </select>
         </div>
+
+        <div class="form-group">
+          <label for="fee-individual-amount">Amount (₹)</label>
+          <input id="fee-individual-amount" type="number"
+            min="0.01" step="0.01" required placeholder="e.g. 3500">
+        </div>
+      </div>
+    </div>
+
+    <div id="group-fee-fields" hidden>
+      <div class="form-group">
+        <label for="fee-group-students">Select students</label>
+        <select id="fee-group-students" multiple size="6"
+          aria-describedby="group-students-help"></select>
+        <small id="group-students-help">
+          Use Ctrl (Windows) or Command (Mac) to select multiple students.
+        </small>
+      </div>
+
+      <div id="group-student-amounts" class="form-grid"></div>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">
+        Create Fee Assignment(s)
+      </button>
+    </div>
+  </form>
+</section>
+
+<section class="dashboard-section">
+  <div class="section-heading">
+    <div>
+      <h2>Student Fee Records</h2>
+      <p>Each row is an independent fee assignment.</p>
+    </div>
+  </div>
+
+  <div class="table-toolbar">
+    <div class="form-group">
+      <label for="fee-record-search">Search fee records</label>
+      <input type="search" id="fee-record-search"
+        placeholder="Search student or fee type">
+    </div>
+
+    <div class="form-group">
+      <label for="fee-record-status">Fee status</label>
+      <select id="fee-record-status">
+        <option value="all">All statuses</option>
+        <option value="pending">Pending</option>
+        <option value="partial">Partially paid</option>
+        <option value="paid">Paid</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="table-container">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Student</th>
+          <th>Fee type</th>
+          <th>Assigned</th>
+          <th>Paid</th>
+          <th>Balance</th>
+          <th>Due date</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="fee-records-table-body">
+        <tr><td colspan="7">Loading fee records...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+
+      <div class="stats-grid">
+        <article class="stat-card">
+          <p class="stat-label">Total Fees Assigned</p>
+          <h3 id="total-fees-assigned">₹0</h3>
+          <p class="stat-description">Total assigned across student fee records</p>
+        </article>
+
+        <article class="stat-card">
+          <p class="stat-label">Fees Collected</p>
+          <h3 id="total-fees-collected">₹0</h3>
+          <p class="stat-description">Verified payments only</p>
+        </article>
+
+        <article class="stat-card">
+          <p class="stat-label">Outstanding Balance</p>
+          <h3 id="total-fees-outstanding">₹0</h3>
+          <p class="stat-description">Assigned fees minus verified payments</p>
+        </article>
+
+        <article class="stat-card">
+          <p class="stat-label">Pending Approvals</p>
+          <h3 id="pending-approvals-count">0</h3>
+          <p class="stat-description">Payments awaiting manual verification</p>
+        </article>
+
+        <article class="stat-card">
+          <p class="stat-label">Rejected Payments</p>
+          <h3 id="rejected-payments-count">0</h3>
+          <p class="stat-description">Payments rejected after review</p>
+        </article>
+      </div>
       </section>
 
       <section class="dashboard-section">
