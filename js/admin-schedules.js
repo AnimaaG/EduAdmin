@@ -24,7 +24,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const addButton = document.getElementById("add-schedule-button");
   const formSection = document.getElementById("schedule-form-section");
 
-  const summaryCards = document.querySelectorAll(".stats-grid .stat-card");
+    const scheduleTotalCount = document.getElementById("schedule-total-count");
+    const scheduleCompletedCount = document.getElementById("schedule-completed-count");
+    const schedulePendingCount = document.getElementById("schedule-pending-count");
+    const scheduleCancelledCount = document.getElementById("schedule-cancelled-count");
+    const scheduleChart = document.getElementById("schedule-status-chart");
+    const scheduleChartMessage = document.getElementById("schedule-chart-message");
 
   let adminProfile = null;
   let classes = [];
@@ -109,40 +114,194 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     });
 
+    
     return result.sort((a, b) =>
-      a.date.localeCompare(b.date) ||
-      a.startTime.localeCompare(b.startTime) ||
+      b.date.localeCompare(a.date) ||
+      b.startTime.localeCompare(a.startTime) ||
       a.className.localeCompare(b.className)
     );
+
   }
 
-  function updateSummary() {
-    if (summaryCards.length < 3) return;
+function updateSummary() {
+  const now = new Date();
 
-    const today = localDateString();
-
-    const todaySessions = sessions.filter(item =>
-      item.date === today && item.status === "active"
-    );
-
-    const teacherIds = new Set(
-      sessions
-        .filter(item => item.status === "active" && item.teacherId)
-        .map(item => item.teacherId)
-    );
-
-    summaryCards[0].querySelector("h3").textContent = sessions.length;
-    summaryCards[0].querySelector(".stat-description").textContent =
-      "Sessions from class records";
-
-    summaryCards[1].querySelector("h3").textContent = todaySessions.length;
-    summaryCards[1].querySelector(".stat-description").textContent =
-      "Sessions scheduled for today";
-
-    summaryCards[2].querySelector("h3").textContent = teacherIds.size;
-    summaryCards[2].querySelector(".stat-description").textContent =
-      "Teachers assigned to sessions";
+  function isCancelled(item) {
+    return String(item.status || "").toLowerCase() === "cancelled";
   }
+
+  function hasFinished(item) {
+    if (!item.date || !item.endTime) return false;
+
+    const end = new Date(`${item.date}T${item.endTime}:00`);
+    return !Number.isNaN(end.getTime()) && end < now;
+  }
+
+  const cancelled = sessions.filter(isCancelled);
+  const completed = sessions.filter(item =>
+    !isCancelled(item) && hasFinished(item)
+  );
+  const pending = sessions.filter(item =>
+    !isCancelled(item) && !hasFinished(item)
+  );
+
+  if (scheduleTotalCount) scheduleTotalCount.textContent = sessions.length;
+  if (scheduleCompletedCount) scheduleCompletedCount.textContent = completed.length;
+  if (schedulePendingCount) schedulePendingCount.textContent = pending.length;
+  if (scheduleCancelledCount) scheduleCancelledCount.textContent = cancelled.length;
+
+  renderScheduleChart();
+}
+
+function renderScheduleChart() {
+  if (!scheduleChart) return;
+
+  const context = scheduleChart.getContext("2d");
+  const width = scheduleChart.clientWidth;
+  const height = scheduleChart.clientHeight;
+
+  if (!context || !width || !height) return;
+
+  const ratio = window.devicePixelRatio || 1;
+
+  scheduleChart.width = width * ratio;
+  scheduleChart.height = height * ratio;
+  context.setTransform(ratio, 0, 0, ratio, 0, 0);
+  context.clearRect(0, 0, width, height);
+
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+
+const dates = [];
+
+for (let offset = -2; offset <= 3; offset++) {
+  const date = new Date(today);
+  date.setDate(today.getDate() + offset);
+  dates.push(localDateString(date));
+}
+
+const validSessions = sessions.filter(item =>
+  dates.includes(item.date)
+);
+
+  if (!dates.length) {
+    if (scheduleChartMessage) {
+      scheduleChartMessage.textContent = "No schedule records available.";
+    }
+    return;
+  }
+
+  const now = new Date();
+
+  const completedByDate = dates.map(date =>
+    validSessions.filter(item => {
+      if (item.date !== date || item.status === "cancelled") return false;
+      if (!item.endTime) return false;
+
+      const end = new Date(`${item.date}T${item.endTime}:00`);
+      return !Number.isNaN(end.getTime()) && end < now;
+    }).length
+  );
+
+  const pendingByDate = dates.map(date =>
+    validSessions.filter(item => {
+      if (item.date !== date || item.status === "cancelled") return false;
+
+      if (!item.endTime) return true;
+
+      const end = new Date(`${item.date}T${item.endTime}:00`);
+      return Number.isNaN(end.getTime()) || end >= now;
+    }).length
+  );
+
+  const padding = { top: 20, right: 18, bottom: 42, left: 34 };
+  const plotWidth = width - padding.left - padding.right;
+  const plotHeight = height - padding.top - padding.bottom;
+  const maxValue = Math.max(1, ...completedByDate, ...pendingByDate);
+  const steps = Math.min(5, maxValue);
+  const yMax = Math.max(1, Math.ceil(maxValue / steps) * steps);
+
+  context.font = "11px sans-serif";
+  context.textAlign = "right";
+  context.textBaseline = "middle";
+  context.strokeStyle = "#e3e8f0";
+  context.fillStyle = "#68758b";
+  context.lineWidth = 1;
+
+  for (let i = 0; i <= steps; i++) {
+    const value = (yMax / steps) * i;
+    const y = padding.top + plotHeight - (value / yMax) * plotHeight;
+
+    context.beginPath();
+    context.moveTo(padding.left, y);
+    context.lineTo(width - padding.right, y);
+    context.stroke();
+
+    context.fillText(String(Math.round(value)), padding.left - 8, y);
+  }
+
+  function drawLine(values, stroke) {
+    context.strokeStyle = stroke;
+    context.lineWidth = 2.5;
+    context.beginPath();
+
+    values.forEach((value, index) => {
+      const x = dates.length === 1
+        ? padding.left + plotWidth / 2
+        : padding.left + (index / (dates.length - 1)) * plotWidth;
+
+      const y = padding.top + plotHeight - (value / yMax) * plotHeight;
+
+      if (index === 0) context.moveTo(x, y);
+      else context.lineTo(x, y);
+    });
+
+    context.stroke();
+
+    values.forEach((value, index) => {
+      const x = dates.length === 1
+        ? padding.left + plotWidth / 2
+        : padding.left + (index / (dates.length - 1)) * plotWidth;
+
+      const y = padding.top + plotHeight - (value / yMax) * plotHeight;
+
+      context.fillStyle = stroke;
+      context.beginPath();
+      context.arc(x, y, 3.5, 0, Math.PI * 2);
+      context.fill();
+    });
+  }
+
+  drawLine(completedByDate, "#16a085");
+  drawLine(pendingByDate, "#5276e8");
+
+  context.fillStyle = "#68758b";
+  context.textAlign = "center";
+  context.textBaseline = "top";
+
+  const labelCount = dates.length;
+
+  for (let i = 0; i < labelCount; i++) {
+    const index = labelCount === 1
+      ? 0
+      : Math.round(i * (dates.length - 1) / (labelCount - 1));
+
+    const x = dates.length === 1
+      ? padding.left + plotWidth / 2
+      : padding.left + (index / (dates.length - 1)) * plotWidth;
+
+    context.fillText(
+      formatDate(dates[index]),
+      x,
+      padding.top + plotHeight + 10
+    );
+  }
+
+  if (scheduleChartMessage) {
+    scheduleChartMessage.textContent =
+      "Completed and pending sessions by scheduled date.";
+  }
+}
 
   function renderSessions() {
     const term = (searchInput?.value || "").trim().toLowerCase();
@@ -161,7 +320,13 @@ document.addEventListener("DOMContentLoaded", () => {
         (!selectedDate || item.date === selectedDate);
     });
 
-    if (filtered.length === 0) {
+    // Default view: show only the 10 latest schedules.
+    // When searching or filtering by date, show all matching results.
+    const displayed = (!term && !selectedDate)
+      ? filtered.slice(0, 10)
+      : filtered;
+
+    if (displayed.length === 0) {
       renderEmpty(
         term || selectedDate
           ? "No matching class sessions"
@@ -170,7 +335,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    tableBody.innerHTML = filtered.map(item => `
+    tableBody.innerHTML = displayed.map(item => `
       <tr>
         <td>${escapeHTML(item.className)}</td>
         <td>${escapeHTML(item.className)}</td>
@@ -208,6 +373,7 @@ document.addEventListener("DOMContentLoaded", () => {
     updateSummary();
   }
 
+  window.addEventListener("resize", renderScheduleChart);
   searchInput?.addEventListener("input", renderSessions);
   dateFilter?.addEventListener("change", renderSessions);
 

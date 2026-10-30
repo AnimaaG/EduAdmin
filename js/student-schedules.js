@@ -148,7 +148,7 @@ function renderEmptyState(
   const heading = document.createElement("strong");
   const detail = document.createElement("p");
 
-  cell.colSpan = 7;
+  cell.colSpan = 8;
   cell.className = "empty-state";
 
   heading.textContent = title;
@@ -196,6 +196,7 @@ function renderSessions() {
   const search = (searchInput?.value || "").trim().toLowerCase();
   const selectedDate = dateFilter?.value || "";
 
+  // Search and date filters operate on all loaded sessions.
   const filtered = allSessions.filter(session => {
     const searchable = [
       session.className,
@@ -209,70 +210,193 @@ function renderSessions() {
       (!selectedDate || session.date === selectedDate);
   });
 
+  // Calculate the current calendar week: Monday through Sunday.
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const monday = new Date(today);
+  const dayOfWeek = monday.getDay(); // Sunday = 0, Monday = 1
+  const daysSinceMonday = (dayOfWeek + 6) % 7;
+  monday.setDate(monday.getDate() - daysSinceMonday);
+
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+
+  const weekStart = localDateString(monday);
+  const weekEnd = localDateString(sunday);
+
+  // Default: show only this week's sessions.
+  // When a search or date filter is used, search all loaded sessions.
+  const displayed = (search || selectedDate)
+    ? [...filtered].sort(
+        (a, b) => sessionDateTime(a) - sessionDateTime(b)
+      )
+    : filtered
+        .filter(session =>
+          session.date >= weekStart &&
+          session.date <= weekEnd
+        )
+        .sort(
+          (a, b) => sessionDateTime(a) - sessionDateTime(b)
+        );
+
   tableBody.replaceChildren();
 
-  if (!filtered.length) {
+  if (!displayed.length && (search || selectedDate)) {
     const hasFilters = Boolean(search || selectedDate);
 
     renderEmptyState(
-      hasFilters ? "No classes match your filters" : "No classes scheduled",
+      hasFilters
+        ? "No classes match your filters"
+        : "No classes scheduled this week",
       hasFilters
         ? "Try another search term or choose a different date."
-        : "Your timetable will appear here when classes are scheduled."
+        : `No sessions are scheduled from ${formatDate(weekStart)} to ${formatDate(weekEnd)}. Use search or choose a date to find other sessions.`
     );
+
     return;
   }
 
-  filtered.forEach(session => {
-    const row = document.createElement("tr");
+const weekDates = [];
 
-    const values = [
-      session.className,
-      session.subject || "—",
-      session.teacherName || "—",
-      formatDate(session.date),
-      [
-        formatTime(session.startTime),
-        formatTime(session.endTime)
-      ].filter(Boolean).join(" – ") || "—"
-    ];
+const currentDay = new Date(monday);
 
-    values.forEach(value => {
-      const cell = document.createElement("td");
-      cell.textContent = value;
-      row.appendChild(cell);
+for (let i = 0; i < 7; i++) {
+  const date = new Date(currentDay);
+  date.setDate(monday.getDate() + i);
+
+  weekDates.push({
+    date: localDateString(date),
+    day: date.toLocaleDateString(undefined, { weekday: "long" })
+  });
+}
+
+const sessionsToRender = (search || selectedDate)
+  ? displayed.map(session => ({
+      session,
+      date: session.date,
+      day: session.day || new Date(
+        `${session.date}T12:00:00`
+      ).toLocaleDateString(undefined, { weekday: "long" })
+    }))
+  : weekDates.flatMap(weekDay => {
+      const daySessions = displayed.filter(
+        session => session.date === weekDay.date
+      );
+
+      if (!daySessions.length) {
+        return [{
+          session: null,
+          date: weekDay.date,
+          day: weekDay.day
+        }];
+      }
+
+      return daySessions.map(session => ({
+        session,
+        date: weekDay.date,
+        day: weekDay.day
+      }));
     });
 
-    const locationCell = document.createElement("td");
+// Combine Date and Day cells when multiple classes occur on the same date.
+const dateRowSpans = new Map();
 
-    if (session.room) {
-      locationCell.textContent = session.room;
-    } else if (session.meetingLink) {
-      const link = document.createElement("a");
-      link.href = session.meetingLink;
-      link.target = "_blank";
-      link.rel = "noopener noreferrer";
-      link.textContent = "Join class";
-      locationCell.appendChild(link);
-    } else {
-      locationCell.textContent = "—";
-    }
+sessionsToRender.forEach(item => {
+  if (item.session) {
+    dateRowSpans.set(
+      item.date,
+      (dateRowSpans.get(item.date) || 0) + 1
+    );
+  }
+});
 
-    row.appendChild(locationCell);
+const renderedDates = new Set();
 
-    const statusCell = document.createElement("td");
-    const badge = document.createElement("span");
+sessionsToRender.forEach(item => {
+  const session = item.session;
+  const row = document.createElement("tr");
 
-    const cancelled = isCancelled(session);
+  // Render Date and Day only once per date.
+  if (!renderedDates.has(item.date)) {
+    const dateCell = document.createElement("td");
+    dateCell.textContent = formatDate(item.date);
 
-    badge.className = `status-badge ${cancelled ? "inactive" : "active"}`;
-    badge.textContent = cancelled ? "Cancelled" : "Scheduled";
+    const dayCell = document.createElement("td");
+    dayCell.textContent = item.day;
 
-    statusCell.appendChild(badge);
-    row.appendChild(statusCell);
+    const rowSpan = session
+      ? dateRowSpans.get(item.date) || 1
+      : 1;
 
+    dateCell.rowSpan = rowSpan;
+    dayCell.rowSpan = rowSpan;
+
+    row.append(dateCell, dayCell);
+    renderedDates.add(item.date);
+  }
+
+  if (!session) {
+    row.innerHTML += `
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td>No-schedule</td>
+    `;
+
+    row.classList.add("no-class-day");
     tableBody.appendChild(row);
+    return;
+  }
+
+  const values = [
+    session.className,
+    session.subject || "—",
+    session.teacherName || "—",
+    [
+      formatTime(session.startTime),
+      formatTime(session.endTime)
+    ].filter(Boolean).join(" – ") || "—"
+  ];
+
+  values.forEach(value => {
+    const cell = document.createElement("td");
+    cell.textContent = value;
+    row.appendChild(cell);
   });
+
+  const locationCell = document.createElement("td");
+
+  if (session.room) {
+    locationCell.textContent = session.room;
+  } else if (session.meetingLink) {
+    const link = document.createElement("a");
+    link.href = session.meetingLink;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = "Join class";
+    locationCell.appendChild(link);
+  } else {
+    locationCell.textContent = "—";
+  }
+
+  row.appendChild(locationCell);
+
+  const statusCell = document.createElement("td");
+  const badge = document.createElement("span");
+  const cancelled = isCancelled(session);
+
+  badge.className =
+    `status-badge ${cancelled ? "inactive" : "active"}`;
+  badge.textContent = cancelled ? "Cancelled" : "Scheduled";
+
+  statusCell.appendChild(badge);
+  row.appendChild(statusCell);
+
+  tableBody.appendChild(row);
+});
 }
 
 function normalizeSession(classRecord, session, index) {

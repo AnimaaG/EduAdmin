@@ -11,7 +11,22 @@
   <script src="../../js/student-sidebar.js" defer></script>
   <script type="module" src="../../js/student-payments.js"></script>
   <script type="module" src="../../js/account-menu.js"></script>
+
+  <style>
+    #student-installment-group[hidden],
+    #student-upi-qr-section[hidden] {
+      display: none !important;
+    }
+
+    .payment-note {
+      padding: .85rem 1rem;
+      border: 1px solid #dbeafe;
+      border-radius: 10px;
+      margin: .75rem 0;
+    }
+  </style>
 </head>
+
 <body>
   <div class="dashboard-layout">
     <div id="student-sidebar-mount"></div>
@@ -19,37 +34,49 @@
 
     <main class="dashboard-main">
       <header class="dashboard-topbar">
+        <button
+          type="button"
+          class="sidebar-toggle"
+          id="sidebar-toggle"
+          aria-label="Toggle navigation"
+          aria-controls="student-sidebar"
+          aria-expanded="false"
+        >☰</button>
+
         <div>
-          <p class="form-help">Student Portal</p>
+          <p class="eyebrow">STUDENT PORTAL</p>
           <h1>Fees & Payments</h1>
+          <p>Review fee balances, scheduled installments and payment history.</p>
         </div>
       </header>
+
+      <p id="student-payment-message"
+        class="form-message"
+        role="status"
+        aria-live="polite"></p>
 
       <section class="dashboard-section">
         <div class="section-heading">
           <div>
             <h2>Payment Overview</h2>
-            <p>Review your fee status and payment history.</p>
+            <p>Approved payments are reflected in your paid amount.</p>
           </div>
         </div>
 
         <div class="stats-grid">
           <article class="stat-card">
-            <h3>Total Fees</h3>
-            <p id="student-total-fees">—</p>
-            <span>Available when fee records are connected</span>
+            <p class="stat-label">Total Fees</p>
+            <h3 id="student-total-fees">₹0.00</h3>
           </article>
 
           <article class="stat-card">
-            <h3>Amount Paid</h3>
-            <p id="student-amount-paid">—</p>
-            <span>Based on confirmed payments</span>
+            <p class="stat-label">Amount Paid</p>
+            <h3 id="student-amount-paid">₹0.00</h3>
           </article>
 
           <article class="stat-card">
-            <h3>Outstanding Balance</h3>
-            <p id="student-outstanding-balance">—</p>
-            <span>Based on your assigned fees</span>
+            <p class="stat-label">Outstanding Balance</p>
+            <h3 id="student-outstanding-balance">₹0.00</h3>
           </article>
         </div>
       </section>
@@ -58,18 +85,15 @@
         <div class="section-heading">
           <div>
             <h2>Payment History</h2>
-            <p>Your submitted payments and their review status will appear here.</p>
+            <p>Your submitted payments and their review status.</p>
           </div>
         </div>
 
         <div class="table-toolbar">
           <div class="form-group">
             <label for="student-payment-search">Search payments</label>
-            <input
-              type="search"
-              id="student-payment-search"
-              placeholder="Search by reference or description"
-            >
+            <input type="search" id="student-payment-search"
+              placeholder="Search by reference or description">
           </div>
 
           <div class="form-group">
@@ -89,125 +113,130 @@
               <tr>
                 <th>Date</th>
                 <th>Description</th>
+                <th>Installment</th>
                 <th>Amount</th>
                 <th>Payment Reference</th>
                 <th>Status</th>
               </tr>
             </thead>
             <tbody id="student-payments-table-body">
-              <tr>
-                <td colspan="5">
-                  <div class="empty-state">
-                    <h3>No payment records available</h3>
-                    <p>
-                      Payment history will appear after the payment system
-                      is connected and records are available.
-                    </p>
-                  </div>
-                </td>
-              </tr>
+              <tr><td colspan="6">Loading payment history...</td></tr>
             </tbody>
           </table>
         </div>
-
-        <p id="student-payment-message" class="form-message" role="status" aria-live="polite"></p>
       </section>
 
       <section class="dashboard-section">
         <div class="section-heading">
           <div>
             <h2>UPI Payment Instructions</h2>
-            <p>Use only the payment details officially provided by your institution.</p>
+            <p>Use only payment details officially provided by your institution.</p>
           </div>
         </div>
 
-       
-        <div class="form-help">
-          <p><strong>Payment method:</strong> UPI, when enabled by the institution.</p>
-          <p><strong>UPI ID:</strong> <span id="student-academy-upi">Loading...</span></p>
-          <p><strong>Payee name:</strong> <span id="student-academy-payee">Loading...</span></p>
-          <p><strong>QR code:</strong> Not available yet.</p>
-          <p>
-            Do not send money to an unverified UPI ID. Confirm the recipient
-            and amount with your institution before making a payment.
-          </p>
+        <div id="student-upi-qr-section" hidden>
+          <p><strong>Scan to pay</strong></p>
+          <div id="student-upi-qr" aria-label="UPI payment QR code"></div>
+          <p id="student-upi-qr-amount"></p>
         </div>
 
+        <div class="form-help">
+          <p><strong>UPI ID:</strong>
+            <span id="student-academy-upi">Loading...</span>
+          </p>
+          <p><strong>Payee name:</strong>
+            <span id="student-academy-payee">Loading...</span>
+          </p>
+          <p>
+            Confirm the recipient and amount with your institution before
+            making a payment. Submitting details does not mean the payment
+            has been approved.
+          </p>
+        </div>
       </section>
 
       <section class="dashboard-section">
         <div class="section-heading">
           <div>
             <h2>Submit Payment Details</h2>
-            <p>
-              This section is a placeholder until payment verification
-              and secure submission are implemented.
-            </p>
+            <p>Submit your transaction reference for academy verification.</p>
           </div>
         </div>
 
+        <form id="student-payment-form">
+          <div class="form-grid">
+            <div class="form-group form-group-full">
+              <label for="student-fee-select">Fee to pay</label>
+              <select id="student-fee-select" required>
+                <option value="">Loading your outstanding fees...</option>
+              </select>
+            </div>
 
-<form id="student-payment-form">
-  <div class="form-grid">
-    <div class="form-group form-group-full">
-      <label for="student-fee-select">Fee to pay</label>
-      <select id="student-fee-select" required>
-        <option value="">Loading your outstanding fees...</option>
-      </select>
-    </div>
+            <div class="form-group form-group-full"
+              id="student-installment-group" hidden>
+              <label for="student-installment-select">Installment to pay</label>
+              <select id="student-installment-select">
+                <option value="">Select an installment</option>
+              </select>
+              <small id="student-installment-help">
+                Select the scheduled installment you are paying.
+              </small>
+            </div>
 
-    <div class="form-group">
-      <label for="student-payment-amount">Amount paid (₹)</label>
-      <input
-        type="number"
-        id="student-payment-amount"
-        name="amount"
-        min="0.01"
-        step="0.01"
-        required
-        placeholder="Enter amount"
-      >
-    </div>
+            <div class="form-group">
+              <label for="student-payment-amount">Payment amount (₹)</label>
+              <input
+                type="number"
+                id="student-payment-amount"
+                name="amount"
+                min="0.01"
+                step="0.01"
+                required
+                placeholder="Enter amount">
+            </div>
 
-    <div class="form-group">
-      <label for="student-payment-method">Payment method</label>
-      <select id="student-payment-method" name="method" required>
-        <option value="">Select payment method</option>
-        <option value="upi">UPI</option>
-        <option value="bank-transfer">Bank transfer</option>
-      </select>
-    </div>
+            <div class="form-group">
+              <label for="student-payment-method">Payment method</label>
+              <select id="student-payment-method" name="method" required>
+                <option value="">Select payment method</option>
+                <option value="upi">UPI</option>
+                <option value="bank-transfer">Bank transfer</option>
+              </select>
+            </div>
 
-    <div class="form-group">
-      <label for="student-payment-reference">Transaction reference</label>
-      <input
-        type="text"
-        id="student-payment-reference"
-        name="reference"
-        required
-        maxlength="120"
-        placeholder="Enter transaction reference"
-      >
-    </div>
+            <div class="form-group">
+              <label for="student-payment-reference">Transaction reference</label>
+              <input
+                type="text"
+                id="student-payment-reference"
+                name="reference"
+                required
+                maxlength="120"
+                placeholder="Enter transaction reference">
+            </div>
 
-    <div class="form-group">
-      <label for="student-payment-date">Payment date</label>
-      <input
-        type="date"
-        id="student-payment-date"
-        name="paymentDate"
-        required
-      >
-    </div>
-  </div>
+            <div class="form-group">
+              <label for="student-payment-date">Payment date</label>
+              <input
+                type="date"
+                id="student-payment-date"
+                name="paymentDate"
+                required>
+            </div>
+          </div>
 
-  <div class="form-actions">
-    <button type="submit" class="btn btn-primary">
-      Submit Payment Details
-    </button>
-  </div>
-</form>
+          <p class="payment-note">
+            Your submission remains pending until the academy verifies it.
+            Your fee balance will not decrease merely because you submitted
+            payment details.
+          </p>
 
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">
+              Submit Payment Details
+            </button>
+          </div>
+        </form>
       </section>
     </main>
   </div>

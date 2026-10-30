@@ -14,6 +14,60 @@
   <script src="../../js/admin-sidebar.js" defer></script>
   <script type="module" src="../../js/admin-schedules.js"></script>
   <script type="module" src="../../js/account-menu.js"></script>
+
+  <style>
+  .schedule-analytics {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr);
+    gap: 20px;
+    align-items: stretch;
+  }
+
+  .schedule-chart-card,
+  .schedule-data-card {
+    min-width: 0;
+  }
+
+  .schedule-chart-container {
+    position: relative;
+    width: 100%;
+    height: 280px;
+    margin-top: 16px;
+  }
+
+  .schedule-chart-container canvas {
+    width: 100%;
+    height: 100%;
+  }
+
+  .schedule-data-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 18px 0;
+    border-bottom: 1px solid #e8ebf1;
+  }
+
+  .schedule-data-row:last-child {
+    border-bottom: none;
+  }
+
+  .schedule-data-row strong {
+    font-size: 20px;
+  }
+
+  @media (max-width: 760px) {
+    .schedule-analytics {
+      grid-template-columns: 1fr;
+    }
+
+    .schedule-chart-container {
+      height: 240px;
+    }
+  }
+</style>
+
 </head>
 
 <body>
@@ -42,39 +96,51 @@
       </header>
 
       <section class="dashboard-section">
-        <div class="section-heading">
-          <div>
-            <h2>Class Schedule</h2>
-            <p>Create and organize class timings, subjects, and assigned teachers.</p>
-          </div>
+        <div class="schedule-analytics">
+      <article class="stat-card schedule-chart-card">
+        <h2>Schedule Overview</h2>
+        <p class="stat-description">
+          Completed and pending schedules over time
+        </p>
 
-          <button
-            type="button"
-            class="btn btn-primary"
-            id="add-schedule-button"
-          >+ Add Schedule</button>
+        <div class="schedule-chart-container">
+          <canvas
+            id="schedule-status-chart"
+            role="img"
+            aria-label="Line graph of completed and pending schedules"
+          ></canvas>
         </div>
 
-        <div class="stats-grid">
-          <article class="stat-card">
-            <p class="stat-label">Total Schedules</p>
-            <h3>—</h3>
-            <p class="stat-description">Awaiting data connection</p>
-          </article>
+        <p id="schedule-chart-message" class="stat-description">
+          Loading schedule data...
+        </p>
+      </article>
 
-          <article class="stat-card">
-            <p class="stat-label">Today's Classes</p>
-            <h3>—</h3>
-            <p class="stat-description">Awaiting data connection</p>
-          </article>
+      <article class="stat-card schedule-data-card">
+        <h2>Schedule Summary</h2>
 
-          <article class="stat-card">
-            <p class="stat-label">Assigned Teachers</p>
-            <h3>—</h3>
-            <p class="stat-description">Awaiting data connection</p>
-          </article>
+        <div class="schedule-data-row">
+          <span>Total schedules</span>
+          <strong id="schedule-total-count">—</strong>
         </div>
-      </section>
+
+        <div class="schedule-data-row">
+          <span>Completed</span>
+          <strong id="schedule-completed-count">—</strong>
+        </div>
+
+        <div class="schedule-data-row">
+          <span>Pending / Upcoming</span>
+          <strong id="schedule-pending-count">—</strong>
+        </div>
+
+        <div class="schedule-data-row">
+          <span>Cancelled</span>
+          <strong id="schedule-cancelled-count">—</strong>
+        </div>
+      </article>
+    </div>
+  </section>
 
       <section
         class="dashboard-section form-section"

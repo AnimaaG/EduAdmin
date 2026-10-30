@@ -1,4 +1,3 @@
-
 import { auth, db } from "./firebase-config.js";
 
 import {
@@ -12,35 +11,39 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 
-import {
-  onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
+import { onAuthStateChanged } from
+  "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 
 document.addEventListener("DOMContentLoaded", () => {
-  const searchInput = document.getElementById("student-payment-search");
-  const statusFilter = document.getElementById("student-payment-status-filter");
-  const tableBody = document.getElementById("student-payments-table-body");
-  const paymentForm = document.getElementById("student-payment-form");
-  const message = document.getElementById("student-payment-message");
+  const $ = (id) => document.getElementById(id);
 
-  const totalFeesElement = document.getElementById("student-total-fees");
-  const amountPaidElement = document.getElementById("student-amount-paid");
-  const outstandingElement = document.getElementById("student-outstanding-balance");
+  const searchInput = $("student-payment-search");
+  const statusFilter = $("student-payment-status-filter");
+  const tableBody = $("student-payments-table-body");
+  const paymentForm = $("student-payment-form");
+  const message = $("student-payment-message");
 
-  const upiElement = document.getElementById("student-academy-upi");
-  const payeeElement = document.getElementById("student-academy-payee");
+  const totalFeesElement = $("student-total-fees");
+  const amountPaidElement = $("student-amount-paid");
+  const outstandingElement = $("student-outstanding-balance");
 
-  const feeSelect = document.getElementById("student-fee-select");
-  const amountInput = document.getElementById("student-payment-amount");
-  const methodSelect = document.getElementById("student-payment-method");
-  const referenceInput = document.getElementById("student-payment-reference");
-  const dateInput = document.getElementById("student-payment-date");
+  const upiElement = $("student-academy-upi");
+  const payeeElement = $("student-academy-payee");
+
+  const feeSelect = $("student-fee-select");
+  const installmentGroup = $("student-installment-group");
+  const installmentSelect = $("student-installment-select");
+  const installmentHelp = $("student-installment-help");
+  const amountInput = $("student-payment-amount");
+  const methodSelect = $("student-payment-method");
+  const referenceInput = $("student-payment-reference");
+  const dateInput = $("student-payment-date");
 
   let currentUser = null;
   let studentProfile = null;
   let feeRecords = [];
   let paymentRecords = [];
-  let academyId = null;
+  let academyId = "";
   let isSubmitting = false;
 
   function showMessage(text, type = "info") {
@@ -50,30 +53,29 @@ document.addEventListener("DOMContentLoaded", () => {
     message.dataset.type = type;
   }
 
+  function setText(element, value) {
+    if (element) element.textContent = value;
+  }
+
   function formatAmount(amount) {
     const value = Number(amount);
-
-    if (!Number.isFinite(value)) return "₹0.00";
 
     return new Intl.NumberFormat("en-IN", {
       style: "currency",
       currency: "INR",
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
-    }).format(value);
+    }).format(Number.isFinite(value) ? value : 0);
   }
 
   function formatDate(value) {
     if (!value) return "—";
 
-    // Firestore Timestamp
     if (typeof value.toDate === "function") {
       return value.toDate().toLocaleDateString("en-IN");
     }
 
-    // Date strings stored as YYYY-MM-DD
     const date = new Date(`${value}T00:00:00`);
-
     if (Number.isNaN(date.getTime())) return String(value);
 
     return date.toLocaleDateString("en-IN");
@@ -89,31 +91,55 @@ document.addEventListener("DOMContentLoaded", () => {
     return labels[String(status || "").toLowerCase()] || "Unknown";
   }
 
-  function setText(element, value) {
-    if (element) element.textContent = value;
-  }
-
   function getFeeBalance(fee) {
     return Math.max(
       0,
-      Number(fee.amount || 0) - Number(fee.amountPaid || 0)
+      (Number(fee.amount) || 0) - (Number(fee.amountPaid) || 0)
     );
+  }
+
+  function getInstallmentBalance(installment) {
+    return Math.max(
+      0,
+      (Number(installment.amount) || 0) -
+      (Number(installment.amountPaid) || 0)
+    );
+  }
+
+  function getSelectedFee() {
+    return feeRecords.find((fee) => fee.id === feeSelect?.value) || null;
+  }
+
+  function getSelectedInstallment(fee = getSelectedFee()) {
+    if (!fee || fee.paymentPlan !== "installments") return null;
+
+    return (Array.isArray(fee.installments) ? fee.installments : [])
+      .find((item) => Number(item.number) === Number(installmentSelect?.value))
+      || null;
+  }
+
+  function getPayableBalance(fee = getSelectedFee()) {
+    if (!fee) return 0;
+
+    if (fee.paymentPlan === "installments") {
+      const installment = getSelectedInstallment(fee);
+      return installment ? getInstallmentBalance(installment) : 0;
+    }
+
+    return getFeeBalance(fee);
   }
 
   function updateSummary() {
     const totalFees = feeRecords.reduce(
-      (sum, fee) => sum + Number(fee.amount || 0),
-      0
+      (sum, fee) => sum + (Number(fee.amount) || 0), 0
     );
 
     const totalPaid = feeRecords.reduce(
-      (sum, fee) => sum + Number(fee.amountPaid || 0),
-      0
+      (sum, fee) => sum + (Number(fee.amountPaid) || 0), 0
     );
 
     const outstanding = feeRecords.reduce(
-      (sum, fee) => sum + getFeeBalance(fee),
-      0
+      (sum, fee) => sum + getFeeBalance(fee), 0
     );
 
     setText(totalFeesElement, formatAmount(totalFees));
@@ -124,19 +150,15 @@ document.addEventListener("DOMContentLoaded", () => {
   function renderFeeOptions() {
     if (!feeSelect) return;
 
+    const previousValue = feeSelect.value;
     feeSelect.replaceChildren();
 
     const placeholder = document.createElement("option");
     placeholder.value = "";
-    placeholder.textContent = feeRecords.length
-      ? "Select a fee to pay"
-      : "No outstanding fees available";
-
+    placeholder.textContent = "Select a fee to pay";
     feeSelect.appendChild(placeholder);
 
-    const payableFees = feeRecords.filter(
-      (fee) => getFeeBalance(fee) > 0
-    );
+    const payableFees = feeRecords.filter((fee) => getFeeBalance(fee) > 0);
 
     payableFees.forEach((fee) => {
       const option = document.createElement("option");
@@ -150,26 +172,86 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     feeSelect.disabled = payableFees.length === 0;
+
+    if (payableFees.some((fee) => fee.id === previousValue)) {
+      feeSelect.value = previousValue;
+    }
   }
 
-  function updateAmountLimit() {
-    if (!feeSelect || !amountInput) return;
+  function renderInstallmentOptions(fee) {
+    if (!installmentGroup || !installmentSelect) return;
 
-    const fee = feeRecords.find((item) => item.id === feeSelect.value);
+    const isInstallmentPlan =
+      fee?.paymentPlan === "installments" &&
+      Array.isArray(fee.installments);
 
-    if (!fee) {
-      amountInput.removeAttribute("max");
+    installmentGroup.hidden = !isInstallmentPlan;
+    installmentSelect.required = Boolean(isInstallmentPlan);
+    installmentSelect.replaceChildren();
+
+    if (!isInstallmentPlan) {
+      updateAmountLimit();
       return;
     }
 
-    const balance = getFeeBalance(fee);
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "Select an installment";
+    installmentSelect.appendChild(placeholder);
 
-    amountInput.max = String(balance);
-    amountInput.placeholder = `Maximum ${balance.toFixed(2)}`;
+    const payable = fee.installments.filter(
+      (item) => getInstallmentBalance(item) > 0
+    );
 
-    if (Number(amountInput.value) > balance) {
-      amountInput.value = balance.toFixed(2);
+    payable.forEach((item) => {
+      const option = document.createElement("option");
+      option.value = String(item.number);
+      option.textContent =
+        `Installment ${item.number} — Due ${item.dueDate || "—"} — ` +
+        `Balance ${formatAmount(getInstallmentBalance(item))}`;
+
+      installmentSelect.appendChild(option);
+    });
+
+    installmentSelect.disabled = payable.length === 0;
+
+    if (installmentHelp) {
+      installmentHelp.textContent = payable.length
+        ? "Choose the installment you are paying. The amount cannot exceed its remaining balance."
+        : "No installments are currently outstanding.";
     }
+
+    updateAmountLimit();
+  }
+
+  function updateAmountLimit() {
+    const fee = getSelectedFee();
+
+    if (!fee || (fee.paymentPlan === "installments" && !getSelectedInstallment(fee))) {
+      amountInput?.removeAttribute("max");
+      if (amountInput) amountInput.placeholder = "Select a fee and installment";
+      renderUpiQr();
+      return;
+    }
+
+    const balance = getPayableBalance(fee);
+
+    if (amountInput) {
+            const balanceInPaise = Math.round(balance * 100);
+      const enteredInPaise = Math.round(
+        (Number(amountInput.value) || 0) * 100
+      );
+
+      amountInput.max = (balanceInPaise / 100).toFixed(2);
+      amountInput.placeholder =
+        `Maximum ${(balanceInPaise / 100).toFixed(2)}`;
+
+      if (enteredInPaise > balanceInPaise) {
+        amountInput.value = (balanceInPaise / 100).toFixed(2);
+      }
+    }
+
+    renderUpiQr();
   }
 
   function renderPayments() {
@@ -178,54 +260,49 @@ document.addEventListener("DOMContentLoaded", () => {
     const searchTerm = (searchInput?.value || "").trim().toLowerCase();
     const selectedStatus = (statusFilter?.value || "").toLowerCase();
 
-    const filteredPayments = paymentRecords.filter((payment) => {
-      const searchableText = [
+    const filtered = paymentRecords.filter((payment) => {
+      const searchable = [
         payment.date,
         payment.description,
         payment.reference,
-        payment.status
+        payment.status,
+        payment.installmentNumber
       ].filter(Boolean).join(" ").toLowerCase();
 
-      return searchableText.includes(searchTerm) &&
+      return searchable.includes(searchTerm) &&
         (!selectedStatus ||
           String(payment.status || "").toLowerCase() === selectedStatus);
     });
 
     tableBody.replaceChildren();
 
-    if (!filteredPayments.length) {
+    if (!filtered.length) {
       const row = document.createElement("tr");
       const cell = document.createElement("td");
-      const emptyState = document.createElement("div");
-      const heading = document.createElement("h3");
-      const description = document.createElement("p");
-
-      cell.colSpan = 5;
-      emptyState.className = "empty-state";
-      heading.textContent = "No payment records available";
-      description.textContent = paymentRecords.length
-        ? "No payments match the selected search or status filter."
+      cell.colSpan = 6;
+      cell.textContent = paymentRecords.length
+        ? "No payments match your search or filter."
         : "Your submitted payments will appear here.";
-
-      emptyState.append(heading, description);
-      cell.appendChild(emptyState);
       row.appendChild(cell);
       tableBody.appendChild(row);
       return;
     }
 
-    filteredPayments.forEach((payment) => {
+    filtered.forEach((payment) => {
       const row = document.createElement("tr");
 
       [
         formatDate(payment.paymentDate || payment.createdAt),
         payment.description || payment.feeType || "Fee payment",
+        payment.installmentNumber
+          ? `#${payment.installmentNumber}`
+          : "—",
         formatAmount(payment.amount),
         payment.transactionReference || "—",
         formatStatus(payment.status)
       ].forEach((value) => {
         const cell = document.createElement("td");
-        cell.textContent = value;
+        cell.textContent = String(value);
         row.appendChild(cell);
       });
 
@@ -233,11 +310,83 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  function renderUpiQr() {
+    const section = $("student-upi-qr-section");
+    const qrContainer = $("student-upi-qr");
+    const amountLabel = $("student-upi-qr-amount");
+
+    if (!section || !qrContainer || !amountLabel) return;
+
+    qrContainer.replaceChildren();
+
+    const upiId = upiElement?.textContent?.trim() || "";
+    const payeeName = payeeElement?.textContent?.trim() || "";
+
+    if (
+      !/^[\w.-]+@[\w.-]+$/.test(upiId) ||
+      !payeeName ||
+      upiId === "Not configured by your academy"
+    ) {
+      section.hidden = true;
+      return;
+    }
+
+    const fee = getSelectedFee();
+    const installment = getSelectedInstallment(fee);
+    const enteredAmount = Number(amountInput?.value);
+    const balance = getPayableBalance(fee);
+
+    const upiUrl = new URL("upi://pay");
+    upiUrl.searchParams.set("pa", upiId);
+    upiUrl.searchParams.set("pn", payeeName);
+    upiUrl.searchParams.set("cu", "INR");
+
+    if (
+      fee &&
+      (fee.paymentPlan !== "installments" || installment) &&
+      Number.isFinite(enteredAmount) &&
+      enteredAmount > 0 &&
+      enteredAmount <= balance
+    ) {
+      upiUrl.searchParams.set("am", enteredAmount.toFixed(2));
+
+      const note = installment
+        ? `${fee.feeType || "Fee"} installment ${installment.number}`
+        : fee.feeType || fee.description || "Fee payment";
+
+      upiUrl.searchParams.set("tn", note);
+      amountLabel.textContent = `Amount: ${formatAmount(enteredAmount)}`;
+    } else {
+      amountLabel.textContent =
+        "Select a fee, select an installment if applicable, and enter an amount.";
+    }
+
+    const image = document.createElement("img");
+    image.alt = "UPI payment QR code";
+    image.width = 220;
+    image.height = 220;
+    image.style.display = "block";
+    image.style.margin = "12px 0";
+    image.src =
+      "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=" +
+      encodeURIComponent(upiUrl.toString());
+
+    image.onerror = () => {
+      qrContainer.replaceChildren();
+      const errorText = document.createElement("p");
+      errorText.textContent =
+        "QR code could not be loaded. Check your internet connection.";
+      qrContainer.appendChild(errorText);
+    };
+
+    qrContainer.appendChild(image);
+    section.hidden = false;
+  }
+
   async function loadStudentData(user) {
     currentUser = user;
 
-    const profileRef = doc(db, "users", user.uid);
-    const profileSnapshot = await getDoc(profileRef);
+    const profileSnapshot = await getDoc(doc(db, "users", user.uid));
 
     if (!profileSnapshot.exists()) {
       throw new Error("Your student profile was not found.");
@@ -265,27 +414,18 @@ document.addEventListener("DOMContentLoaded", () => {
   async function loadAcademyPaymentDetails() {
     if (!academyId) return;
 
-    if (upiElement) upiElement.textContent = "Not configured";
-    if (payeeElement) payeeElement.textContent = "Not configured";
+    setText(upiElement, "Not configured by your academy");
+    setText(payeeElement, "Not configured by your academy");
 
-    const academySnapshot = await getDoc(
-      doc(db, "academies", academyId)
-    );
+    const snapshot = await getDoc(doc(db, "academies", academyId));
+    if (!snapshot.exists()) return;
 
-    if (!academySnapshot.exists()) return;
+    const settings = snapshot.data().settings?.payment || {};
 
-    const academy = academySnapshot.data();
-    const paymentSettings = academy.settings?.payment || {};
+    setText(upiElement, settings.upiId || "Not configured by your academy");
+    setText(payeeElement, settings.payeeName || "Not configured by your academy");
 
-    setText(
-      upiElement,
-      paymentSettings.upiId || "Not configured by your academy"
-    );
-
-    setText(
-      payeeElement,
-      paymentSettings.payeeName || "Not configured by your academy"
-    );
+    renderUpiQr();
   }
 
   async function loadFees() {
@@ -304,7 +444,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     updateSummary();
     renderFeeOptions();
-    updateAmountLimit();
+
+    if (feeSelect.value) {
+      renderInstallmentOptions(getSelectedFee());
+    } else {
+      updateAmountLimit();
+    }
   }
 
   async function loadPaymentHistory() {
@@ -334,37 +479,42 @@ document.addEventListener("DOMContentLoaded", () => {
   async function submitPayment(event) {
     event.preventDefault();
 
-    if (isSubmitting || !currentUser || !studentProfile || !academyId) {
-      return;
-    }
+    if (isSubmitting || !currentUser || !studentProfile || !academyId) return;
 
-    const feeId = feeSelect?.value || "";
+    const fee = getSelectedFee();
+    const installment = getSelectedInstallment(fee);
     const amount = Number(amountInput?.value);
     const method = methodSelect?.value || "";
     const reference = referenceInput?.value.trim() || "";
     const paymentDate = dateInput?.value || "";
-
-    const fee = feeRecords.find((item) => item.id === feeId);
 
     if (!fee) {
       showMessage("Select a fee before submitting payment details.", "error");
       return;
     }
 
-    const balance = getFeeBalance(fee);
+    if (fee.paymentPlan === "installments" && !installment) {
+      showMessage("Select an outstanding installment.", "error");
+      return;
+    }
+
+    const balance = getPayableBalance(fee);
 
     if (!Number.isFinite(amount) || amount <= 0) {
       showMessage("Enter a valid payment amount greater than zero.", "error");
       return;
     }
 
-    if (amount > balance) {
-      showMessage(
-        `The amount cannot exceed the outstanding balance of ${formatAmount(balance)}.`,
-        "error"
-      );
-      return;
-    }
+        const amountInPaise = Math.round(amount * 100);
+        const balanceInPaise = Math.round(balance * 100);
+
+        if (amountInPaise > balanceInPaise) {
+          showMessage(
+            `The amount cannot exceed the selected balance of ${formatAmount(balance)}.`,
+            "error"
+          );
+          return;
+        }
 
     if (!["upi", "bank-transfer"].includes(method)) {
       showMessage("Select a valid payment method.", "error");
@@ -381,29 +531,25 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Avoid submitting a reference that is already in this student's
-    // currently loaded payment history.
-    const duplicateReference = paymentRecords.some(
-      (payment) =>
-        String(payment.transactionReference || "").trim().toLowerCase() ===
-        reference.toLowerCase()
+    const duplicateReference = paymentRecords.some((payment) =>
+      String(payment.transactionReference || "").trim().toLowerCase() ===
+      reference.toLowerCase()
     );
 
     if (duplicateReference) {
       showMessage(
-        "This transaction reference is already in your payment history. Check the reference and try again.",
+        "This transaction reference is already in your payment history.",
         "error"
       );
       return;
     }
 
     isSubmitting = true;
-
     const submitButton = paymentForm.querySelector('button[type="submit"]');
     if (submitButton) submitButton.disabled = true;
 
     try {
-      await addDoc(collection(db, "paymentSubmissions"), {
+      const payload = {
         academyId,
         studentId: currentUser.uid,
         studentName:
@@ -419,22 +565,28 @@ document.addEventListener("DOMContentLoaded", () => {
         paymentDate,
         status: "pending",
         createdAt: serverTimestamp()
-      });
+      };
+
+      if (installment) {
+        payload.installmentNumber = Number(installment.number);
+        payload.installmentDueDate = installment.dueDate || "";
+      }
+
+      await addDoc(collection(db, "paymentSubmissions"), payload);
 
       paymentForm.reset();
-
       showMessage(
-        "Payment details submitted. Your payment is pending academy verification.",
+        "Payment details submitted. The payment is pending academy verification.",
         "success"
       );
 
-      await loadPaymentHistory();
+      await Promise.all([loadPaymentHistory(), loadFees()]);
     } catch (error) {
       console.error("Payment submission failed:", error);
 
       showMessage(
         error.code === "permission-denied"
-          ? "Firebase denied this submission. Check your Firestore rules for paymentSubmissions."
+          ? "Firebase denied this submission. Check paymentSubmissions and fees rules."
           : "Could not submit payment details. Check your connection and try again.",
         "error"
       );
@@ -447,15 +599,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
   searchInput?.addEventListener("input", renderPayments);
   statusFilter?.addEventListener("change", renderPayments);
-  feeSelect?.addEventListener("change", updateAmountLimit);
 
-  if (paymentForm) {
-    paymentForm.addEventListener("submit", submitPayment);
+  feeSelect?.addEventListener("change", () => {
+    renderInstallmentOptions(getSelectedFee());
+  });
 
-    // Enable the form if the HTML still contains a disabled fieldset.
-    const fieldset = paymentForm.querySelector("fieldset");
-    if (fieldset) fieldset.disabled = false;
-  }
+  installmentSelect?.addEventListener("change", updateAmountLimit);
+  amountInput?.addEventListener("input", updateAmountLimit);
+
+  paymentForm?.addEventListener("submit", submitPayment);
 
   onAuthStateChanged(auth, async (user) => {
     if (!user) {
@@ -465,16 +617,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     try {
       showMessage("Loading your fees and payment details...");
-
       await loadStudentData(user);
-
       showMessage("");
     } catch (error) {
       console.error("Could not load student payment data:", error);
 
       showMessage(
         error.code === "permission-denied"
-          ? "Firebase denied access. Check your Firestore rules for users, fees, academies, and paymentSubmissions."
+          ? "Firebase denied access. Check users, fees, academies and paymentSubmissions rules."
           : error.message || "Could not load your payment details.",
         "error"
       );

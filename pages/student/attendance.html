@@ -114,6 +114,82 @@
           </table>
         </div>
       </section>
+
+      <section class="dashboard-section">
+  <div class="section-heading">
+    <div>
+      <h2>Attendance History</h2>
+      <p>Your latest 10 days of class attendance and check-in/check-out times.</p>
+    </div>
+  </div>
+
+  <div class="card" style="padding:20px; margin-bottom:20px;">
+    <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:end;">
+      <div class="form-group" style="flex:1; min-width:180px;">
+        <label for="history-start-date">Start date</label>
+        <input type="date" id="history-start-date">
+      </div>
+
+      <div class="form-group" style="flex:1; min-width:180px;">
+        <label for="history-end-date">End date</label>
+        <input type="date" id="history-end-date">
+      </div>
+
+      <button
+        type="button"
+        class="btn btn-primary"
+        id="view-attendance-history-button"
+      >
+        View Attendance
+      </button>
+
+      <button
+        type="button"
+        class="btn btn-secondary"
+        id="last-10-days-button"
+      >
+        Last 10 Days
+      </button>
+    </div>
+
+    <p id="attendance-history-range-label"
+       class="stat-description"
+       style="margin-top:12px;"></p>
+
+    <div id="attendance-history-range-message"
+         class="form-message"
+         role="status"
+         aria-live="polite"
+         hidden></div>
+  </div>
+
+  <div class="table-container">
+    <table class="data-table">
+     <thead>
+  <tr>
+    <th>Date</th>
+    <th>Class</th>
+    <th>Subject</th>
+    <th>Class Start Time</th>
+    <th>Check-in Time</th>
+    <th>Class End Time</th>
+    <th>Check-out Time</th>
+    <th>Class Duration</th>
+    <th>Student Duration</th>
+    <th>Attendance</th>
+  </tr>
+</thead>
+      <tbody id="attendance-history-range-body">
+        <tr>
+          <td colspan="7" class="empty-state">
+            Loading your attendance history…
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
     </main>
   </div>
 </body>

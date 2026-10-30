@@ -1,4 +1,3 @@
-
 import { auth, db } from "./firebase-config.js";
 
 import {
@@ -6,7 +5,10 @@ import {
   doc,
   getDoc,
   getDocs,
+  onSnapshot,
   query,
+  serverTimestamp,
+  updateDoc,
   where
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 
@@ -14,42 +16,66 @@ import {
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 
-const $ = (selector) => document.querySelector(selector);
+const $ = selector => document.querySelector(selector);
 
 const dashboard = $(".dashboard-main");
 
 if (!dashboard) {
   console.error("Student dashboard container was not found.");
 } else {
-  const cards = [...dashboard.querySelectorAll(".stats-grid .stat-card")];
-  const overviewDescription = dashboard.querySelector(
-    ".dashboard-section .section-heading p"
+  const cards = [
+    $("#student-card-classes"),
+    $("#student-card-upcoming"),
+    $("#student-card-materials"),
+    $("#student-card-attendance")
+  ];
+
+  const cardDescriptions = cards.map(card =>
+    card?.parentElement?.querySelector(".stat-description")
   );
-  const updatesSection = [...dashboard.querySelectorAll(".dashboard-section")]
-    .find(section => section.querySelector("h2")?.textContent.trim() === "Recent Updates");
-  const accountMessage = [...dashboard.querySelectorAll(".dashboard-section")]
-    .find(section => section.querySelector("h2")?.textContent.trim() === "Account Status")
-    ?.querySelector(".form-message");
+
+  const overviewDescription = $("#student-overview-description");
+  const dashboardMessage = $("#student-dashboard-message");
+
+  const notificationList = $("#student-notifications-list");
+  const notificationCount = $("#student-unread-count");
+  const notificationSubtitle = $("#student-notifications-subtitle");
+  const notificationMessage = $("#student-notification-message");
+
+  let currentUser = null;
+  let currentProfile = null;
+  let stopNotifications = null;
+  let notificationDocuments = [];
+  const busyNotificationIds = new Set();
+  
 
   function setCard(index, value, description) {
-    if (!cards[index]) return;
+    if (cards[index]) {
+      cards[index].textContent = String(value);
+    }
 
-    const heading = cards[index].querySelector("h3");
-    const detail = cards[index].querySelector(".stat-description");
-
-    if (heading) heading.textContent = String(value);
-    if (detail) detail.textContent = description;
+    if (cardDescriptions[index]) {
+      cardDescriptions[index].textContent = description;
+    }
   }
 
-  function showAccountMessage(message, type = "info") {
-    if (!accountMessage) return;
+  function showDashboardMessage(message, type = "info") {
+    if (!dashboardMessage) return;
 
-    accountMessage.textContent = message;
-    accountMessage.className = `form-message ${type}`;
-    accountMessage.setAttribute(
+    dashboardMessage.textContent = message;
+    dashboardMessage.className = `form-message ${type}`;
+    dashboardMessage.hidden = !message;
+    dashboardMessage.setAttribute(
       "role",
       type === "error" ? "alert" : "status"
     );
+  }
+
+  function showNotificationMessage(message) {
+    if (!notificationMessage) return;
+
+    notificationMessage.textContent = message;
+    notificationMessage.hidden = !message;
   }
 
   function localDateString(date = new Date()) {
@@ -70,78 +96,503 @@ if (!dashboard) {
   }
 
   function updateHeaderName(name) {
-    const nameNodes = [
-      ...document.querySelectorAll(
-        "#account-name, [data-account-name], .account-name"
-      )
-    ];
-
-    nameNodes.forEach(node => {
+    document.querySelectorAll(
+      "#account-name, [data-account-name], .account-name"
+    ).forEach(node => {
       node.textContent = name;
     });
   }
 
+  function notificationIsRead(item) {
+    return item.read === true || item.isRead === true;
+  }
 
-function renderUpdates(items) {
-  if (!updatesSection) return;
+  function notificationType(item) {
+    const rawType = String(
+      item.type || item.category || item.eventType || "general"
+    ).toLowerCase();
 
-  const oldState = updatesSection.querySelector(".empty-state");
-  if (!oldState) return;
+    if (
+      rawType.includes("fee") ||
+      rawType.includes("payment")
+    ) {
+      return "payment";
+    }
 
-  oldState.replaceChildren();
+    if (
+      rawType.includes("schedule") ||
+      rawType.includes("class")
+    ) {
+      return "class";
+    }
 
-  if (!items.length) {
-    const title = document.createElement("strong");
-    title.textContent = "No upcoming classes";
+    if (
+      rawType.includes("material") ||
+      rawType.includes("study")
+    ) {
+      return "material";
+    }
 
-    const description = document.createElement("p");
-    description.textContent =
-      "Your upcoming classes will appear here when they are scheduled.";
+    if (rawType.includes("attendance")) {
+      return "attendance";
+    }
 
-    oldState.append(title, description);
-    oldState.setAttribute("role", "status");
+    return "general";
+  }
+
+  function notificationTypeLabel(item) {
+    const type = notificationType(item);
+
+    const labels = {
+      payment: "Fees & payments",
+      class: "Classes & schedules",
+      material: "Study materials",
+      attendance: "Attendance",
+      general: "General update"
+    };
+
+    return labels[type];
+  }
+
+  function notificationIcon(item) {
+    const type = notificationType(item);
+
+    const icons = {
+      payment: "₹",
+      class: "▦",
+      material: "▤",
+      attendance: "✓",
+      general: "i"
+    };
+
+    return icons[type];
+  }
+
+  function notificationTitle(item) {
+    return item.title ||
+      item.heading ||
+      item.subject ||
+      "Learning update";
+  }
+
+  function notificationBody(item) {
+    return item.message ||
+      item.description ||
+      item.body ||
+      "There is an update to review.";
+  }
+
+  function notificationDate(item) {
+    const value =
+      item.createdAt ||
+      item.timestamp ||
+      item.date ||
+      item.updatedAt;
+
+    if (value && typeof value.toDate === "function") {
+      return value.toDate();
+    }
+
+    if (value instanceof Date) {
+      return value;
+    }
+
+    if (typeof value === "string" || typeof value === "number") {
+      const date = new Date(value);
+
+      if (!Number.isNaN(date.getTime())) {
+        return date;
+      }
+    }
+
+    return null;
+  }
+
+  function formatNotificationDate(item) {
+    const date = notificationDate(item);
+
+    if (!date) return "Date unavailable";
+
+    return new Intl.DateTimeFormat("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    }).format(date);
+  }
+
+  function makeElement(tag, className, text) {
+    const element = document.createElement(tag);
+
+    if (className) {
+      element.className = className;
+    }
+
+    if (text !== undefined) {
+      element.textContent = text;
+    }
+
+    return element;
+  }
+
+  /*
+   * Supports notifications addressed directly to this student:
+   * recipientId, studentId, userId or recipientUid.
+   *
+   * Also supports academy-wide student announcements with
+   * recipientRole: "student" and no individual recipient ID.
+   */
+  function belongsToCurrentStudent(item) {
+    if (!currentUser || !currentProfile) return false;
+
+    const uid = currentUser.uid;
+    const email = String(currentUser.email || "").toLowerCase();
+
+    const recipientIds = [
+      item.recipientId,
+      item.studentId,
+      item.userId,
+      item.recipientUid,
+      item.uid
+    ]
+      .filter(value => value !== undefined && value !== null)
+      .map(String);
+
+    const recipientEmails = [
+      item.recipientEmail,
+      item.studentEmail,
+      item.email
+    ]
+      .filter(Boolean)
+      .map(value => String(value).toLowerCase());
+
+    const isDirectRecipient =
+      recipientIds.includes(uid) ||
+      (email && recipientEmails.includes(email));
+
+    if (isDirectRecipient) return true;
+
+    const hasIndividualRecipient =
+      recipientIds.length > 0 ||
+      recipientEmails.length > 0;
+
+    const recipientRole = String(
+      item.recipientRole || item.targetRole || ""
+    ).toLowerCase();
+
+    const isStudentBroadcast =
+      recipientRole === "student" &&
+      !hasIndividualRecipient;
+
+    return isStudentBroadcast;
+  }
+
+  function renderNotificationEmpty(title, description) {
+    if (!notificationList) return;
+
+    notificationList.replaceChildren();
+
+    const empty = makeElement(
+      "div",
+      "student-notification-empty"
+    );
+
+    const icon = makeElement(
+      "div",
+      "student-notification-empty-icon",
+      "✓"
+    );
+
+    icon.setAttribute("aria-hidden", "true");
+
+    const heading = makeElement("strong", "", title);
+    const paragraph = makeElement("p", "", description);
+
+    empty.append(icon, heading, paragraph);
+    notificationList.appendChild(empty);
+  }
+
+  function renderNotifications() {
+    if (!notificationList) return;
+
+    const unread = notificationDocuments
+      .filter(item =>
+        belongsToCurrentStudent(item) &&
+        !notificationIsRead(item)
+      )
+      .sort((a, b) => {
+        const dateA = notificationDate(a)?.getTime() || 0;
+        const dateB = notificationDate(b)?.getTime() || 0;
+
+        return dateB - dateA;
+      });
+
+    if (notificationCount) {
+      notificationCount.textContent = String(unread.length);
+      notificationCount.setAttribute(
+        "aria-label",
+        `${unread.length} unread notifications`
+      );
+    }
+
+    if (notificationSubtitle) {
+      notificationSubtitle.textContent = unread.length
+        ? `You have ${unread.length} unread notification${unread.length === 1 ? "" : "s"}.`
+        : "You're all caught up with your learning updates.";
+    }
+
+    notificationList.setAttribute("aria-busy", "false");
+    notificationList.replaceChildren();
+
+    if (!unread.length) {
+      renderNotificationEmpty(
+        "No notifications",
+        "You have no pending notifications right now."
+      );
+      return;
+    }
+
+    // No slice/limit: show every unread notification.
+    unread.forEach(item => {
+      const row = makeElement(
+        "article",
+        "student-notification-item is-unread"
+      );
+
+      const icon = makeElement(
+        "div",
+        "student-notification-symbol",
+        notificationIcon(item)
+      );
+
+      icon.setAttribute("aria-hidden", "true");
+
+      const copy = makeElement(
+        "div",
+        "student-notification-copy"
+      );
+
+      const title = makeElement(
+        "strong",
+        "",
+        notificationTitle(item)
+      );
+
+      const body = makeElement(
+        "p",
+        "",
+        notificationBody(item)
+      );
+
+      const meta = makeElement(
+        "div",
+        "student-notification-meta"
+      );
+
+      const category = makeElement(
+        "span",
+        "student-notification-category",
+        notificationTypeLabel(item)
+      );
+
+      const date = makeElement(
+        "span",
+        "",
+        formatNotificationDate(item)
+      );
+
+      meta.append(category, date);
+      copy.append(title, body, meta);
+
+      const actions = makeElement(
+        "div",
+        "student-notification-actions"
+      );
+
+      const readButton = makeElement(
+        "button",
+        "student-notification-read",
+        busyNotificationIds.has(item.id)
+          ? "Marking…"
+          : "Mark as read"
+      );
+
+      readButton.type = "button";
+      readButton.disabled = busyNotificationIds.has(item.id);
+      readButton.addEventListener("click", () => {
+        markNotificationRead(item);
+      });
+
+      actions.appendChild(readButton);
+      row.append(icon, copy, actions);
+      notificationList.appendChild(row);
+    });
+  }
+
+  async function markNotificationRead(item) {
+    if (!item?.id || busyNotificationIds.has(item.id)) return;
+
+    busyNotificationIds.add(item.id);
+    showNotificationMessage("");
+    renderNotifications();
+
+    try {
+      await updateDoc(
+        doc(db, "notifications", item.id),
+        {
+          read: true,
+          isRead: true,
+          readAt: serverTimestamp()
+        }
+      );
+
+      /*
+       * The Firestore listener will refresh the list.
+       * The local update below makes the interface responsive
+       * while the listener processes the server change.
+       */
+      notificationDocuments = notificationDocuments.map(existing =>
+        existing.id === item.id
+          ? { ...existing, read: true, isRead: true }
+          : existing
+      );
+
+      showNotificationMessage("");
+    } catch (error) {
+      console.error(
+        "Could not mark student notification as read:",
+        error
+      );
+
+      showNotificationMessage(
+        error.code === "permission-denied"
+          ? "You do not have permission to update this notification. Check the Firestore rules for student notifications."
+          : "Could not mark this notification as read. Please try again."
+      );
+    } finally {
+      busyNotificationIds.delete(item.id);
+      renderNotifications();
+    }
+  }
+
+function startNotificationListener(academyId) {
+  if (typeof stopNotifications === "function") {
+    stopNotifications();
+    stopNotifications = null;
+  }
+
+  if (!currentUser || !academyId) {
+    showNotificationMessage("Student or academy information is missing.");
     return;
   }
 
-  const list = document.createElement("div");
-  list.className = "upcoming-class-list";
+  if (notificationList) {
+    notificationList.setAttribute("aria-busy", "true");
+    renderNotificationEmpty(
+      "Loading notifications…",
+      "Please wait while we check for updates."
+    );
+  }
 
-  items.slice(0, 4).forEach(item => {
-    const row = document.createElement("div");
-    row.className = "upcoming-class-item";
+  let studentNotifications = [];
+  let academyAnnouncements = [];
 
-    const details = document.createElement("div");
-    details.className = "upcoming-class-details";
+  const studentQuery = query(
+    collection(db, "notifications"),
+    where("academyId", "==", academyId),
+    where("studentId", "==", currentUser.uid)
+  );
 
-    const name = document.createElement("strong");
-    name.textContent = item.className;
+  /*
+   * Academy-wide announcements must explicitly use:
+   * targetType: "academy"
+   * recipientRole: "student"
+   *
+   * This avoids treating another student's individual notification
+   * as a notification for every student in the academy.
+   */
+  const announcementQuery = query(
+    collection(db, "notifications"),
+    where("academyId", "==", academyId),
+    where("recipientRole", "==", "student"),
+    where("targetType", "==", "academy")
+  );
 
-    const subject = document.createElement("span");
-    subject.textContent = item.subject || "Class";
+  function mergeNotifications() {
+    const unique = new Map();
 
-    const time = document.createElement("span");
-    time.textContent = [
-      item.date,
-      item.startTime,
-      item.endTime ? `– ${item.endTime}` : ""
-    ].filter(Boolean).join(" ");
+    [...studentNotifications, ...academyAnnouncements].forEach(item => {
+      unique.set(item.id, item);
+    });
 
-    details.append(name, subject);
+    notificationDocuments = [...unique.values()];
+    renderNotifications();
 
-    row.append(details, time);
-    list.appendChild(row);
-  });
+    if (notificationList) {
+      notificationList.setAttribute("aria-busy", "false");
+    }
+  }
 
-  oldState.appendChild(list);
-  oldState.setAttribute("role", "status");
-}
+  const unsubscribeStudent = onSnapshot(
+    studentQuery,
+    snapshot => {
+      studentNotifications = snapshot.docs.map(document => ({
+        id: document.id,
+        ...document.data()
+      }));
 
+      showNotificationMessage("");
+      mergeNotifications();
+    },
+    error => {
+      console.error("Student-specific notifications failed:", error);
+
+      studentNotifications = [];
+      mergeNotifications();
+
+      showNotificationMessage(
+        "Could not load your individual notifications. Check Firestore rules and indexes."
+      );
+    }
+  );
+
+  const unsubscribeAnnouncements = onSnapshot(
+    announcementQuery,
+    snapshot => {
+      academyAnnouncements = snapshot.docs.map(document => ({
+        id: document.id,
+        ...document.data()
+      }));
+
+      showNotificationMessage("");
+      mergeNotifications();
+    },
+    error => {
+      console.error("Academy announcements failed:", error);
+
+      academyAnnouncements = [];
+      mergeNotifications();
+
+      showNotificationMessage(
+        "Could not load academy announcements. Check Firestore rules and indexes."
+      );
+    }
+  );
+
+  stopNotifications = () => {
+    unsubscribeStudent();
+    unsubscribeAnnouncements();
+  };
+} 
 
   async function loadStudentDashboard(user) {
-    showAccountMessage("Loading your student account…");
+    showDashboardMessage("Loading your student account…");
 
     try {
-      const profileSnapshot = await getDoc(doc(db, "users", user.uid));
+      const profileSnapshot = await getDoc(
+        doc(db, "users", user.uid)
+      );
 
       if (!profileSnapshot.exists()) {
         throw new Error("Your student profile was not found.");
@@ -159,6 +610,9 @@ function renderUpdates(items) {
         );
       }
 
+      currentUser = user;
+      currentProfile = profile;
+
       const academyId = profile.academyId;
       const name = studentName(profile, user);
 
@@ -169,6 +623,8 @@ function renderUpdates(items) {
           `Welcome, ${name}. Here is your current learning overview.`;
       }
 
+      startNotificationListener(academyId);
+
       // Classes and their sessions are stored together by the admin portal.
       const classesSnapshot = await getDocs(
         query(
@@ -178,14 +634,20 @@ function renderUpdates(items) {
       );
 
       const classes = classesSnapshot.docs
-        .map(snapshot => ({ id: snapshot.id, ...snapshot.data() }))
+        .map(snapshot => ({
+          id: snapshot.id,
+          ...snapshot.data()
+        }))
         .filter(item => item.status === "active");
 
       const today = localDateString();
 
       const sessions = classes.flatMap(item =>
         (Array.isArray(item.sessions) ? item.sessions : [])
-          .filter(session => session.date && session.status !== "cancelled")
+          .filter(session =>
+            session.date &&
+            session.status !== "cancelled"
+          )
           .map(session => ({
             classId: item.id,
             className: item.className || "Class",
@@ -204,12 +666,31 @@ function renderUpdates(items) {
           a.startTime.localeCompare(b.startTime)
         );
 
-      setCard(0, classes.length, "Active classes in your academy");
-      setCard(1, upcoming.length, "Upcoming scheduled sessions");
+      setCard(
+        0,
+        classes.length,
+        "Active classes in your academy"
+      );
 
-      setCard(2, "—", "Learning resources");
-      setCard(3, "—", "Attendance overview");
-      renderUpdates(upcoming);
+      setCard(
+        1,
+        upcoming.length,
+        "Upcoming scheduled sessions"
+      );
+
+      // Study material count remains unconnected until its schema
+      // and student access rules are confirmed.
+      setCard(
+        2,
+        "—",
+        "Study material count is not connected yet"
+      );
+
+      setCard(
+        3,
+        "—",
+        "Loading attendance records…"
+      );
 
       try {
         const attendanceSnapshot = await getDocs(
@@ -220,12 +701,20 @@ function renderUpdates(items) {
           )
         );
 
-        const attendance = attendanceSnapshot.docs.map(item => item.data());
-        const marked = attendance.filter(item =>
-          ["present", "absent", "late", "excused"].includes(item.status)
+        const attendance = attendanceSnapshot.docs.map(
+          item => item.data()
         );
+
+        const marked = attendance.filter(item =>
+          ["present", "absent", "late", "excused"].includes(
+            String(item.status || "").toLowerCase()
+          )
+        );
+
         const present = marked.filter(item =>
-          ["present", "late"].includes(item.status)
+          ["present", "late"].includes(
+            String(item.status || "").toLowerCase()
+          )
         ).length;
 
         const percentage = marked.length
@@ -240,23 +729,33 @@ function renderUpdates(items) {
             : "No marked attendance records yet"
         );
       } catch (error) {
-        if (error.code === "permission-denied") {
-          setCard(3, "—", "Student attendance access is not enabled in Firestore rules");
-        } else {
-          throw error;
-        }
+        console.error(
+          "Student attendance overview could not be loaded:",
+          error
+        );
+
+        setCard(
+          3,
+          "—",
+          error.code === "permission-denied"
+            ? "Attendance access is not enabled in Firestore rules"
+            : "Attendance could not be loaded"
+        );
       }
 
-      showAccountMessage(
+      showDashboardMessage(
         `Signed in as ${name}. Your academy account is connected.`,
         "success"
       );
     } catch (error) {
-      console.error("Student dashboard load failed:", error);
+      console.error(
+        "Student dashboard load failed:",
+        error
+      );
 
-      showAccountMessage(
+      showDashboardMessage(
         error.code === "permission-denied"
-          ? "Firestore denied access. Check the student profile and academy-scoped class read rules."
+          ? "Firestore denied access. Check the student profile and academy-scoped read rules."
           : error.message || "Could not load your student dashboard.",
         "error"
       );
@@ -265,10 +764,20 @@ function renderUpdates(items) {
 
   onAuthStateChanged(auth, user => {
     if (!user) {
+      if (typeof stopNotifications === "function") {
+        stopNotifications();
+      }
+
       window.location.href = "../login.html";
       return;
     }
 
     loadStudentDashboard(user);
+  });
+
+  window.addEventListener("beforeunload", () => {
+    if (typeof stopNotifications === "function") {
+      stopNotifications();
+    }
   });
 }

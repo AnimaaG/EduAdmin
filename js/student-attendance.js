@@ -28,6 +28,13 @@ const checkOutTime = $("attendance-checkout-time");
 const checkInButton = $("attendance-checkin-button");
 const checkOutButton = $("attendance-checkout-button");
 const historyBody = $("attendance-history-body");
+const historyStartDate = $("history-start-date");
+const historyEndDate = $("history-end-date");
+const historyRangeBody = $("attendance-history-range-body");
+const historyRangeMessage = $("attendance-history-range-message");
+const historyRangeLabel = $("attendance-history-range-label");
+const viewHistoryButton = $("view-attendance-history-button");
+const last10DaysButton = $("last-10-days-button");
 
 let student = null;
 let profile = null;
@@ -35,6 +42,7 @@ let sessions = [];
 let records = [];
 let selectedSession = null;
 let busy = false;
+let classScheduleCache = [];
 
 function localDateString(date = new Date()) {
   const year = date.getFullYear();
@@ -66,6 +74,47 @@ function formatTimestamp(value) {
         hour: "2-digit",
         minute: "2-digit"
       });
+}
+
+function formatDuration(start, end) {
+  if (!start || !end) return "Not tracked";
+
+  const toDate = value =>
+    typeof value?.toDate === "function" ? value.toDate() : new Date(value);
+
+  const startDate = toDate(start);
+  const endDate = toDate(end);
+
+  if (
+    Number.isNaN(startDate.getTime()) ||
+    Number.isNaN(endDate.getTime()) ||
+    endDate < startDate
+  ) {
+    return "Not tracked";
+  }
+
+  const totalMinutes = Math.floor((endDate - startDate) / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  return hours ? `${hours} hr ${minutes} min` : `${minutes} min`;
+}
+
+function formatScheduledDuration(startTime, endTime) {
+  if (!startTime || !endTime) return "Not set";
+
+  const toMinutes = value => {
+    const [hours, minutes] = value.split(":").map(Number);
+    return hours * 60 + minutes;
+  };
+
+  let duration = toMinutes(endTime) - toMinutes(startTime);
+  if (duration < 0) duration += 24 * 60;
+
+  const hours = Math.floor(duration / 60);
+  const minutes = duration % 60;
+
+  return hours ? `${hours} hr ${minutes} min` : `${minutes} min`;
 }
 
 function showMessage(message, type = "info") {
@@ -151,6 +200,179 @@ function renderHistory() {
   `).join("");
 }
 
+function formatHistoryDate(value) {
+  if (!value) return "—";
+
+  const [year, month, day] = value.split("-").map(Number);
+
+  return new Date(year, month - 1, day).toLocaleDateString(
+    undefined,
+    { day: "numeric", month: "short", year: "numeric" }
+  );
+}
+
+function setHistoryMessage(text, type = "info") {
+  if (!historyRangeMessage) return;
+
+  historyRangeMessage.textContent = text;
+  historyRangeMessage.className = `form-message ${type}`;
+  historyRangeMessage.hidden = !text;
+}
+
+function getLast10DaysRange() {
+  const end = new Date();
+  end.setHours(0, 0, 0, 0);
+
+  const start = new Date(end);
+  start.setDate(start.getDate() - 9);
+
+  return {
+    startDate: localDateString(start),
+    endDate: localDateString(end)
+  };
+}
+
+function renderAttendanceRangeHistory(historyRecords, startDate, endDate) {
+  if (!historyRangeBody) return;
+
+  if (historyRangeLabel) {
+    historyRangeLabel.textContent =
+      `${formatHistoryDate(startDate)} – ${formatHistoryDate(endDate)}`;
+  }
+
+  if (!historyRecords.length) {
+    historyRangeBody.innerHTML = `
+      <tr>
+        <td colspan="10" class="empty-state">
+          <strong>No attendance records found</strong>
+          <p>No records were found for this date range.</p>
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+const sorted = [...historyRecords].sort((a, b) =>
+  String(b.date || "").localeCompare(String(a.date || "")) ||
+  String(b.startTime || "").localeCompare(String(a.startTime || ""))
+);
+
+historyRangeBody.innerHTML = sorted.map(record => `
+  <tr>
+    <td>${escapeHTML(formatHistoryDate(record.date))}</td>
+    <td>${escapeHTML(record.className || "—")}</td>
+    <td>${escapeHTML(record.subject || "—")}</td>
+    <td>${escapeHTML(getScheduledTimes(record).startTime || "—")}</td>
+    <td>${escapeHTML(formatTimestamp(record.checkInAt))}</td>
+    <td>${escapeHTML(getScheduledTimes(record).endTime || "—")}</td>
+    <td>${escapeHTML(formatTimestamp(record.checkOutAt))}</td>
+    <td>${escapeHTML(
+      formatScheduledDuration(
+        getScheduledTimes(record).startTime,
+        getScheduledTimes(record).endTime
+      )
+    )}</td>
+    <td>${escapeHTML(
+      formatDuration(record.checkInAt, record.checkOutAt)
+    )}</td>
+    <td>${escapeHTML(
+      record.checkOutAt
+        ? "Completed"
+        : record.checkInAt
+          ? "Checked in"
+          : String(record.status || "Absent")
+              .replace(/^\\w/, char => char.toUpperCase())
+    )}</td>
+  </tr>
+`).join("");
+}
+
+function getScheduledTimes(record) {
+  const classItem = classScheduleCache.find(
+    item => item.id === record.classId
+  );
+
+  const session = classItem?.sessions?.find(item =>
+    item.date === record.date
+  );
+
+  return {
+    startTime: record.startTime || session?.startTime || "",
+    endTime: record.endTime || session?.endTime || ""
+  };
+}
+
+async function loadAttendanceHistory(startDate, endDate) {
+  if (!student || !profile || !historyRangeBody) return;
+
+  if (!startDate || !endDate || startDate > endDate) {
+    setHistoryMessage("Please select a valid start date and end date.", "error");
+    return;
+  }
+
+  setHistoryMessage("");
+  historyRangeBody.innerHTML = `
+    <tr>
+      <td colspan="10" class="empty-state">Loading attendance history…</td>
+    </tr>
+  `;
+
+  if (viewHistoryButton) viewHistoryButton.disabled = true;
+  if (last10DaysButton) last10DaysButton.disabled = true;
+
+  try {
+    // Fetch this student's records for the academy.
+    // Filter the date range locally to avoid requiring a date-range index.
+    const attendanceSnapshot = await getDocs(query(
+      collection(db, "attendance"),
+      where("academyId", "==", profile.academyId),
+      where("studentId", "==", student.uid)
+    ));
+
+    const historyRecords = attendanceSnapshot.docs
+      .map(snapshot => ({
+        id: snapshot.id,
+        ...snapshot.data()
+      }))
+      .filter(record =>
+        typeof record.date === "string" &&
+        record.date >= startDate &&
+        record.date <= endDate
+      );
+
+    renderAttendanceRangeHistory(historyRecords, startDate, endDate);
+  } catch (error) {
+    console.error("Could not load attendance history:", error);
+
+    historyRangeBody.innerHTML = `
+      <tr>
+        <td colspan="7" class="empty-state">
+          Could not load attendance history. Please try again.
+        </td>
+      </tr>
+    `;
+
+    setHistoryMessage(
+      error.code === "permission-denied"
+        ? "You do not have permission to view these records."
+        : error.message || "Could not load attendance history.",
+      "error"
+    );
+  } finally {
+    if (viewHistoryButton) viewHistoryButton.disabled = false;
+    if (last10DaysButton) last10DaysButton.disabled = false;
+  }
+}
+
+async function loadLast10DaysHistory() {
+  const range = getLast10DaysRange();
+
+  if (historyStartDate) historyStartDate.value = range.startDate;
+  if (historyEndDate) historyEndDate.value = range.endDate;
+
+  await loadAttendanceHistory(range.startDate, range.endDate);
+}
+
 function renderSessionOptions() {
   const previousValue = sessionSelect.value;
 
@@ -197,6 +419,11 @@ async function loadToday() {
   ));
 
   sessions = [];
+
+  classScheduleCache = classSnapshot.docs.map(snapshot => ({
+  id: snapshot.id,
+  ...snapshot.data()
+}));
 
   classSnapshot.forEach(snapshot => {
     const data = snapshot.data();
@@ -381,6 +608,15 @@ sessionSelect.addEventListener("change", () => {
 checkInButton.addEventListener("click", markCheckIn);
 checkOutButton.addEventListener("click", markCheckOut);
 
+viewHistoryButton?.addEventListener("click", () => {
+  loadAttendanceHistory(
+    historyStartDate?.value,
+    historyEndDate?.value
+  );
+});
+
+last10DaysButton?.addEventListener("click", loadLast10DaysHistory);
+
 onAuthStateChanged(auth, async user => {
   if (!user) {
     window.location.href = "../../login.html";
@@ -407,6 +643,7 @@ onAuthStateChanged(auth, async user => {
     }
 
     await loadToday();
+    await loadLast10DaysHistory();
 
     if (!sessions.length) {
       showMessage("There are no active class sessions scheduled for today.");

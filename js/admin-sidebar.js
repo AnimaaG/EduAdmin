@@ -1,28 +1,27 @@
-
 /* =========================================================
-   EduAdmin — Admin Sidebar
+   EduAdmin — Admin Sidebar + Live Notification Badge
    File: js/admin-sidebar.js
    ========================================================= */
 
 (function () {
   "use strict";
 
+  const scriptUrl = document.currentScript
+    ? document.currentScript.src
+    : new URL("./admin-sidebar.js", window.location.href).href;
+
+  let stopBadgeListener = null;
+
   function initAdminSidebar() {
     const mount = document.getElementById("admin-sidebar-mount");
 
     if (!mount) {
-      console.error(
-        "EduAdmin: #admin-sidebar-mount was not found."
-      );
+      console.error("EduAdmin: #admin-sidebar-mount was not found.");
       return;
     }
 
-    /* Prevent duplicate sidebar rendering */
-    if (document.getElementById("admin-sidebar")) {
-      return;
-    }
+    if (document.getElementById("admin-sidebar")) return;
 
-    /* Render the sidebar */
     mount.innerHTML = `
       <aside
         class="dashboard-sidebar"
@@ -50,13 +49,22 @@
             <span>Dashboard</span>
           </a>
 
-          
-          <a href="notifications.html" class="sidebar-link" data-nav-path="notifications.html">
+          <a
+            href="notifications.html"
+            class="sidebar-link"
+            data-nav-path="notifications.html"
+            id="admin-notifications-nav"
+          >
             <span class="nav-icon" aria-hidden="true">!</span>
-            <span>Notifications</span>
+            <span class="notification-nav-label">Notifications</span>
+            <span
+              id="admin-notification-dot"
+              class="admin-notification-dot"
+              aria-label="Unread notifications"
+              title="Unread notifications"
+              hidden
+            ></span>
           </a>
-          
-
 
           <a href="classes.html" data-nav-path="classes.html">
             <span class="nav-icon" aria-hidden="true">▤</span>
@@ -93,22 +101,19 @@
             <span>Fees</span>
           </a>
 
-       
           <a href="settings.html" data-nav-path="settings.html">
             <span class="nav-icon" aria-hidden="true">⚙</span>
             <span>Settings</span>
           </a>
-         </nav>
+        </nav>
 
         <div class="sidebar-bottom">
-        <a href="../login.html"
-           class="sidebar-link"
-           id="student-logout-link">
-          <span class="nav-icon" aria-hidden="true">↪</span>
-          <span>Back to Login</span>
-        </a>
-      </div>
-    </aside>           
+          <a href="../login.html" class="sidebar-link" id="student-logout-link">
+            <span class="nav-icon" aria-hidden="true">↪</span>
+            <span>Back to Login</span>
+          </a>
+        </div>
+      </aside>
     `;
 
     const sidebar = document.getElementById("admin-sidebar");
@@ -141,18 +146,14 @@
       toggle.setAttribute("aria-label", "Open navigation menu");
     }
 
-    /* Mark the current page */
     function setActiveLink() {
       const currentFile = window.location.pathname
         .split("/")
         .pop()
         .toLowerCase();
 
-      sidebar.querySelectorAll("[data-nav-path]").forEach(function (link) {
-        const target = link
-          .getAttribute("data-nav-path")
-          .toLowerCase();
-
+      sidebar.querySelectorAll("[data-nav-path]").forEach((link) => {
+        const target = link.getAttribute("data-nav-path").toLowerCase();
         const active = target === currentFile;
 
         link.classList.toggle("active", active);
@@ -165,9 +166,8 @@
       });
     }
 
-    /* Mobile menu button */
     if (toggle) {
-      toggle.addEventListener("click", function () {
+      toggle.addEventListener("click", () => {
         if (sidebar.classList.contains("open")) {
           closeSidebar();
         } else {
@@ -176,52 +176,215 @@
       });
     }
 
-    /* Close when the backdrop is clicked */
-    if (overlay) {
-      overlay.addEventListener("click", closeSidebar);
-    }
+    if (overlay) overlay.addEventListener("click", closeSidebar);
 
-    /* Close after choosing a page */
-    sidebar.querySelectorAll(".sidebar-nav a, .sidebar-bottom a")
-      .forEach(function (link) {
-        link.addEventListener("click", function () {
-          if (isMobile()) {
-            closeSidebar();
-          }
+    sidebar
+      .querySelectorAll(".sidebar-nav a, .sidebar-bottom a")
+      .forEach((link) => {
+        link.addEventListener("click", () => {
+          if (isMobile()) closeSidebar();
         });
       });
 
-    /* Close with Escape */
-    document.addEventListener("keydown", function (event) {
-      if (event.key === "Escape") {
-        closeSidebar();
-      }
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeSidebar();
     });
 
-    /* Reset mobile state when returning to desktop */
-    window.addEventListener("resize", function () {
-      if (!isMobile()) {
-        closeSidebar();
-      }
+    window.addEventListener("resize", () => {
+      if (!isMobile()) closeSidebar();
     });
 
     setActiveLink();
 
-    /* Keep navigation.js in sync, if available */
     if (
       window.EduNavigation &&
       typeof window.EduNavigation.setActiveLink === "function"
     ) {
       window.EduNavigation.setActiveLink();
     }
+
+    setupLiveNotificationBadge();
   }
 
+function setupLiveNotificationBadge() {
+  const dot = document.getElementById(
+    "admin-notification-dot"
+  );
+
+  if (!dot) return;
+
+  if (
+    !document.getElementById(
+      "admin-notification-badge-styles"
+    )
+  ) {
+    const style = document.createElement("style");
+
+    style.id = "admin-notification-badge-styles";
+
+    style.textContent = `
+      #admin-notifications-nav {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      #admin-notifications-nav .notification-nav-label {
+        flex: 1;
+      }
+
+      .admin-notification-dot {
+        display: inline-block;
+        flex: 0 0 9px;
+        width: 9px;
+        height: 9px;
+        margin-left: auto;
+        border-radius: 50%;
+        background: #e11d48;
+        box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.13);
+      }
+
+      .admin-notification-dot[hidden] {
+        display: none !important;
+      }
+    `;
+
+    document.head.appendChild(style);
+  }
+
+  const configUrl = new URL(
+    "./firebase-config.js",
+    scriptUrl
+  );
+
+  import(configUrl.href)
+    .then(async (config) => {
+      if (!config.db || !config.auth) {
+        throw new Error(
+          "firebase-config.js must export db and auth."
+        );
+      }
+
+      const authModule = await import(
+        "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js"
+      );
+
+      const firestore = await import(
+        "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js"
+      );
+
+      const { onAuthStateChanged } = authModule;
+
+      const {
+        doc,
+        getDoc,
+        collection,
+        query,
+        where,
+        onSnapshot
+      } = firestore;
+
+      const user = await new Promise((resolve, reject) => {
+        const unsubscribe = onAuthStateChanged(
+          config.auth,
+          (currentUser) => {
+            unsubscribe();
+            resolve(currentUser);
+          },
+          reject
+        );
+      });
+
+      if (!user) {
+        throw new Error("No authenticated user.");
+      }
+
+      const profileSnapshot = await getDoc(
+        doc(config.db, "users", user.uid)
+      );
+
+      if (!profileSnapshot.exists()) {
+        throw new Error("User profile not found.");
+      }
+
+      const profile = profileSnapshot.data();
+
+      if (
+        profile.role !== "admin" ||
+        profile.isActive !== true ||
+        !profile.academyId
+      ) {
+        throw new Error(
+          "An active academy admin account is required."
+        );
+      }
+
+      const unreadQuery = query(
+        collection(config.db, "notifications"),
+        where("academyId", "==", profile.academyId),
+        where("recipientRole", "==", "admin")
+      );
+
+      stopBadgeListener = onSnapshot(
+        unreadQuery,
+        (snapshot) => {
+          let unread = 0;
+
+          snapshot.forEach((notification) => {
+            const data = notification.data();
+
+            if (
+              data.read !== true &&
+              data.isRead !== true
+            ) {
+              unread++;
+            }
+          });
+
+          dot.hidden = unread === 0;
+
+          dot.title = unread
+            ? `${unread} unread notification${
+                unread === 1 ? "" : "s"
+              }`
+            : "No unread notifications";
+
+          dot.setAttribute(
+            "aria-hidden",
+            unread === 0 ? "true" : "false"
+          );
+        },
+        (error) => {
+          dot.hidden = true;
+
+          console.error(
+            "EduAdmin: Notification badge listener failed.",
+            error
+          );
+        }
+      );
+    })
+    .catch((error) => {
+      dot.hidden = true;
+
+      console.error(
+        "EduAdmin: Could not connect the notification badge.",
+        error
+      );
+    });
+}
+
+  window.addEventListener("beforeunload", () => {
+    if (typeof stopBadgeListener === "function") {
+      stopBadgeListener();
+    }
+  });
+
   if (document.readyState === "loading") {
-    document.addEventListener(
-      "DOMContentLoaded",
-      initAdminSidebar,
-      { once: true }
-    );
+    document.addEventListener("DOMContentLoaded", initAdminSidebar, {
+      once: true
+    });
   } else {
     initAdminSidebar();
   }

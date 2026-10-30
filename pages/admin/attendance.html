@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Manage student attendance in EduAdmin.">
+  <meta name="description" content="View and download student attendance in EduAdmin.">
   <title>Attendance | EduAdmin</title>
 
   <link rel="stylesheet" href="../../css/app.css">
@@ -14,11 +13,422 @@
   <script src="../../js/admin-sidebar.js" defer></script>
   <script type="module" src="../../js/admin-attendance.js"></script>
   <script type="module" src="../../js/account-menu.js"></script>
+
+  <style>
+    .attendance-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 24px;
+      padding: 20px 22px;
+      background: #fff;
+      border: 1px solid #e5eaf2;
+      border-radius: 16px;
+      box-shadow: 0 5px 16px rgba(30,41,59,.04);
+    }
+
+    .attendance-toolbar h2 {
+      margin-bottom: 6px;
+      color: #172033;
+      font-size: 21px;
+      font-weight: 750;
+    }
+
+    .attendance-toolbar p {
+      margin-bottom: 0;
+      color: #64748b;
+      font-size: 13px;
+    }
+
+    .attendance-toolbar-actions {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .attendance-date-input {
+      width: 170px;
+      max-width: 100%;
+      min-height: 42px;
+      padding: 9px 10px;
+      background: #fff;
+      border: 1px solid #cbd5e1;
+      border-radius: 9px;
+    }
+
+    .attendance-toolbar-actions .primary-button {
+      white-space: nowrap;
+    }
+
+    .individual-search-wrap {
+      position: relative;
+    }
+
+    .individual-search-panel[hidden] {
+      display: none !important;
+    }
+
+    .individual-search-panel {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      z-index: 1000;
+      width: min(360px, calc(100vw - 32px));
+      max-height: 70vh;
+      overflow-y: auto;
+      padding: 16px;
+      background: #fff;
+      border: 1px solid #e5eaf2;
+      border-radius: 12px;
+      box-shadow: 0 12px 32px rgba(30,41,59,.16);
+    }
+
+    .individual-search-panel label {
+      display: block;
+      margin: 0 0 6px;
+      color: #475569;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .individual-search-panel input,
+    .individual-search-panel select {
+      width: 100%;
+      min-height: 40px;
+      margin-bottom: 12px;
+      padding: 9px 10px;
+      background: #fff;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font: inherit;
+    }
+
+    .individual-student-details {
+      padding-top: 10px;
+      border-top: 1px solid #e5eaf2;
+      color: #475569;
+      font-size: 12px;
+      line-height: 1.55;
+      overflow-wrap: anywhere;
+    }
+
+    .individual-student-details h4 {
+      margin: 0 0 8px;
+      color: #172033;
+      font-size: 14px;
+    }
+
+    .individual-student-details p {
+      margin: 5px 0;
+    }
+
+    .individual-student-details strong {
+      color: #172033;
+    }
+
+    .attendance-class-section {
+      margin-bottom: 24px;
+      padding: 20px;
+      background: #fff;
+      border: 1px solid #e5eaf2;
+      border-radius: 16px;
+      box-shadow: 0 5px 16px rgba(30,41,59,.04);
+    }
+
+    .attendance-class-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .attendance-class-heading h3 {
+      margin-bottom: 5px;
+      color: #172033;
+      font-size: 18px;
+      font-weight: 750;
+    }
+
+    .attendance-class-heading p {
+      margin-bottom: 0;
+      color: #64748b;
+      font-size: 13px;
+    }
+
+    .attendance-counts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      color: #475569;
+      font-size: 11px;
+    }
+
+    .attendance-counts > * {
+      padding: 6px 9px;
+      background: #f8fafc;
+      border: 1px solid #e5eaf2;
+      border-radius: 8px;
+      font-weight: 650;
+    }
+
+    .attendance-table-wrapper {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: auto;
+      border: 1px solid #e5eaf2;
+      border-radius: 10px;
+      background: #fff;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .attendance-table {
+      width: 100%;
+      min-width: 0;
+      table-layout: fixed;
+      border-collapse: collapse;
+    }
+
+    .attendance-table th,
+    .attendance-table td {
+      padding: 10px 7px;
+      text-align: left;
+      vertical-align: middle;
+      overflow-wrap: anywhere;
+    }
+
+    .attendance-table th {
+      color: #64748b;
+      background: #f8faff;
+      border-bottom: 1px solid #e5eaf2;
+      font-size: 9px;
+      font-weight: 800;
+      line-height: 1.35;
+      text-transform: uppercase;
+    }
+
+    .attendance-table td {
+      color: #334155;
+      border-bottom: 1px solid #edf0f5;
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    .attendance-table tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .attendance-table th:nth-child(1) { width: 15%; }
+    .attendance-table th:nth-child(2) { width: 18%; }
+    .attendance-table th:nth-child(3) { width: 11%; }
+    .attendance-table th:nth-child(4) { width: 10%; }
+    .attendance-table th:nth-child(5) { width: 11%; }
+    .attendance-table th:nth-child(6) { width: 10%; }
+    .attendance-table th:nth-child(7) { width: 13%; }
+    .attendance-table th:nth-child(8) { width: 12%; }
+
+    .attendance-status {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 58px;
+      padding: 6px 9px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 750;
+      text-transform: capitalize;
+    }
+
+    .attendance-status-present {
+      color: #166534;
+      background: #dcfce7;
+    }
+
+    .attendance-status-absent {
+      color: #991b1b;
+      background: #fee2e2;
+    }
+
+    .attendance-status-late {
+      color: #92400e;
+      background: #fef3c7;
+    }
+
+    .attendance-status-excused {
+      color: #1d4ed8;
+      background: #dbeafe;
+    }
+
+    .attendance-status-other {
+      color: #475569;
+      background: #e2e8f0;
+    }
+
+    .attendance-empty-state,
+    #attendance-classes-container .empty-state {
+      padding: 32px 20px;
+      color: #64748b;
+      background: #fff;
+      border: 1px dashed #cbd5e1;
+      border-radius: 14px;
+      text-align: center;
+    }
+
+    .attendance-empty-state h3 {
+      margin-bottom: 8px;
+      color: #172033;
+    }
+
+    .attendance-empty-state p {
+      margin-bottom: 0;
+      font-size: 13px;
+    }
+
+    .dashboard-content > .page-heading {
+      margin-bottom: 24px;
+    }
+
+    .dashboard-content > .page-heading h1 {
+      margin-bottom: 7px;
+      font-size: 27px;
+    }
+
+    .dashboard-content > .page-heading p {
+      margin-bottom: 0;
+      color: #64748b;
+      font-size: 13px;
+    }
+
+    #attendance-message {
+      margin-bottom: 18px;
+      border-radius: 10px;
+    }
+
+    @media (max-width: 1100px) {
+      .attendance-table {
+        min-width: 850px;
+        table-layout: auto;
+      }
+    }
+
+    @media (max-width: 900px) {
+      .attendance-toolbar {
+        align-items: flex-start;
+        padding: 18px;
+      }
+
+      .attendance-toolbar-actions {
+        width: 100%;
+      }
+
+      .attendance-class-section {
+        padding: 16px;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .attendance-toolbar {
+        padding: 15px;
+      }
+
+      .attendance-toolbar-actions {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .attendance-toolbar-actions .primary-button,
+      .individual-search-wrap {
+        width: 100%;
+      }
+
+      .individual-search-wrap > button {
+        width: 100%;
+      }
+
+      .individual-search-panel {
+        right: auto;
+        left: 0;
+      }
+
+      .attendance-class-section {
+        padding: 12px;
+      }
+
+      .attendance-class-heading {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .dashboard-content > .page-heading h1 {
+        font-size: 24px;
+      }
+    }
+    #individual-month,
+#download-month,
+#download-start-date,
+#download-end-date {
+  display: block;
+  width: 100%;
+  min-height: 40px;
+  margin-bottom: 12px;
+  padding: 9px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  font: inherit;
+}
+
+#show-monthly-attendance-button,
+#export-attendance-button {
+  width: 100%;
+  margin: 4px 0 12px;
+}
+
+.attendance-monthly-heading {
+  margin-bottom: 14px;
+}
+
+.attendance-monthly-heading h3 {
+  margin-bottom: 5px;
+}
+
+.attendance-monthly-heading p {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.attendance-monthly-table {
+  width: 100%;
+  min-width: 850px;
+  border-collapse: collapse;
+}
+
+.attendance-monthly-table th,
+.attendance-monthly-table td {
+  padding: 10px;
+  border-bottom: 1px solid #e5eaf2;
+  text-align: left;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.attendance-monthly-table th {
+  background: #f8faff;
+  color: #64748b;
+  text-transform: uppercase;
+  font-size: 10px;
+}
+  </style>
 </head>
 
 <body>
   <div class="dashboard-layout">
     <div id="admin-sidebar-mount"></div>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
     <main class="dashboard-main">
       <header class="dashboard-topbar">
@@ -34,7 +444,7 @@
 
           <div>
             <h1>Attendance</h1>
-            <p>Record and review student attendance.</p>
+            <p>View student attendance class-wise.</p>
           </div>
         </div>
       </header>
@@ -42,8 +452,8 @@
       <div class="dashboard-content">
         <section class="page-heading">
           <div>
-            <h1>Attendance management</h1>
-            <p>Select a class and date to manage attendance records.</p>
+            <h1>Daily Attendance</h1>
+            <p id="attendance-page-date">Today's class-wise attendance.</p>
           </div>
         </section>
 
@@ -51,84 +461,137 @@
           id="attendance-message"
           class="message info"
           role="status"
+          aria-live="polite"
           hidden
         ></div>
 
-        <section class="card dashboard-section">
-          <div class="section-title-row">
+        <section class="dashboard-section">
+          <div class="attendance-toolbar">
             <div>
-              <h2>Attendance session</h2>
-              <p>Choose the class and date for the session.</p>
-            </div>
-          </div>
-
-          <form id="attendance-filter-form" class="form-grid">
-            <div class="form-group">
-              <label for="attendance-class">Class *</label>
-              <select id="attendance-class" name="classId" required>
-                <option value="">Select a class</option>
-              </select>
+              <h2 id="attendance-selected-date-label">Today's Attendance</h2>
+              <p id="attendance-session-details">
+                Loading class-wise attendance...
+              </p>
             </div>
 
-            <div class="form-group">
-              <label for="attendance-date">Attendance date *</label>
+            <div class="attendance-toolbar-actions">
               <input
                 id="attendance-date"
-                name="date"
+                class="attendance-date-input"
                 type="date"
-                required
+                aria-label="Choose attendance date"
+                hidden
               >
-            </div>
 
-            <div class="full-width">
-              <button type="submit" class="primary-button">
-                Load students
+              <button
+                type="button"
+                class="primary-button"
+                id="change-attendance-date-button"
+              >Change Date</button>
+
+              <div class="individual-search-wrap">
+                <button
+                  type="button"
+                  class="primary-button"
+                  id="search-individual-button"
+                  aria-expanded="false"
+                  aria-controls="individual-search-panel"
+                >Search Individual Data ▾</button>
+
+                <div
+                  id="individual-search-panel"
+                  class="individual-search-panel"
+                  hidden
+                >
+                  <label for="individual-student-search">Search student</label>
+                  <input
+                    id="individual-student-search"
+                    type="search"
+                    placeholder="Enter name or email"
+                    autocomplete="off"
+                  >
+
+                  <label for="individual-student-select">Select student</label>
+                  <select id="individual-student-select">
+                    <option value="">Select a student</option>
+                  </select>
+
+                  <label for="individual-month">Select month</label>
+                  <input id="individual-month" type="month">
+
+                  <button
+                    type="button"
+                    class="primary-button"
+                    id="show-monthly-attendance-button"
+                  >
+                    Show Monthly Data
+                  </button>
+
+                  <div
+                    id="individual-student-details"
+                    class="individual-student-details"
+                    aria-live="polite"
+                  >
+                    Search for or select a student to view their login details.
+                  </div>
+                </div>
+              </div>
+
+              <div class="individual-search-wrap">
+              <button
+                type="button"
+                class="primary-button"
+                id="download-attendance-button"
+                aria-expanded="false"
+                aria-controls="attendance-download-panel"
+              >
+                Download Attendance ▾
               </button>
-            </div>
-          </form>
-        </section>
 
-        <section class="dashboard-section">
-          <div class="section-title-row">
-            <div>
-              <h2>Student attendance</h2>
-              <p>Attendance records for the selected session.</p>
+              <div
+                id="attendance-download-panel"
+                class="individual-search-panel"
+                hidden
+              >
+                <label for="download-report-type">Report type</label>
+                <select id="download-report-type">
+                  <option value="all-month">All students — selected month</option>
+                  <option value="student-month">Individual student — selected month</option>
+                  <option value="all-range">All students — date range</option>
+                  <option value="student-current-month">Individual student — current month</option>
+                </select>
+
+                <label for="download-student-select">Student</label>
+                <select id="download-student-select">
+                  <option value="">Select a student</option>
+                </select>
+
+                <label for="download-month">Month</label>
+                <input id="download-month" type="month">
+
+                <label for="download-start-date">Start date</label>
+                <input id="download-start-date" type="date">
+
+                <label for="download-end-date">End date</label>
+                <input id="download-end-date" type="date">
+
+                <button
+                  type="button"
+                  class="primary-button"
+                  id="export-attendance-button"
+                >
+                  Download CSV
+                </button>
+              </div>
+            </div>
             </div>
           </div>
 
-          <div class="table-wrapper">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th scope="col">Student name</th>
-                  <th scope="col">Attendance status</th>
-                </tr>
-              </thead>
-
-              <tbody id="attendance-table-body">
-                <tr>
-                  <td colspan="2">
-                    <div class="empty-state">
-                      <h3>No attendance records loaded</h3>
-                      <p>Student and attendance data are not connected yet.</p>
-                      <small>
-                        Connect the academy data service to load students
-                        and save attendance for the selected class and date.
-                      </small>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div style="display:flex; justify-content:flex-end; margin-top:16px;">
-            <button
-              type="button"
-              class="primary-button"
-              id="save-attendance-button"
-              disabled
-            >Save attendance</button>
+          <div id="attendance-classes-container">
+            <div class="empty-state">
+              <h3>Loading attendance</h3>
+              <p>Please wait while today's class-wise records are retrieved.</p>
+            </div>
           </div>
         </section>
       </div>
@@ -139,7 +602,5 @@
       </footer>
     </main>
   </div>
-
-  <div class="sidebar-overlay" id="sidebar-overlay"></div>
 </body>
 </html>

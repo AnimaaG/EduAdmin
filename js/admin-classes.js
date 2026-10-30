@@ -17,6 +17,8 @@ import {
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 
+import { recordAcademyAdminActivity } from "./admin-activity.js";
+
 document.addEventListener("DOMContentLoaded", () => {
   const addButton = document.getElementById("add-class-button");
   const formSection = document.getElementById("class-form-section");
@@ -36,13 +38,17 @@ document.addEventListener("DOMContentLoaded", () => {
   const calendarMonthLabel = document.getElementById("calendar-month-label");
   const previousMonthButton = document.getElementById("calendar-previous-month");
   const nextMonthButton = document.getElementById("calendar-next-month");
-  const datesContainer = document.getElementById("class-session-dates");
+  const datesContainer = null;
   const selectedDateCount = document.getElementById("class-selected-date-count");
   const startTimeInput = document.getElementById("class-start-time");
   const endTimeInput = document.getElementById("class-end-time");
 
   const classNameInput = document.getElementById("class-name");
   const subjectInput = document.getElementById("class-subject");
+
+  const studentSearchInput = document.getElementById("class-student-search");
+  const studentSelectionContainer = document.getElementById("class-student-selection");
+  const selectedStudentCount = document.getElementById("class-selected-student-count");
 
   const weeklyTimetableHead = document.getElementById("weekly-timetable-head");
   const weeklyTimetableBody = document.getElementById("weekly-timetable-body");
@@ -63,7 +69,6 @@ document.addEventListener("DOMContentLoaded", () => {
     !calendarMonthLabel ||
     !previousMonthButton ||
     !nextMonthButton ||
-    !datesContainer ||
     !selectedDateCount ||
     !startTimeInput ||
     !endTimeInput ||
@@ -78,12 +83,16 @@ document.addEventListener("DOMContentLoaded", () => {
     return;
   }
 
-  let adminProfile = null;
-  let classes = [];
-  let editingClassId = null;
 
-  const teachersById = new Map();
-  const selectedDates = new Set();
+let adminProfile = null;
+let classes = [];
+let editingClassId = null;
+let academyStudents = [];
+const selectedStudentIds = new Set();
+
+const teachersById = new Map();
+const selectedDates = new Set();
+
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -202,34 +211,12 @@ document.addEventListener("DOMContentLoaded", () => {
       displayedMonth.getMonth() <= currentMonth.getMonth();
   }
 
-  function renderSelectedDates() {
-    const dates = [...selectedDates].sort();
+function renderSelectedDates() {
+  const dates = [...selectedDates].sort();
 
-    selectedDateCount.textContent =
-      `${dates.length} date${dates.length === 1 ? "" : "s"} selected`;
-
-    if (dates.length === 0) {
-      datesContainer.innerHTML =
-        '<p class="form-help">No dates selected yet. Click dates on the calendar.</p>';
-      return;
-    }
-
-    datesContainer.innerHTML = dates.map(date => `
-      <div class="selected-session-date">
-        <div>
-          <strong>${escapeHTML(formatDate(date))}</strong>
-          <small>${escapeHTML(date)}</small>
-        </div>
-
-        <button
-          type="button"
-          class="secondary-button"
-          data-remove-session-date="${date}"
-          aria-label="Remove ${escapeHTML(formatDate(date))}"
-        >Remove</button>
-      </div>
-    `).join("");
-  }
+  selectedDateCount.textContent =
+    `${dates.length} date${dates.length === 1 ? "" : "s"} selected`;
+}
 
   // Select or deselect calendar dates directly.
   calendarDays.addEventListener("click", event => {
@@ -272,19 +259,6 @@ document.addEventListener("DOMContentLoaded", () => {
     renderCalendar();
   });
 
-  datesContainer.addEventListener("click", event => {
-    const button = event.target.closest("[data-remove-session-date]");
-
-    if (!button) {
-      return;
-    }
-
-    selectedDates.delete(button.dataset.removeSessionDate);
-
-    renderCalendar();
-    renderSelectedDates();
-    hideMessage();
-  });
 
   function buildSessions() {
     return [...selectedDates].sort().map(date => ({
@@ -470,6 +444,97 @@ tableBody.innerHTML = filtered.map(item => `
 `).join("");
   }
 
+  
+function getStudentDisplayName(student) {
+  return (
+    student.fullName ||
+    student.name ||
+    [student.firstName, student.lastName].filter(Boolean).join(" ") ||
+    student.email ||
+    "Unnamed student"
+  );
+}
+
+function renderStudentSelection() {
+  const term = (studentSearchInput?.value || "").trim().toLowerCase();
+
+  const filteredStudents = academyStudents.filter(student => {
+    const searchable = [
+      getStudentDisplayName(student),
+      student.email,
+      student.phone,
+      student.contactNumber
+    ].join(" ").toLowerCase();
+
+    return searchable.includes(term);
+  });
+
+  selectedStudentCount.textContent =
+    `${selectedStudentIds.size} student${selectedStudentIds.size === 1 ? "" : "s"} selected`;
+
+  if (filteredStudents.length === 0) {
+    studentSelectionContainer.innerHTML =
+      '<p class="form-help">No matching active students found.</p>';
+    return;
+  }
+
+  studentSelectionContainer.innerHTML = filteredStudents.map(student => `
+    <label class="class-student-option">
+      <input
+        type="checkbox"
+        data-class-student-id="${escapeHTML(student.id)}"
+        ${selectedStudentIds.has(student.id) ? "checked" : ""}
+      >
+      <span class="class-student-option-details">
+        <strong>${escapeHTML(getStudentDisplayName(student))}</strong>
+        <small>${escapeHTML(student.email || student.phone || student.contactNumber || "No contact details")}</small>
+      </span>
+    </label>
+  `).join("");
+}
+
+async function loadAcademyStudents(academyId) {
+  studentSelectionContainer.innerHTML =
+    '<p class="form-help">Loading students...</p>';
+
+  const studentsQuery = query(
+    collection(db, "users"),
+    where("academyId", "==", academyId),
+    where("role", "==", "student"),
+    where("isActive", "==", true)
+  );
+
+  const snapshot = await getDocs(studentsQuery);
+
+  academyStudents = snapshot.docs.map(studentDoc => ({
+    id: studentDoc.id,
+    ...studentDoc.data()
+  })).sort((a, b) =>
+    getStudentDisplayName(a).localeCompare(getStudentDisplayName(b))
+  );
+
+  renderStudentSelection();
+}
+
+studentSearchInput?.addEventListener("input", renderStudentSelection);
+
+studentSelectionContainer?.addEventListener("change", event => {
+  const checkbox = event.target.closest("[data-class-student-id]");
+  if (!checkbox) return;
+
+  const studentId = checkbox.dataset.classStudentId;
+
+  if (checkbox.checked) {
+    selectedStudentIds.add(studentId);
+  } else {
+    selectedStudentIds.delete(studentId);
+  }
+
+  selectedStudentCount.textContent =
+    `${selectedStudentIds.size} student${selectedStudentIds.size === 1 ? "" : "s"} selected`;
+});
+
+
   async function loadTeachers(academyId) {
     teacherSelect.innerHTML =
       '<option value="">No teacher selected</option>';
@@ -535,6 +600,9 @@ tableBody.innerHTML = filtered.map(item => `
     form.reset();
     editingClassId = null;
     selectedDates.clear();
+    selectedStudentIds.clear();
+    if (studentSearchInput) studentSearchInput.value = "";
+    renderStudentSelection();
 
     formTitle.textContent = "Add class";
     saveButton.textContent = "Save class";
@@ -590,6 +658,17 @@ tableBody.innerHTML = filtered.map(item => `
 
     classStatusInput.value =
       item.status === "inactive" ? "inactive" : "active";
+
+    selectedStudentIds.clear();
+
+    if (Array.isArray(item.studentIds)) {
+      item.studentIds.forEach(studentId => {
+        selectedStudentIds.add(studentId);
+      });
+    }
+
+    if (studentSearchInput) studentSearchInput.value = "";
+    renderStudentSelection();  
 
     const sessions = Array.isArray(item.sessions) ? item.sessions : [];
 
@@ -716,6 +795,7 @@ tableBody.innerHTML = filtered.map(item => `
         teacherName: teacherId
           ? teachersById.get(teacherId)
           : "",
+        studentIds: [...selectedStudentIds],
         sessions,
         schedule: formatSessionsForTable(sessions),
         description,
@@ -747,6 +827,18 @@ tableBody.innerHTML = filtered.map(item => `
           createdBy: auth.currentUser.uid,
           createdAt: serverTimestamp()
         });
+      }
+
+      try {
+        await recordAcademyAdminActivity({
+          action: "class_created",
+          title: "Class created",
+          detail: `${className} · ${subject}`,
+          actionType: "class",
+          entityType: "class"
+        });
+      } catch (activityError) {
+        console.error("Could not record class creation activity:", activityError);
       }
 
       const wasEditing = Boolean(editingClassId);
@@ -891,6 +983,7 @@ tableBody.innerHTML = filtered.map(item => `
       adminProfile = profile;
 
       await loadTeachers(profile.academyId);
+      await loadAcademyStudents(profile.academyId);
       await loadClasses(profile.academyId);
 
       hideMessage();

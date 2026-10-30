@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,6 +8,340 @@
 
   <link rel="stylesheet" href="../../css/app.css">
 
+  <style>
+    /* Student dashboard enhancements */
+    .student-dashboard-content {
+      display: grid;
+      gap: 24px;
+      padding-bottom: 32px;
+    }
+
+    .student-dashboard-content .dashboard-section {
+      margin-bottom: 0;
+    }
+
+    .student-notifications {
+      overflow: hidden;
+      border: 1px solid #e1e7f0;
+      border-radius: 18px;
+      background: #fff;
+      box-shadow: 0 8px 26px rgba(26, 42, 78, 0.045);
+    }
+
+    .student-notifications-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 14px;
+      padding: 22px 24px;
+      border-bottom: 1px solid #edf0f6;
+    }
+
+    .student-notifications-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .student-notifications-icon {
+      display: grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      flex: 0 0 44px;
+      border-radius: 13px;
+      background: #eef0ff;
+      color: #5145cd;
+      font-size: 21px;
+    }
+
+    .student-notifications-title h2,
+    .student-notifications-title p {
+      margin: 0;
+    }
+
+    .student-notifications-title p {
+      margin-top: 5px;
+      color: #64748b;
+      font-size: 13px;
+    }
+
+    .student-notification-count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 30px;
+      height: 30px;
+      padding: 0 9px;
+      border-radius: 999px;
+      background: #fff0f0;
+      color: #b42318;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .student-notifications-list {
+      display: grid;
+    }
+
+    .student-notification-item {
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr) auto;
+      align-items: start;
+      gap: 14px;
+      padding: 19px 24px;
+      border-bottom: 1px solid #edf0f6;
+    }
+
+    .student-notification-item:last-child {
+      border-bottom: 0;
+    }
+
+    .student-notification-item.is-unread {
+      background: #fbfcff;
+    }
+
+    .student-notification-symbol {
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: #f0f3fa;
+      font-size: 18px;
+    }
+
+    .student-notification-copy {
+      min-width: 0;
+    }
+
+    .student-notification-copy strong {
+      display: block;
+      color: #17233c;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .student-notification-copy p {
+      margin: 5px 0 8px;
+      color: #53627a;
+      font-size: 13px;
+      line-height: 1.6;
+      overflow-wrap: anywhere;
+    }
+
+    .student-notification-meta {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      color: #7a879b;
+      font-size: 11px;
+    }
+
+    .student-notification-category {
+      display: inline-flex;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: #eef0ff;
+      color: #5145cd;
+      font-weight: 700;
+    }
+
+    .student-notification-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .student-notification-read {
+      padding: 8px 11px;
+      border: 1px solid #d8def0;
+      border-radius: 9px;
+      background: #fff;
+      color: #4338ca;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .student-notification-read:hover {
+      background: #f2f3ff;
+    }
+
+    .student-notification-read:disabled {
+      opacity: 0.55;
+      cursor: wait;
+    }
+
+    .student-notification-empty {
+      padding: 34px 20px;
+      text-align: center;
+      color: #64748b;
+    }
+
+    .student-notification-empty-icon {
+      display: grid;
+      place-items: center;
+      width: 50px;
+      height: 50px;
+      margin: 0 auto 12px;
+      border-radius: 50%;
+      background: #edf9f1;
+      color: #18794e;
+      font-size: 23px;
+    }
+
+    .student-notification-empty strong {
+      display: block;
+      margin-bottom: 6px;
+      color: #17233c;
+    }
+
+    .student-notification-empty p {
+      margin: 0;
+      font-size: 13px;
+    }
+
+    .student-notification-message {
+      padding: 0 24px 16px;
+      color: #b42318;
+      font-size: 13px;
+    }
+
+    .student-notification-message[hidden] {
+      display: none;
+    }
+
+    .student-overview-section {
+      padding: 24px;
+      border: 1px solid #e1e7f0;
+      border-radius: 18px;
+      background: #fff;
+      box-shadow: 0 8px 26px rgba(26, 42, 78, 0.045);
+    }
+
+    .student-overview-section .section-heading {
+      margin-bottom: 22px;
+    }
+
+    .student-overview-section .section-heading h2 {
+      margin-bottom: 6px;
+    }
+
+    .student-overview-section .section-heading p {
+      margin: 0;
+      color: #64748b;
+      line-height: 1.6;
+    }
+
+    .student-overview-section .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .student-overview-section .stat-card {
+      min-width: 0;
+      margin: 0;
+      padding: 20px;
+      border: 1px solid #e4e9f3;
+      border-radius: 15px;
+      background: linear-gradient(145deg, #fff 0%, #fafbff 100%);
+      transition: transform 160ms ease, box-shadow 160ms ease;
+    }
+
+    .student-overview-section .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(36, 49, 88, 0.07);
+    }
+
+    .student-overview-section .stat-label {
+      margin: 0 0 12px;
+      color: #5f6f88;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.035em;
+      text-transform: uppercase;
+    }
+
+    .student-overview-section .stat-card h3 {
+      margin: 0 0 9px;
+      color: #282c86;
+      font-size: clamp(25px, 2.5vw, 32px);
+      font-weight: 750;
+      line-height: 1.2;
+      overflow-wrap: anywhere;
+    }
+
+    .student-overview-section .stat-description {
+      margin: 0;
+      color: #718096;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    @media (max-width: 1050px) {
+      .student-overview-section .stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 600px) {
+      .student-notifications-header,
+      .student-overview-section {
+        padding: 18px;
+      }
+
+      .student-notification-item {
+        grid-template-columns: 36px minmax(0, 1fr);
+        gap: 11px;
+        padding: 16px;
+      }
+
+      .student-notification-symbol {
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
+      }
+
+      .student-notification-actions {
+        grid-column: 2;
+        justify-content: flex-start;
+      }
+
+      .student-notification-message {
+        padding: 0 16px 16px;
+      }
+
+      .student-overview-section .stats-grid {
+        gap: 10px;
+      }
+
+      .student-overview-section .stat-card {
+        padding: 14px;
+      }
+
+      .student-overview-section .stat-label {
+        font-size: 10px;
+      }
+
+      .student-overview-section .stat-card h3 {
+        font-size: 24px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .student-overview-section .stat-card {
+        transition: none;
+      }
+    }
+  </style>
+
   <script src="../../js/main.js" defer></script>
   <script src="../../js/navigation.js" defer></script>
   <script src="../../js/student-sidebar.js" defer></script>
@@ -18,12 +351,10 @@
 
 <body>
   <div class="dashboard-layout">
-
     <div id="student-sidebar-mount"></div>
     <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
     <main class="dashboard-main">
-
       <header class="dashboard-topbar">
         <button
           type="button"
@@ -41,61 +372,98 @@
         </div>
       </header>
 
-      <section class="dashboard-section">
-        <div class="section-heading">
-          <div>
-            <h2>My Learning Overview</h2>
-            <p>Keep track of your classes, schedule, learning resources, and attendance.</p>
+      <div class="student-dashboard-content">
+
+        <!-- Notifications appear above the learning overview. -->
+        <section
+          class="student-notifications"
+          id="student-notifications-panel"
+          aria-labelledby="student-notifications-heading"
+        >
+          <div class="student-notifications-header">
+            <div class="student-notifications-title">
+              <div class="student-notifications-icon" aria-hidden="true">♧</div>
+              <div>
+                <h2 id="student-notifications-heading">Notifications</h2>
+                <p id="student-notifications-subtitle">
+                  Important updates about your learning and account.
+                </p>
+              </div>
+            </div>
+
+            <span
+              class="student-notification-count"
+              id="student-unread-count"
+              aria-label="Unread notifications"
+            >—</span>
           </div>
-        </div>
 
-        <div class="stats-grid">
-
-          <article class="stat-card">
-            <p class="stat-label">My Classes</p>
-            <h3>—</h3>
-            <p class="stat-description">Class records not connected</p>
-          </article>
-
-          <article class="stat-card">
-            <p class="stat-label">Upcoming Classes</p>
-            <h3>—</h3>
-            <p class="stat-description">Schedule data not connected</p>
-          </article>
-
-          <article class="stat-card">
-            <p class="stat-label">Study Materials</p>
-            <h3>—</h3>
-            <p class="stat-description">Material data not connected</p>
-          </article>
-
-          <article class="stat-card">
-            <p class="stat-label">Attendance</p>
-            <h3>—</h3>
-            <p class="stat-description">Attendance data not connected</p>
-          </article>
-
-        </div>
-      </section>
-
-
-      <section class="dashboard-section">
-        <div class="section-heading">
-          <div>
-            <h2>Recent Updates</h2>
-            <p>Your upcoming classes and important academic updates.</p>
+          <div
+            class="student-notifications-list"
+            id="student-notifications-list"
+            aria-live="polite"
+            aria-busy="true"
+          >
+            <div class="student-notification-empty">
+              <strong>Loading notifications…</strong>
+              <p>Please wait while we check for updates.</p>
+            </div>
           </div>
-        </div>
 
-        <div class="empty-state">
-          <strong>No updates available</strong>
-          <p>
-            Announcements and notifications will appear here when the relevant
-            services are connected.
-          </p>
-        </div>
-      </section>
+          <p
+            class="student-notification-message"
+            id="student-notification-message"
+            role="alert"
+            hidden
+          ></p>
+        </section>
 
+        <!-- Keep the learning overview and its four existing cards. -->
+        <section class="dashboard-section student-overview-section">
+          <div class="section-heading">
+            <div>
+              <h2>My Learning Overview</h2>
+              <p id="student-overview-description">
+                Keep track of your classes, schedule, learning resources, and attendance.
+              </p>
+            </div>
+          </div>
+
+          <div class="stats-grid">
+            <article class="stat-card">
+              <p class="stat-label">My Classes</p>
+              <h3 id="student-card-classes">—</h3>
+              <p class="stat-description">Loading your active classes…</p>
+            </article>
+
+            <article class="stat-card">
+              <p class="stat-label">Upcoming Classes</p>
+              <h3 id="student-card-upcoming">—</h3>
+              <p class="stat-description">Loading your upcoming sessions…</p>
+            </article>
+
+            <article class="stat-card">
+              <p class="stat-label">Study Materials</p>
+              <h3 id="student-card-materials">—</h3>
+              <p class="stat-description">Learning resources</p>
+            </article>
+
+            <article class="stat-card">
+              <p class="stat-label">Attendance</p>
+              <h3 id="student-card-attendance">—</h3>
+              <p class="stat-description">Loading your attendance…</p>
+            </article>
+          </div>
+        </section>
+
+        <p
+          id="student-dashboard-message"
+          class="form-message"
+          role="status"
+          hidden
+        ></p>
+
+      </div>
     </main>
   </div>
 </body>

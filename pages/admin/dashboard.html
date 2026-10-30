@@ -3,8 +3,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Manage your academy with EduAdmin.">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="EduAdmin academy dashboard">
   <title>Admin Dashboard | EduAdmin</title>
 
   <link rel="stylesheet" href="../../css/app.css">
@@ -13,29 +13,884 @@
   <script src="../../js/navigation.js" defer></script>
   <script src="../../js/admin-sidebar.js" defer></script>
   <script type="module" src="../../js/account-menu.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
   <script type="module" src="../../js/admin-dashboard-data.js"></script>
+
+  <style>
+    :root {
+      --ui-bg: #f7f6fc;
+      --ui-card: #ffffff;
+      --ui-ink: #292544;
+      --ui-muted: #89869f;
+      --ui-line: #efedf7;
+      --ui-purple: #7663ed;
+      --ui-purple-light: #f0edff;
+      --ui-green: #40c6a0;
+      --ui-blue: #77a7f8;
+      --ui-orange: #f5b95d;
+      --ui-pink: #f39cc8;
+      --ui-shadow: 0 8px 24px rgba(65, 49, 120, .045);
+    }
+
+    .dashboard-main {
+      min-width: 0;
+      background: var(--ui-bg);
+    }
+
+    .dashboard-topbar {
+      background: rgba(255,255,255,.92);
+      border-bottom: 1px solid var(--ui-line);
+    }
+
+    .dashboard-content {
+      max-width: 1550px;
+      margin: 0 auto;
+      padding-top: 22px;
+    }
+
+    .ui-page-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 22px;
+    }
+
+    .ui-eyebrow {
+      display: inline-block;
+      color: var(--ui-purple);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .14em;
+      margin-bottom: 8px;
+    }
+
+    .ui-page-head h2 {
+      margin: 0 0 7px;
+      color: var(--ui-ink);
+      font-size: clamp(23px, 2.2vw, 30px);
+      letter-spacing: -.04em;
+    }
+
+    .ui-page-head p {
+      margin: 0;
+      color: var(--ui-muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .ui-academy {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      min-width: 205px;
+      max-width: 280px;
+      padding: 12px 15px;
+      border: 1px solid #eeebfa;
+      border-radius: 16px;
+      background: white;
+      box-shadow: var(--ui-shadow);
+    }
+
+    .ui-academy-avatar {
+      display: grid;
+      place-items: center;
+      flex: 0 0 42px;
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      background: linear-gradient(140deg, #8878f6, #6752dc);
+      color: white;
+      font-weight: 800;
+      font-size: 16px;
+    }
+
+    .ui-academy-copy { min-width: 0; }
+    .ui-academy-copy strong {
+      display: block;
+      color: var(--ui-ink);
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    .ui-academy-copy small {
+      display: block;
+      margin-top: 5px;
+      color: var(--ui-muted);
+      font-size: 10px;
+    }
+
+    .ui-welcome {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      overflow: hidden;
+      min-height: 155px;
+      padding: 25px 27px;
+      margin-bottom: 23px;
+      border: 1px solid #e8e2ff;
+      border-radius: 21px;
+      background: linear-gradient(110deg, #f0edff 0%, #faf8ff 56%, #fff 100%);
+    }
+
+    .ui-welcome::after {
+      content: "";
+      position: absolute;
+      right: 100px;
+      top: -100px;
+      width: 230px;
+      height: 230px;
+      border: 35px solid rgba(118,99,237,.055);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .ui-welcome-copy { position: relative; z-index: 1; }
+    .ui-welcome h3 {
+      margin: 0 0 8px;
+      color: var(--ui-ink);
+      font-size: clamp(20px, 2vw, 27px);
+      letter-spacing: -.035em;
+    }
+
+    .ui-welcome p {
+      margin: 0;
+      color: #77728f;
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    .ui-slogan {
+      display: block;
+      margin-top: 10px;
+      color: var(--ui-purple);
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .ui-welcome-art {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      place-items: center;
+      flex: 0 0 105px;
+      width: 105px;
+      height: 105px;
+      border: 1px solid rgba(118,99,237,.12);
+      border-radius: 28px;
+      background: rgba(255,255,255,.75);
+      color: var(--ui-purple);
+    }
+
+    .ui-welcome-art span {
+      position: absolute;
+      right: 7px;
+      bottom: 9px;
+      width: 29px;
+      height: 29px;
+      display: grid;
+      place-items: center;
+      border-radius: 10px;
+      background: #dff8ef;
+      color: #26a982;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .ui-section { margin-bottom: 23px; }
+
+    .ui-section-head {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .ui-section-head h3 {
+      margin: 0 0 5px;
+      color: var(--ui-ink);
+      font-size: 16px;
+      letter-spacing: -.02em;
+    }
+
+    .ui-section-head p {
+      margin: 0;
+      color: var(--ui-muted);
+      font-size: 11px;
+    }
+
+    .ui-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      padding: 6px 9px;
+      border-radius: 20px;
+      background: #e8faf2;
+      color: #239c76;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .ui-tag::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #35c69a;
+    }
+
+    .ui-overview-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 15px;
+    }
+
+    .ui-mini-card {
+      position: relative;
+      overflow: hidden;
+      min-width: 0;
+      padding: 17px;
+      border: 1px solid var(--ui-line);
+      border-radius: 17px;
+      background: var(--ui-card);
+      box-shadow: var(--ui-shadow);
+    }
+
+    .ui-mini-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .ui-mini-label {
+      color: #77748f;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .ui-mini-icon {
+      display: grid;
+      place-items: center;
+      width: 35px;
+      height: 35px;
+      flex: 0 0 35px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    .ui-mini-value {
+      display: block;
+      margin: 14px 0 5px;
+      color: var(--ui-ink);
+      font-size: 27px;
+      font-weight: 800;
+      letter-spacing: -.04em;
+      overflow-wrap: anywhere;
+    }
+
+    .ui-mini-note {
+      color: var(--ui-muted);
+      font-size: 10px;
+    }
+
+    .ui-mini-foot {
+      height: 4px;
+      margin-top: 15px;
+      overflow: hidden;
+      border-radius: 10px;
+      background: #f1eff9;
+    }
+
+    .ui-mini-foot span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+    }
+
+    .ui-purple { color: #7966e9; background: #efebff; }
+    .ui-blue { color: #5489e8; background: #e9f2ff; }
+    .ui-green { color: #27a982; background: #e1f8ef; }
+    .ui-orange { color: #d99a3b; background: #fff3df; }
+    .ui-pink { color: #d968a3; background: #ffedf6; }
+
+    .ui-panel-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr);
+      gap: 17px;
+      margin-bottom: 18px;
+    }
+
+    .ui-panel {
+      min-width: 0;
+      padding: 20px;
+      border: 1px solid var(--ui-line);
+      border-radius: 19px;
+      background: white;
+      box-shadow: var(--ui-shadow);
+    }
+
+    .ui-panel-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 17px;
+    }
+
+    .ui-panel-head h4 {
+      margin: 0 0 6px;
+      color: var(--ui-ink);
+      font-size: 14px;
+      font-weight: 750;
+    }
+
+    .ui-panel-head p {
+      margin: 0;
+      color: var(--ui-muted);
+      font-size: 10px;
+      line-height: 1.6;
+    }
+
+    .ui-chart-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(112px, .58fr);
+      align-items: center;
+      gap: 15px;
+    }
+
+    .ui-chart-box {
+      position: relative;
+      min-width: 0;
+      width: 100%;
+      height: 220px;
+    }
+
+    .ui-chart-box.short { height: 190px; }
+    .ui-chart-box canvas { max-width: 100%; }
+
+    .ui-data-list {
+      display: grid;
+      gap: 16px;
+      min-width: 0;
+    }
+
+    .ui-data-item { min-width: 0; }
+    .ui-data-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
+      color: var(--ui-muted);
+      font-size: 10px;
+    }
+
+    .ui-data-dot {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      flex: 0 0 7px;
+      border-radius: 50%;
+    }
+
+    .ui-data-value {
+      display: block;
+      color: var(--ui-ink);
+      font-size: 21px;
+      font-weight: 800;
+      letter-spacing: -.035em;
+      overflow-wrap: anywhere;
+    }
+
+    .ui-data-sub {
+      display: block;
+      margin-top: 4px;
+      color: var(--ui-muted);
+      font-size: 9px;
+      line-height: 1.5;
+    }
+
+    .ui-divider {
+      height: 1px;
+      margin: 17px 0;
+      background: var(--ui-line);
+    }
+
+    .ui-attendance-cards {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .ui-attendance-stat {
+      padding: 12px 10px;
+      border: 1px solid var(--ui-line);
+      border-radius: 13px;
+      background: #fcfbff;
+    }
+
+    .ui-attendance-stat span {
+      display: block;
+      color: var(--ui-muted);
+      font-size: 10px;
+    }
+
+    .ui-attendance-stat strong {
+      display: block;
+      margin-top: 6px;
+      color: var(--ui-ink);
+      font-size: 21px;
+    }
+
+    .ui-class-list { display: grid; gap: 10px; }
+
+    .ui-class-card {
+      padding: 13px;
+      border: 1px solid #eeedf6;
+      border-radius: 14px;
+      background: #fff;
+    }
+
+    .ui-class-top {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .ui-class-avatar {
+      display: grid;
+      place-items: center;
+      width: 36px;
+      height: 36px;
+      flex: 0 0 36px;
+      border-radius: 11px;
+      color: #7160df;
+      background: #efecff;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .ui-class-copy { flex: 1; min-width: 0; }
+    .ui-class-copy strong {
+      display: block;
+      color: var(--ui-ink);
+      font-size: 11px;
+      overflow-wrap: anywhere;
+    }
+
+    .ui-class-copy small {
+      display: block;
+      margin-top: 4px;
+      color: var(--ui-muted);
+      font-size: 9px;
+    }
+
+    .ui-class-count {
+      color: var(--ui-ink);
+      font-size: 11px;
+      font-weight: 750;
+      white-space: nowrap;
+    }
+
+    .ui-progress {
+      display: flex;
+      height: 7px;
+      overflow: hidden;
+      border-radius: 10px;
+      background: #f0eff6;
+    }
+
+    .ui-progress span { display: block; height: 100%; }
+
+    .ui-class-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 13px;
+      color: var(--ui-muted);
+      font-size: 9px;
+    }
+
+    .ui-finance-total {
+      padding: 15px;
+      margin-bottom: 14px;
+      border: 1px solid #ece7ff;
+      border-radius: 15px;
+      background: linear-gradient(115deg, #f1edff, #faf8ff);
+    }
+
+    .ui-finance-total span {
+      display: block;
+      margin-bottom: 7px;
+      color: #797096;
+      font-size: 10px;
+    }
+
+    .ui-finance-total strong {
+      display: block;
+      color: var(--ui-ink);
+      font-size: 25px;
+      font-weight: 800;
+      letter-spacing: -.04em;
+      overflow-wrap: anywhere;
+    }
+
+    .ui-finance-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 9px;
+    }
+
+    .ui-finance-item {
+      padding: 12px;
+      border: 1px solid var(--ui-line);
+      border-radius: 12px;
+      background: #fff;
+    }
+
+    .ui-finance-item span {
+      display: block;
+      color: var(--ui-muted);
+      font-size: 10px;
+    }
+
+    .ui-finance-item strong {
+      display: block;
+      margin-top: 7px;
+      color: var(--ui-ink);
+      font-size: 15px;
+      overflow-wrap: anywhere;
+    }
+
+    .ui-activity-list { display: grid; }
+    .ui-activity-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 13px 0;
+      border-bottom: 1px solid #f1eff7;
+    }
+
+    .ui-activity-row:last-child { border-bottom: 0; }
+    .ui-activity-icon {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      flex: 0 0 34px;
+      border-radius: 11px;
+      background: #f0edff;
+      color: #7663ed;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .ui-activity-copy { min-width: 0; flex: 1; }
+    .ui-activity-copy strong {
+      display: block;
+      color: var(--ui-ink);
+      font-size: 10px;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+
+    .ui-activity-copy small {
+      display: block;
+      margin-top: 4px;
+      color: var(--ui-muted);
+      font-size: 9px;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+
+    .ui-activity-time {
+      color: #a19db3;
+      font-size: 9px;
+      white-space: nowrap;
+    }
+
+    .ui-schedule-list { display: grid; }
+    .ui-schedule-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 13px 0;
+      border-bottom: 1px solid #f1eff7;
+    }
+
+    .ui-schedule-row:last-child { border-bottom: 0; }
+    .ui-time {
+      flex: 0 0 75px;
+      padding: 9px 6px;
+      border-radius: 10px;
+      background: #f2efff;
+      color: #7562e6;
+      text-align: center;
+      font-size: 10px;
+      font-weight: 750;
+    }
+
+    .ui-schedule-copy { min-width: 0; flex: 1; }
+    .ui-schedule-copy strong {
+      display: block;
+      color: var(--ui-ink);
+      font-size: 11px;
+      overflow-wrap: anywhere;
+    }
+
+    .ui-schedule-copy small {
+      display: block;
+      margin-top: 4px;
+      color: var(--ui-muted);
+      font-size: 9px;
+    }
+
+    .ui-empty {
+      padding: 22px 10px;
+      color: var(--ui-muted);
+      text-align: center;
+      font-size: 11px;
+    }
+
+    .ui-message {
+      display: none;
+      margin-top: 10px;
+      color: var(--ui-muted);
+      font-size: 10px;
+      line-height: 1.6;
+    }
+
+    .ui-message.visible { display: block; }
+
+    @media (max-width: 1180px) {
+      .ui-overview-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .ui-panel-grid { grid-template-columns: minmax(0, 1fr); }
+    }
+
+    @media (max-width: 700px) {
+      .dashboard-content { padding-top: 15px; }
+      .ui-page-head { flex-direction: column; }
+      .ui-academy { width: 100%; max-width: none; }
+      .ui-welcome { padding: 20px; }
+      .ui-welcome-art { flex-basis: 70px; width: 70px; height: 70px; border-radius: 20px; }
+      .ui-overview-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .ui-mini-card { padding: 13px; }
+      .ui-mini-value { font-size: 23px; }
+      .ui-panel { padding: 15px; }
+      .ui-chart-layout { grid-template-columns: minmax(0, 1fr) minmax(92px, .55fr); gap: 9px; }
+      .ui-chart-box { height: 185px; }
+      .ui-chart-box.short { height: 170px; }
+      .ui-data-value { font-size: 18px; }
+      .ui-data-list { gap: 12px; }
+    }
+
+    @media (max-width: 390px) {
+      .ui-overview-grid { grid-template-columns: 1fr 1fr; }
+      .ui-chart-layout { grid-template-columns: minmax(0, 1fr) 90px; }
+      .ui-data-value { font-size: 16px; }
+      .ui-attendance-stat { padding: 10px 8px; }
+      .ui-attendance-stat strong { font-size: 18px; }
+      .ui-activity-time { display: none; }
+    }
+    /* Class Calendar */
+.ui-calendar-panel {
+  margin-bottom: 23px;
+}
+
+.ui-calendar-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 22px;
+}
+
+.ui-calendar-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 15px;
+}
+
+.ui-calendar-toolbar strong {
+  color: var(--ui-ink);
+  font-size: 14px;
+}
+
+.ui-calendar-nav {
+  display: flex;
+  gap: 8px;
+}
+
+.ui-calendar-nav button {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--ui-line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ui-purple);
+  cursor: pointer;
+  font-size: 18px;
+}
+
+.ui-calendar-nav button:hover {
+  background: var(--ui-purple-light);
+}
+
+.ui-calendar-weekdays,
+.ui-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.ui-calendar-weekdays {
+  margin-bottom: 7px;
+}
+
+.ui-calendar-weekdays span {
+  padding: 7px 0;
+  color: var(--ui-muted);
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.ui-calendar-day {
+  position: relative;
+  min-width: 0;
+  min-height: 42px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: #faf9fe;
+  color: var(--ui-ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+}
+
+.ui-calendar-day.is-empty {
+  background: transparent;
+  cursor: default;
+}
+
+.ui-calendar-day.is-today {
+  border-color: var(--ui-purple);
+  font-weight: 800;
+}
+
+.ui-calendar-day.is-selected {
+  background: var(--ui-purple);
+  color: #fff;
+}
+
+.ui-calendar-day-dot {
+  position: absolute;
+  bottom: 5px;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: transparent;
+  transform: translateX(-50%);
+}
+
+.ui-calendar-day.has-classes .ui-calendar-day-dot {
+  background: var(--ui-green);
+}
+
+.ui-calendar-day.is-selected .ui-calendar-day-dot {
+  background: #fff;
+}
+
+.ui-calendar-selected {
+  padding: 17px;
+  border: 1px solid var(--ui-line);
+  border-radius: 15px;
+  background: #fcfbff;
+}
+
+.ui-calendar-selected h4 {
+  margin: 0 0 6px;
+  color: var(--ui-ink);
+  font-size: 14px;
+}
+
+.ui-calendar-selected-summary {
+  margin: 0 0 12px;
+  color: var(--ui-muted);
+  font-size: 11px;
+}
+
+.ui-calendar-sessions {
+  display: grid;
+  gap: 9px;
+}
+
+.ui-calendar-session {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px;
+  border: 1px solid var(--ui-line);
+  border-radius: 11px;
+  background: #fff;
+}
+
+.ui-calendar-session-time {
+  flex: 0 0 75px;
+  color: var(--ui-purple);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.ui-calendar-session-copy {
+  min-width: 0;
+}
+
+.ui-calendar-session-copy strong {
+  display: block;
+  color: var(--ui-ink);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.ui-calendar-session-copy small {
+  display: block;
+  margin-top: 4px;
+  color: var(--ui-muted);
+  font-size: 10px;
+}
+
+@media (max-width: 700px) {
+  .ui-calendar-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ui-calendar-day {
+    min-height: 38px;
+  }
+}
+
+  </style>
 </head>
 
 <body>
   <div class="dashboard-layout">
-
     <div id="admin-sidebar-mount"></div>
 
     <main class="dashboard-main">
-
       <header class="dashboard-topbar">
         <div class="topbar-left">
-          <button
-            type="button"
-            class="sidebar-toggle"
-            id="sidebar-toggle"
-            aria-label="Open navigation menu"
-            aria-controls="admin-sidebar"
-            aria-expanded="false"
-          >
-            ☰
-          </button>
-
+          <button type="button" class="sidebar-toggle" id="sidebar-toggle"
+            aria-label="Open navigation menu" aria-controls="admin-sidebar"
+            aria-expanded="false">☰</button>
           <div>
             <h1>Dashboard</h1>
             <p>Your academy at a glance.</p>
@@ -45,81 +900,251 @@
 
       <div class="dashboard-content">
 
-        <!-- Welcome -->
-        <section class="welcome-panel">
+        <section class="ui-page-head">
           <div>
-            <span class="welcome-label">ACADEMY OVERVIEW</span>
-            <h2>Welcome to EduAdmin</h2>
-            <p>
-              Manage classes, teachers, students, attendance,
-              learning materials, schedules and fee records
-              from one place.
-            </p>
+            <span class="ui-eyebrow">YOUR ACADEMY WORKSPACE</span>
+            <h2>Academy dashboard</h2>
+            <p>Monitor your classes, attendance and finances in one place.</p>
           </div>
 
-          <a href="classes.html" class="btn welcome-button">
-            Manage classes
-          </a>
-        </section>
-
-        <!-- Actual data summary -->
-        <section class="dashboard-section" aria-labelledby="overview-title">
-          <div class="section-title-row">
-            <div>
-              <h2 id="overview-title">Academy overview</h2>
-              <p>Summary based on your academy records.</p>
+          <div class="ui-academy">
+            <div class="ui-academy-avatar" id="academy-avatar">A</div>
+            <div class="ui-academy-copy">
+              <strong id="academy-name">Your Academy</strong>
+              <small id="academy-details">Academy administrator</small>
             </div>
           </div>
+        </section>
 
-          <div class="dashboard-stats">
-
-            <article class="dashboard-stat-card">
-              <div class="stat-heading">
-                <span>Total students</span>
-                <span class="stat-icon purple" aria-hidden="true">S</span>
-              </div>
-              <strong class="dashboard-stat-value" id="total-students">—</strong>
-              <small id="students-status">Data not connected</small>
-            </article>
-
-            <article class="dashboard-stat-card">
-              <div class="stat-heading">
-                <span>Total teachers</span>
-                <span class="stat-icon blue" aria-hidden="true">T</span>
-              </div>
-              <strong class="dashboard-stat-value" id="total-teachers">—</strong>
-              <small id="teachers-status">Data not connected</small>
-            </article>
-
-            <article class="dashboard-stat-card">
-              <div class="stat-heading">
-                <span>Total classes</span>
-                <span class="stat-icon green" aria-hidden="true">C</span>
-              </div>
-              <strong class="dashboard-stat-value" id="total-classes">—</strong>
-              <small id="classes-status">Data not connected</small>
-            </article>
-
-            <article class="dashboard-stat-card">
-              <div class="stat-heading">
-                <span>Outstanding fees</span>
-                <span class="stat-icon orange" aria-hidden="true">₹</span>
-              </div>
-              <strong class="dashboard-stat-value" id="outstanding-fees">—</strong>
-              <small id="fees-status">Data not connected</small>
-            </article>
-
+        <section class="ui-welcome">
+          <div class="ui-welcome-copy">
+            <span class="ui-eyebrow">ACADEMY OVERVIEW</span>
+            <h3 id="welcome-title">Welcome back, Admin!</h3>
+            <p id="welcome-subtitle">Here's what's happening at your academy.</p>
+            <span class="ui-slogan" id="welcome-slogan">Empowering learning, building brighter futures.</span>
+          </div>
+          <div class="ui-welcome-art" aria-hidden="true">
+            <svg viewBox="0 0 80 80" width="65" height="65" fill="none">
+              <path d="M10 29L40 12L70 29L40 46L10 29Z" fill="#DCD5FF" stroke="#7663ED" stroke-width="2"/>
+              <path d="M20 35V51C31 62 49 62 60 51V35" stroke="#7663ED" stroke-width="2.5" stroke-linecap="round"/>
+              <path d="M69 30V49" stroke="#7663ED" stroke-width="2.5" stroke-linecap="round"/>
+              <circle cx="69" cy="54" r="4" fill="#F5B95D"/>
+              <path d="M26 30L40 22L54 30L40 38L26 30Z" fill="#8E7BF5"/>
+            </svg>
+            <span>✓</span>
           </div>
         </section>
 
+        <section class="ui-section">
+          <div class="ui-section-head">
+            <div>
+              <h3>Academy at a glance</h3>
+              <p>Quick insights from your current records.</p>
+            </div>
+            <span class="ui-tag">Live data</span>
+          </div>
 
-      </div>
+
+
+        <div class="ui-panel-grid">
+          <section class="ui-panel">
+            <div class="ui-panel-head">
+              <div>
+                <h4>Academy overview</h4>
+                <p>Compare your current student, teacher and class totals.</p>
+              </div>
+              <span class="ui-tag">Overview</span>
+            </div>
+
+            <div class="ui-chart-layout">
+              <div class="ui-chart-box">
+                <canvas id="people-overview-chart" aria-label="Academy overview chart"></canvas>
+              </div>
+              <div class="ui-data-list">
+                <div class="ui-data-item">
+                  <div class="ui-data-label"><i class="ui-data-dot" style="background:#7663ed"></i>Total classes</div>
+                  <strong class="ui-data-value" id="chart-total-classes">—</strong>
+                  <small class="ui-data-sub">Academy records</small>
+                </div>
+                <div class="ui-data-item">
+                  <div class="ui-data-label"><i class="ui-data-dot" style="background:#77a7f8"></i>Total teachers</div>
+                  <strong class="ui-data-value" id="chart-total-teachers">—</strong>
+                  <small class="ui-data-sub">Active teachers</small>
+                </div>
+                <div class="ui-data-item">
+                  <div class="ui-data-label"><i class="ui-data-dot" style="background:#40c6a0"></i>Total students</div>
+                  <strong class="ui-data-value" id="chart-total-students">—</strong>
+                  <small class="ui-data-sub">Active students</small>
+                </div>
+              </div>
+            </div>
+            <p id="people-chart-message" class="ui-message"></p>
+
+            <section class="ui-panel ui-calendar-panel">
+            <div class="ui-panel-head">
+              <div>
+                <h4>Class Calendar</h4>
+                <p>View scheduled classes by date.</p>
+              </div>
+              <span class="ui-tag">Class schedule</span>
+            </div>
+
+            <div class="ui-calendar-layout">
+              <div>
+                <div class="ui-calendar-toolbar">
+                  <strong id="calendar-month-title">Loading calendar...</strong>
+
+                  <div class="ui-calendar-nav">
+                    <button
+                      type="button"
+                      id="calendar-prev"
+                      aria-label="Previous month"
+                    >‹</button>
+
+                    <button
+                      type="button"
+                      id="calendar-next"
+                      aria-label="Next month"
+                    >›</button>
+                  </div>
+                </div>
+
+                <div class="ui-calendar-weekdays">
+                  <span>Mon</span>
+                  <span>Tue</span>
+                  <span>Wed</span>
+                  <span>Thu</span>
+                  <span>Fri</span>
+                  <span>Sat</span>
+                  <span>Sun</span>
+                </div>
+
+                <div
+                  id="class-calendar-grid"
+                  class="ui-calendar-grid"
+                ></div>
+              </div>
+
+              <div class="ui-calendar-selected">
+                <h4 id="calendar-selected-date">Selected date</h4>
+
+                <p
+                  id="calendar-selected-summary"
+                  class="ui-calendar-selected-summary"
+                >Select a date to view classes.</p>
+
+                <div
+                  id="calendar-selected-classes"
+                  class="ui-calendar-sessions"
+                >
+                  <div class="ui-empty">Loading classes...</div>
+                </div>
+              </div>
+            </div>
+             </section>
+          </section>
+
+          <section class="ui-panel">
+            <div class="ui-panel-head">
+              <div>
+                <h4>Today's attendance</h4>
+                <p id="attendance-date">Present, absent and unmarked students.</p>
+              </div>
+              <span class="ui-tag">Live data</span>
+            </div>
+
+            <div class="ui-chart-layout">
+              <div class="ui-chart-box short">
+                <canvas id="attendance-chart" aria-label="Today's attendance chart"></canvas>
+              </div>
+              <div class="ui-data-list">
+                <div class="ui-data-item">
+                  <div class="ui-data-label"><i class="ui-data-dot" style="background:#40c6a0"></i>Present</div>
+                  <strong class="ui-data-value" id="today-present">—</strong>
+                </div>
+                <div class="ui-data-item">
+                  <div class="ui-data-label"><i class="ui-data-dot" style="background:#ef7183"></i>Absent</div>
+                  <strong class="ui-data-value" id="today-absent">—</strong>
+                </div>
+                <div class="ui-data-item">
+                  <div class="ui-data-label"><i class="ui-data-dot" style="background:#d9d9e8"></i>Unmarked</div>
+                  <strong class="ui-data-value" id="today-unmarked">—</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="ui-divider"></div>
+            <div class="ui-panel-head">
+              <div>
+                <h4>Attendance by class</h4>
+                <p>Class-wise present, absent and unmarked students.</p>
+              </div>
+            </div>
+            <div id="class-attendance-list" class="ui-class-list">
+              <div class="ui-empty">Loading class attendance...</div>
+            </div>
+            <div class="ui-class-legend">
+              <span><i class="ui-data-dot" style="background:#40c6a0"></i>Present</span>
+              <span><i class="ui-data-dot" style="background:#ef7183"></i>Absent</span>
+              <span><i class="ui-data-dot" style="background:#d9d9e8"></i>Unmarked</span>
+            </div>
+            <p id="attendance-message" class="ui-message"></p>
+          </section>
+        </div>
+
+        <div class="ui-panel-grid">
+          <section class="ui-panel">
+            <div class="ui-panel-head">
+              <div>
+                <h4>Financial summary</h4>
+                <p>Fee collection and remaining balance.</p>
+              </div>
+              <span class="ui-tag">Live data</span>
+            </div>
+
+            <div class="ui-finance-total">
+              <span>Total fee amount</span>
+              <strong id="total-fees">—</strong>
+            </div>
+
+            <div class="ui-chart-layout">
+              <div class="ui-chart-box short">
+                <canvas id="fee-overview-chart" aria-label="Fee collection chart"></canvas>
+              </div>
+              <div class="ui-data-list">
+                <div class="ui-data-item">
+                  <div class="ui-data-label"><i class="ui-data-dot" style="background:#40c6a0"></i>Total received</div>
+                  <strong class="ui-data-value" id="collected-fees">—</strong>
+                </div>
+                <div class="ui-data-item">
+                  <div class="ui-data-label"><i class="ui-data-dot" style="background:#f5b95d"></i>Outstanding</div>
+                  <strong class="ui-data-value" id="finance-outstanding">—</strong>
+                </div>
+              </div>
+            </div>
+            <p id="fee-chart-message" class="ui-message"></p>
+          </section>
+
+          <section class="ui-panel">
+            <div class="ui-panel-head">
+              <div>
+                <h4>Recent activity</h4>
+                <p>Latest updates recorded by your academy.</p>
+              </div>
+              <span class="ui-tag">Live feed</span>
+            </div>
+            <div id="recent-activity-list" class="ui-activity-list">
+              <div class="ui-empty">Loading recent activity...</div>
+            </div>
+            <p id="activity-message" class="ui-message"></p>
+          </section>
+        </div>
+
 
       <footer class="dashboard-footer">
         <span>EduAdmin</span>
         <span>Academy management</span>
       </footer>
-
     </main>
   </div>
 

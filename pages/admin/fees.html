@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#f5f7fb">
   <title>Fees & Payments | EduAdmin</title>
-
   <link rel="stylesheet" href="../../css/app.css">
 
   <script src="../../js/main.js" defer></script>
@@ -14,16 +12,101 @@
   <script src="../../js/admin-sidebar.js" defer></script>
   <script type="module" src="../../js/admin-fees.js"></script>
   <script type="module" src="../../js/account-menu.js"></script>
+
+  <style>
+    .fee-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .5rem;
+      margin: 1.25rem 0;
+      padding: .75rem;
+      background: var(--card-bg, #fff);
+      border: 1px solid var(--border-color, #e5e7eb);
+      border-radius: 14px;
+    }
+
+    .fee-tab {
+      border: 1px solid var(--border-color, #d1d5db);
+      border-radius: 9px;
+      padding: .7rem 1rem;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 600;
+    }
+
+    .fee-tab[aria-selected="true"] {
+      background: var(--primary-color, #2563eb);
+      color: #fff;
+      border-color: var(--primary-color, #2563eb);
+    }
+
+    .fee-tab-panel[hidden] {
+      display: none !important;
+    }
+
+    .fee-plan-fields {
+      border: 1px solid var(--border-color, #e5e7eb);
+      border-radius: 12px;
+      padding: 1rem;
+      margin-top: 1rem;
+    }
+
+    .fee-plan-fields[hidden] {
+      display: none !important;
+    }
+
+    .installment-preview {
+      margin-top: 1rem;
+      overflow-x: auto;
+    }
+
+    .installment-preview table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .installment-preview th,
+    .installment-preview td {
+      padding: .65rem;
+      border-bottom: 1px solid #e5e7eb;
+      text-align: left;
+    }
+
+    @media (max-width: 600px) {
+      .fee-tab {
+        flex: 1 1 calc(50% - .5rem);
+      }
+    }
+         .fee-installment-row > td {
+      padding: 1rem;
+      background: var(--card-bg, #f8fafc);
+    }
+
+    .fee-installment-details h4 {
+      margin: 0 0 .75rem;
+      font-size: .95rem;
+    }
+
+    .fee-installment-details .table-container {
+      max-width: 100%;
+      overflow-x: auto;
+    }
+
+    .fee-installment-details table {
+      width: 100%;
+      min-width: 600px;
+    }
+  </style>
 </head>
 
 <body>
   <div class="dashboard-layout">
-
     <div id="admin-sidebar-mount"></div>
     <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
     <main class="dashboard-main">
-
       <header class="dashboard-topbar">
         <button
           type="button"
@@ -37,203 +120,239 @@
         <div>
           <p class="eyebrow">FINANCE MANAGEMENT</p>
           <h1>Fees & Payments</h1>
-          <p>Review student payments and manage paid study-material access.</p>
+          <p>Assign fees, schedule installments and review student payments.</p>
         </div>
       </header>
 
+      <p id="fees-message" class="form-message" role="status" hidden></p>
+
       <section class="dashboard-section">
         <div class="section-heading">
           <div>
-            <h2>Payment Overview</h2>
-            <p>Payment totals will appear when real financial records are connected.</p>
+            <h2>Financial Overview</h2>
+            <p>Totals for this academy based on fee and payment records.</p>
           </div>
         </div>
 
-        
-<section class="dashboard-section">
-  <div class="section-heading">
-    <div>
-      <h2>Assign Fees</h2>
-      <p>Assign a fee to one student or multiple students with individual amounts.</p>
-    </div>
-  </div>
+        <div class="stats-grid">
+          <article class="stat-card">
+            <p class="stat-label">Total Fees Assigned</p>
+            <h3 id="total-fees-assigned">₹0</h3>
+          </article>
 
-  <p id="fees-message" class="form-message" role="status" hidden></p>
+          <article class="stat-card">
+            <p class="stat-label">Amount Received</p>
+            <h3 id="total-fees-collected">₹0</h3>
+          </article>
 
-  <form id="fee-assignment-form">
-    <div class="form-grid">
-      <div class="form-group">
-        <label for="fee-assignment-mode">Assignment method</label>
-        <select id="fee-assignment-mode" required>
-          <option value="individual">Individual student</option>
-          <option value="group">Multiple students — custom amount per student</option>
-        </select>
-      </div>
+          <article class="stat-card">
+            <p class="stat-label">Outstanding Balance</p>
+            <h3 id="total-fees-outstanding">₹0</h3>
+          </article>
 
-      <div class="form-group">
-        <label for="fee-type">Fee type</label>
-        <input id="fee-type" maxlength="80" required
-          placeholder="Tuition, exam, books, transport">
-      </div>
+          <article class="stat-card">
+            <p class="stat-label">Pending Review</p>
+            <h3 id="pending-review-amount">₹0</h3>
+            <p><span id="pending-approvals-count">0</span> submissions</p>
+          </article>
 
-      <div class="form-group">
-        <label for="fee-due-date">Due date</label>
-        <input id="fee-due-date" type="date" required>
-      </div>
-
-      <div class="form-group form-group-full">
-        <label for="fee-description">Description</label>
-        <input id="fee-description" maxlength="250"
-          placeholder="Optional details about this fee">
-      </div>
-    </div>
-
-    <div id="individual-fee-fields">
-      <div class="form-grid">
-        <div class="form-group">
-          <label for="fee-student">Student</label>
-          <select id="fee-student" required>
-            <option value="">Loading students...</option>
-          </select>
+          <article class="stat-card">
+            <p class="stat-label">Rejected Amount</p>
+            <h3 id="rejected-payment-amount">₹0</h3>
+            <p><span id="rejected-payments-count">0</span> submissions</p>
+          </article>
         </div>
-
-        <div class="form-group">
-          <label for="fee-individual-amount">Amount (₹)</label>
-          <input id="fee-individual-amount" type="number"
-            min="0.01" step="0.01" required placeholder="e.g. 3500">
-        </div>
-      </div>
-    </div>
-
-    <div id="group-fee-fields" hidden>
-      <div class="form-group">
-        <label for="fee-group-students">Select students</label>
-        <select id="fee-group-students" multiple size="6"
-          aria-describedby="group-students-help"></select>
-        <small id="group-students-help">
-          Use Ctrl (Windows) or Command (Mac) to select multiple students.
-        </small>
-      </div>
-
-      <div id="group-student-amounts" class="form-grid"></div>
-    </div>
-
-    <div class="form-actions">
-      <button type="submit" class="btn btn-primary">
-        Create Fee Assignment(s)
-      </button>
-    </div>
-  </form>
-</section>
-
-<section class="dashboard-section">
-  <div class="section-heading">
-    <div>
-      <h2>Student Fee Records</h2>
-      <p>Each row is an independent fee assignment.</p>
-    </div>
-  </div>
-
-  <div class="table-toolbar">
-    <div class="form-group">
-      <label for="fee-record-search">Search fee records</label>
-      <input type="search" id="fee-record-search"
-        placeholder="Search student or fee type">
-    </div>
-
-    <div class="form-group">
-      <label for="fee-record-status">Fee status</label>
-      <select id="fee-record-status">
-        <option value="all">All statuses</option>
-        <option value="pending">Pending</option>
-        <option value="partial">Partially paid</option>
-        <option value="paid">Paid</option>
-      </select>
-    </div>
-  </div>
-
-  <div class="table-container">
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>Student</th>
-          <th>Fee type</th>
-          <th>Assigned</th>
-          <th>Paid</th>
-          <th>Balance</th>
-          <th>Due date</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody id="fee-records-table-body">
-        <tr><td colspan="7">Loading fee records...</td></tr>
-      </tbody>
-    </table>
-  </div>
-</section>
-
-
-      <div class="stats-grid">
-        <article class="stat-card">
-          <p class="stat-label">Total Fees Assigned</p>
-          <h3 id="total-fees-assigned">₹0</h3>
-          <p class="stat-description">Total assigned across student fee records</p>
-        </article>
-
-        <article class="stat-card">
-          <p class="stat-label">Fees Collected</p>
-          <h3 id="total-fees-collected">₹0</h3>
-          <p class="stat-description">Verified payments only</p>
-        </article>
-
-        <article class="stat-card">
-          <p class="stat-label">Outstanding Balance</p>
-          <h3 id="total-fees-outstanding">₹0</h3>
-          <p class="stat-description">Assigned fees minus verified payments</p>
-        </article>
-
-        <article class="stat-card">
-          <p class="stat-label">Pending Approvals</p>
-          <h3 id="pending-approvals-count">0</h3>
-          <p class="stat-description">Payments awaiting manual verification</p>
-        </article>
-
-        <article class="stat-card">
-          <p class="stat-label">Rejected Payments</p>
-          <h3 id="rejected-payments-count">0</h3>
-          <p class="stat-description">Payments rejected after review</p>
-        </article>
-      </div>
       </section>
 
-      <section class="dashboard-section">
+      <nav class="fee-tabs" role="tablist" aria-label="Fee management sections">
+        <button class="fee-tab" id="tab-assign" type="button"
+          role="tab" aria-selected="true" aria-controls="panel-assign"
+          data-fee-tab="panel-assign">Assign Fee</button>
+
+        <button class="fee-tab" id="tab-pending" type="button"
+          role="tab" aria-selected="false" aria-controls="panel-pending"
+          data-fee-tab="panel-pending">Pending Payments</button>
+
+        <button class="fee-tab" id="tab-transactions" type="button"
+          role="tab" aria-selected="false" aria-controls="panel-transactions"
+          data-fee-tab="panel-transactions">Transactions</button>
+
+        <button class="fee-tab" id="tab-records" type="button"
+          role="tab" aria-selected="false" aria-controls="panel-records"
+          data-fee-tab="panel-records">Fee Records</button>
+      </nav>
+
+      <!-- TAB 1: ASSIGN FEE -->
+      <section class="dashboard-section fee-tab-panel"
+        id="panel-assign" role="tabpanel" aria-labelledby="tab-assign">
+
         <div class="section-heading">
           <div>
-            <h2>Payment Approvals</h2>
-            <p>
-              Verify UPI transactions against your bank or UPI account before
-              granting paid-material access.
-            </p>
+            <h2>Assign Fee</h2>
+            <p>Assign to one student or multiple students with individual amounts.</p>
           </div>
         </div>
 
-        <div class="form-message" role="status">
-          Manual approval is planned. No live payment requests are available
-          until the backend is connected.
+        <form id="fee-assignment-form">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="fee-assignment-mode">Assignment method</label>
+              <select id="fee-assignment-mode" required>
+                <option value="individual">Individual student</option>
+                <option value="group">Multiple students</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="fee-type">Fee type</label>
+              <input id="fee-type" maxlength="80" required
+                placeholder="Tuition, exam, books, transport">
+            </div>
+
+            <div class="form-group">
+              <label for="fee-due-date">Final due date</label>
+              <input id="fee-due-date" type="date" required>
+            </div>
+
+            <div class="form-group form-group-full">
+              <label for="fee-description">Description</label>
+              <input id="fee-description" maxlength="250"
+                placeholder="Optional details">
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="fee-payment-plan">Payment plan</label>
+              <select id="fee-payment-plan" required>
+                <option value="full">Full payment</option>
+                <option value="installments">Installments</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="installment-plan-fields" class="fee-plan-fields" hidden>
+            <h3>Installment Schedule</h3>
+
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="fee-installment-count">Number of installments</label>
+                <input id="fee-installment-count" type="number"
+                  min="2" max="36" step="1" value="3">
+              </div>
+
+              <div class="form-group">
+                <label for="fee-installment-frequency">Frequency</label>
+                <select id="fee-installment-frequency">
+                  <option value="monthly">Monthly</option>
+                  <option value="weekly">Weekly</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="fee-first-installment-date">First installment due date</label>
+                <input id="fee-first-installment-date" type="date">
+              </div>
+            </div>
+
+            <p class="form-help">
+              The final scheduled installment must fall on or before the final due date.
+              Any rounding remainder is included in the last installment.
+            </p>
+
+            <div id="installment-schedule-preview" class="installment-preview"></div>
+          </div>
+
+          <div id="individual-fee-fields">
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="fee-student">Student</label>
+                <select id="fee-student" required>
+                  <option value="">Loading students...</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="fee-individual-amount">Total fee amount (₹)</label>
+                <input id="fee-individual-amount" type="number"
+                  min="0.01" step="0.01" required placeholder="e.g. 12000">
+              </div>
+            </div>
+          </div>
+
+          <div id="group-fee-fields" hidden>
+            <div class="form-group">
+              <label for="fee-group-students">Select students</label>
+              <select id="fee-group-students" multiple size="6"
+                aria-describedby="group-students-help"></select>
+              <small id="group-students-help">
+                Use Ctrl (Windows) or Command (Mac) to select multiple students.
+              </small>
+            </div>
+
+            <div id="group-student-amounts" class="form-grid"></div>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">
+              Create Fee Assignment(s)
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- TAB 2: PENDING PAYMENTS -->
+      <section class="dashboard-section fee-tab-panel"
+        id="panel-pending" role="tabpanel" aria-labelledby="tab-pending" hidden>
+
+        <div class="section-heading">
+          <div>
+            <h2>Pending Payments</h2>
+            <p>Approve only after verifying the payment in the bank or UPI account.</p>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th>Fee</th>
+                <th>Installment</th>
+                <th>Amount</th>
+                <th>Transaction Reference</th>
+                <th>Submitted</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="pending-payments-table-body">
+              <tr><td colspan="7">Loading pending payments...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- TAB 3: ALL TRANSACTIONS -->
+      <section class="dashboard-section fee-tab-panel"
+        id="panel-transactions" role="tabpanel"
+        aria-labelledby="tab-transactions" hidden>
+
+        <div class="section-heading">
+          <div>
+            <h2>All Transactions</h2>
+            <p>Payment submissions ordered from newest to oldest.</p>
+          </div>
         </div>
 
         <div class="table-toolbar">
           <div class="form-group">
-            <label for="payment-search">Search payment requests</label>
-            <input
-              type="search"
-              id="payment-search"
-              placeholder="Search by student or transaction reference"
-            >
+            <label for="payment-search">Search transactions</label>
+            <input type="search" id="payment-search"
+              placeholder="Student, fee or transaction reference">
           </div>
 
           <div class="form-group">
-            <label for="payment-status-filter">Payment status</label>
+            <label for="payment-status-filter">Status</label>
             <select id="payment-status-filter">
               <option value="all">All statuses</option>
               <option value="pending">Pending Review</option>
@@ -248,114 +367,80 @@
           <table class="data-table">
             <thead>
               <tr>
+                <th>Date & Time</th>
                 <th>Student</th>
-                <th>Material / Fee</th>
+                <th>Fee</th>
+                <th>Installment</th>
                 <th>Amount</th>
-                <th>UPI Reference</th>
-                <th>Submitted</th>
+                <th>Transaction Reference</th>
                 <th>Status</th>
-                <th>Action</th>
               </tr>
             </thead>
-
             <tbody id="payment-approvals-table-body">
-              <tr>
-                <td colspan="7" class="empty-state">
-                  <strong>No payment requests loaded</strong>
-                  <p>
-                    Actual student submissions will appear here after backend
-                    integration.
-                  </p>
-                </td>
-              </tr>
+              <tr><td colspan="7">Loading transactions...</td></tr>
             </tbody>
           </table>
         </div>
       </section>
 
-      <section class="dashboard-section">
+      <!-- TAB 4: FEE RECORDS -->
+      <section class="dashboard-section fee-tab-panel"
+        id="panel-records" role="tabpanel" aria-labelledby="tab-records" hidden>
+
         <div class="section-heading">
           <div>
-            <h2>UPI Payment Settings</h2>
-            <p>Configure the payment details students will use to pay.</p>
+            <h2>Student Fee Records</h2>
+            <p>View assigned fees, installment schedules and balances.</p>
           </div>
         </div>
 
-        <div class="form-message" role="status">
-          Payment settings are not saved yet. Do not enter sensitive banking
-          credentials here.
-        </div>
-
-        <form id="upi-settings-form">
-          <div class="form-grid">
-
-            <div class="form-group">
-              <label for="upi-id">UPI ID</label>
-              <input
-                type="text"
-                id="upi-id"
-                name="upiId"
-                placeholder="yourname@bank"
-                autocomplete="off"
-              >
-            </div>
-
-            <div class="form-group">
-              <label for="upi-payee-name">Payee Name</label>
-              <input
-                type="text"
-                id="upi-payee-name"
-                name="payeeName"
-                placeholder="Name displayed to students"
-                maxlength="100"
-              >
-            </div>
-
-            <div class="form-group form-group-full">
-              <label for="upi-qr-file">UPI QR Code Image</label>
-              <input
-                type="file"
-                id="upi-qr-file"
-                name="qrFile"
-                accept="image/png,image/jpeg,image/webp"
-              >
-              <small>
-                Selecting a QR image will not upload or publish it until storage
-                is connected.
-              </small>
-            </div>
-
+        <div class="table-toolbar">
+          <div class="form-group">
+            <label for="fee-record-student-filter">Select student</label>
+            <select id="fee-record-student-filter">
+              <option value="">Choose a student to view fee records</option>
+            </select>
           </div>
 
-          <div class="form-actions">
-            <button type="submit" class="btn btn-primary">
-              Validate Payment Settings
-            </button>
+          <div class="form-group">
+            <label for="fee-record-search">Search selected student's fees</label>
+            <input type="search" id="fee-record-search"
+              placeholder="Search fee type or description">
           </div>
-        </form>
-      </section>
 
-      <section class="dashboard-section">
-        <div class="section-heading">
-          <div>
-            <h2>Approval Rules</h2>
-            <p>These are the intended payment-processing rules.</p>
+          <div class="form-group">
+            <label for="fee-record-status">Fee status</label>
+            <select id="fee-record-status">
+              <option value="all">All statuses</option>
+              <option value="pending">Pending</option>
+              <option value="partial">Partially paid</option>
+              <option value="paid">Paid</option>
+            </select>
           </div>
         </div>
 
-        <ul>
-          <li>New payment submissions start as Pending Review.</li>
-          <li>Admins must verify the actual received payment before approval.</li>
-          <li>Approved payments grant access only to the associated material or fee.</li>
-          <li>Rejected and pending payments do not grant paid-material access.</li>
-          <li>Repeated transaction references must not approve multiple purchases.</li>
-          <li>Payment decisions should be recorded with the reviewer and timestamp.</li>
-        </ul>
 
-        <p class="form-help">
-          Approval actions, secure access control, payment notifications, and
-          audit history are not active until backend services are implemented.
-        </p>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th>Fee Type</th>
+                <th>Assigned</th>
+                <th>Paid</th>
+                <th>Balance</th>
+                <th>Due Date</th>
+                <th>Plan</th>
+                <th>Status</th>
+                <th>Installment details</th>
+              </tr>
+            </thead>
+            <tbody id="fee-records-table-body">
+              <tr><td colspan="8">Loading fee records...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
       </section>
 
     </main>

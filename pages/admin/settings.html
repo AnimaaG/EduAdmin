@@ -18,12 +18,10 @@
 
 <body>
   <div class="dashboard-layout">
-
     <div id="admin-sidebar-mount"></div>
     <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
     <main class="dashboard-main">
-
       <header class="dashboard-topbar">
         <button
           type="button"
@@ -37,241 +35,167 @@
         <div>
           <p class="eyebrow">CONFIGURATION</p>
           <h1>Settings</h1>
-          <p>Manage academy preferences and administrator options.</p>
+          <p>Manage administrator details, academy information and payment details.</p>
         </div>
       </header>
 
       <section class="dashboard-section">
         <div class="section-heading">
           <div>
-            <h2>Academy Profile</h2>
-            <p>Configure the academy information displayed in EduAdmin.</p>
+            <h2>Settings</h2>
+            <p>Update the information saved for your account and academy.</p>
           </div>
         </div>
 
-        <form id="academy-settings-form">
-          <div class="form-grid">
+        <!-- All settings are contained in this single card. -->
+        <div style="margin:0 30px 30px;padding:24px;border:1px solid #e5e7eb;border-radius:14px;background:#fff;">
 
-            <div class="form-group">
-              <label for="academy-name">Academy Name *</label>
-              <input
-                type="text"
-                id="academy-name"
-                name="academyName"
-                maxlength="150"
-                required
-                placeholder="Enter academy name"
-              >
-            </div>
+          <!-- Admin profile -->
+          <section aria-labelledby="admin-profile-heading">
+            <h3 id="admin-profile-heading">Admin Profile</h3>
 
-            <div class="form-group">
-              <label for="academy-email">Academy Email</label>
-              <input
-                type="email"
-                id="academy-email"
-                name="academyEmail"
-                maxlength="254"
-                placeholder="academy@example.com"
-              >
-            </div>
+            <form id="admin-profile-form">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="admin-full-name">Full Name *</label>
+                  <input
+                    type="text"
+                    id="admin-full-name"
+                    maxlength="150"
+                    autocomplete="name"
+                    required
+                  >
+                </div>
 
-            <div class="form-group">
-              <label for="academy-phone">Contact Number</label>
-              <input
-                type="tel"
-                id="academy-phone"
-                name="academyPhone"
-                maxlength="20"
-                placeholder="Enter contact number"
-              >
-            </div>
+                <div class="form-group">
+                  <label for="admin-email">Email</label>
+                  <input
+                    type="email"
+                    id="admin-email"
+                    autocomplete="email"
+                    readonly
+                  >
+                  <p class="form-help">Email is read-only on this page.</p>
+                </div>
 
-            <div class="form-group">
-              <label for="academy-address">Academy Address</label>
-              <input
-                type="text"
-                id="academy-address"
-                name="academyAddress"
-                maxlength="300"
-                placeholder="Enter academy address"
-              >
-            </div>
+                <div class="form-group">
+                  <label for="admin-phone">Phone Number</label>
+                  <input
+                    type="tel"
+                    id="admin-phone"
+                    maxlength="20"
+                    autocomplete="tel"
+                    placeholder="Enter phone number"
+                  >
+                </div>
+              </div>
 
-          </div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                  Save Admin Profile
+                </button>
+              </div>
+            </form>
+          </section>
 
-          <div class="form-actions">
-            <button type="submit" class="btn btn-primary">
-              Validate Academy Details
-            </button>
-          </div>
+          <hr style="margin:26px 0;border:0;border-top:1px solid #e5e7eb;">
 
-          <p class="form-help">
-          Academy details are saved to your server record.          
-          </p>
-        </form>
-      </section>
+          <!-- Academy profile -->
+          <section aria-labelledby="academy-profile-heading">
+            <h3 id="academy-profile-heading">Academy Profile</h3>
 
-      <section class="dashboard-section">
-        <div class="section-heading">
-          <div>
-            <h2>Academic Preferences</h2>
-            <p>Choose the default academic year and display preferences.</p>
-          </div>
-        </div>
+            <form id="academy-settings-form">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="academy-name">Academy Name *</label>
+                  <input
+                    type="text"
+                    id="academy-name"
+                    maxlength="150"
+                    required
+                  >
+                </div>
 
-        <form id="academic-settings-form">
-          <div class="form-grid">
+                <div class="form-group">
+                  <label for="academy-email">Academy Email</label>
+                  <input
+                    type="email"
+                    id="academy-email"
+                    maxlength="254"
+                  >
+                </div>
 
-            <div class="form-group">
-              <label for="academic-year">Academic Year</label>
-              <input
-                type="text"
-                id="academic-year"
-                name="academicYear"
-                maxlength="20"
-                placeholder="e.g. 2026-2027"
-                pattern="[0-9]{4}-[0-9]{4}"
-                title="Use the format YYYY-YYYY"
-              >
-            </div>
+                <div class="form-group">
+                  <label for="academy-phone">Contact Number</label>
+                  <input
+                    type="tel"
+                    id="academy-phone"
+                    maxlength="20"
+                  >
+                </div>
 
-            <div class="form-group">
-              <label for="default-currency">Currency</label>
-              <select id="default-currency" name="currency">
-                <option value="INR">Indian Rupee (INR ₹)</option>
-              </select>
-            </div>
+                <div class="form-group">
+                  <label for="academy-address">Academy Address</label>
+                  <input
+                    type="text"
+                    id="academy-address"
+                    maxlength="300"
+                  >
+                </div>
+              </div>
 
-            <div class="form-group">
-              <label for="date-format">Date Format</label>
-              <select id="date-format" name="dateFormat">
-                <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-                <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-                <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-              </select>
-            </div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                  Save Academy Profile
+                </button>
+              </div>
+            </form>
+          </section>
 
-            <div class="form-group">
-              <label for="timezone">Time Zone</label>
-              <select id="timezone" name="timezone">
-                <option value="Asia/Kolkata">India Standard Time (IST)</option>
-              </select>
-            </div>
+          <hr style="margin:26px 0;border:0;border-top:1px solid #e5e7eb;">
 
-          </div>
+          <!-- UPI payment details -->
+          <section aria-labelledby="payment-settings-heading">
+            <h3 id="payment-settings-heading">Payment Information</h3>
+            <p class="form-help">
+              These details are saved with the academy settings for use by the Fees page.
+            </p>
 
-          <div class="form-actions">
-            <button type="submit" class="btn btn-primary">
-              Validate Academic Preferences
-            </button>
-          </div>
+            <form id="payment-settings-form">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="upi-id">UPI ID *</label>
+                  <input
+                    type="text"
+                    id="upi-id"
+                    maxlength="100"
+                    placeholder="name@bank"
+                    autocomplete="off"
+                    required
+                  >
+                </div>
 
-          <p class="form-help">
-              Preferences are saved to Server. Other pages must load these preferences before they affect their display.
-          </p>
-        </form>
-      </section>
+                <div class="form-group">
+                  <label for="upi-payee-name">Payee Name *</label>
+                  <input
+                    type="text"
+                    id="upi-payee-name"
+                    maxlength="100"
+                    placeholder="UPI account holder name"
+                    autocomplete="organization"
+                    required
+                  >
+                </div>
+              </div>
 
-      <section class="dashboard-section">
-        <div class="section-heading">
-          <div>
-            <h2>Notification Preferences</h2>
-            <p>Choose the alerts you want to enable when notification services are available.</p>
-          </div>
-        </div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                  Save Payment Information
+                </button>
+              </div>
+            </form>
+          </section>
 
-        <form id="notification-settings-form">
-
-          <div class="form-group">
-            <label>
-              <input type="checkbox" id="notify-payment-pending" name="paymentPending" checked>
-              Payment submitted — manual review required
-            </label>
-          </div>
-
-          <div class="form-group">
-            <label>
-              <input type="checkbox" id="notify-payment-approved" name="paymentApproved" checked>
-              Payment approved
-            </label>
-          </div>
-
-          <div class="form-group">
-            <label>
-              <input type="checkbox" id="notify-payment-rejected" name="paymentRejected" checked>
-              Payment rejected
-            </label>
-          </div>
-
-          <div class="form-group">
-            <label>
-              <input type="checkbox" id="notify-email" name="emailNotifications">
-              Email alerts
-            </label>
-          </div>
-
-          <div class="form-group">
-            <label>
-              <input type="checkbox" id="notify-browser-push" name="browserPush">
-              Browser push notifications
-            </label>
-          </div>
-
-          <div class="form-actions">
-            <button type="submit" class="btn btn-primary">
-              Validate Notification Preferences
-            </button>
-          </div>
-
-          <p class="form-help">
-            Selecting these options does not activate notifications. Real-time
-            events, browser push permissions, email delivery, and saved preferences
-            require backend and notification-service integration.
-          </p>
-
-        </form>
-      </section>
-
-      <section class="dashboard-section">
-        <div class="section-heading">
-          <div>
-            <h2>System Status</h2>
-            <p>Current implementation status of key features.</p>
-          </div>
-        </div>
-
-        <div class="table-container">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Feature</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              <tr>
-                <td>Backend and database</td>
-                <td>Not connected</td>
-              </tr>
-              <tr>
-                <td>Authentication</td>
-                <td>Frontend validation only</td>
-              </tr>
-              <tr>
-                <td>UPI payment verification</td>
-                <td>Manual process not connected</td>
-              </tr>
-              <tr>
-                <td>Live notifications</td>
-                <td>Not connected</td>
-              </tr>
-              <tr>
-                <td>Study material storage</td>
-                <td>Not connected</td>
-              </tr>
-            </tbody>
-          </table>
         </div>
       </section>
 
@@ -280,9 +204,8 @@
         class="form-message"
         role="status"
         hidden
-        style="margin: 20px 30px;"
+        style="margin:20px 30px;"
       ></div>
-
     </main>
   </div>
 </body>

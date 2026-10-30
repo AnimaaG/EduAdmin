@@ -40,6 +40,23 @@ service cloud.firestore {
         && get(userPath(request.auth.uid)).data.academyId == academyId;
     }
 
+function userProfile() {
+  return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+}
+
+function activeAdminFor(academyId) {
+  return signedIn()
+    && userProfile().role == "admin"
+    && userProfile().isActive == true
+    && userProfile().academyId == academyId;
+}
+
+function activeStudentFor(academyId) {
+  return signedIn()
+    && userProfile().role == "student"
+    && userProfile().isActive == true
+    && userProfile().academyId == academyId;
+}
 
 match /academies/{academyId} {
 
@@ -111,7 +128,7 @@ match /academies/{academyId} {
             && request.resource.data.requestedRole in ["student", "teacher"]
             && request.resource.data.academyId is string
             && exists(academyPath(request.resource.data.academyId))
-            && get(academyPath(request.resource.data.academyId)).data.status == "active"
+            && get(academyPath(request.resource.data.academyId)).data.status ==             "active"
           )
         );
 
@@ -178,6 +195,39 @@ match /academies/{academyId} {
         && request.resource.data.role == resource.data.role
         && request.resource.data.academyId == resource.data.academyId;
 
+      // Allow an academy admin to update only a student's enrollment status.
+      allow update: if isAcademyAdmin(resource.data.academyId)
+        && resource.data.role == "student"
+        && request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            "enrollmentStatus",
+            "isActive",
+            "statusUpdatedAt",
+            "statusUpdatedBy"
+          ])
+        && request.resource.data.enrollmentStatus
+          in ["active", "left", "terminated"]
+        && request.resource.data.isActive
+          == (request.resource.data.enrollmentStatus == "active")
+        && request.resource.data.statusUpdatedBy == request.auth.uid
+        && request.resource.data.statusUpdatedAt == request.time;
+
+
+      // NEW RULE: allow an active admin to edit their own name and phone.
+      allow update: if signedIn()
+        && request.auth.uid == uid
+        && resource.data.role == "admin"
+        && resource.data.isActive == true
+        && request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly(["fullName", "phone", "updatedAt"])
+        && request.resource.data.fullName is string
+        && request.resource.data.phone is string
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.academyId == resource.data.academyId
+        && request.resource.data.isActive == resource.data.isActive;
+
       allow delete: if false;
     }
 
@@ -195,9 +245,9 @@ match /academies/{academyId} {
         && request.resource.data.status == "pending"
         && request.resource.data.academyId is string
         && exists(academyPath(request.resource.data.academyId))
-        && get(academyPath(request.resource.data.academyId)).data.status ==     "active"
+        && get(academyPath(request.resource.data.academyId)).data.status ==             "active"
         && getAfter(userPath(uid)).data.role == "pending"
-        && getAfter(userPath(uid)).data.academyId == request.resource.data.academyId;
+        && getAfter(userPath(uid)).data.academyId ==                   request.resource.data.academyId;
 
       allow get: if signedIn()
         && (
@@ -226,23 +276,30 @@ match /academies/{academyId} {
     // --------------------------------------------------
     match /activityLogs/{logId} {
 
-      allow create: if signedIn()
-        && request.resource.data.userId == request.auth.uid
-        && request.resource.data.academyId
-          == get(userPath(request.auth.uid)).data.academyId
-        && get(userPath(request.auth.uid)).data.role == "admin"
-        && get(userPath(request.auth.uid)).data.isActive == true
-        && request.resource.data.action in [
-          "student_created",
-          "teacher_created"
-        ];
+  allow create: if isAcademyAdmin(request.resource.data.academyId)
+    && request.resource.data.userId == request.auth.uid
+    && request.resource.data.action in [
+      "student_created",
+      "teacher_created",
+      "class_created",
+      "class_updated",
+      "class_deleted",
+      "attendance_saved",
+      "student_status_updated",
+      "fee_created",
+      "fee_updated",
+      "payment_reviewed"
+    ]
+    && request.resource.data.title is string
+    && request.resource.data.details is string
+    && request.resource.data.actionType is string
+    && request.resource.data.createdAt == request.time;
 
-      allow read: if isAcademyAdmin(resource.data.academyId);
+  allow read: if isAcademyAdmin(resource.data.academyId);
 
-      allow update, delete: if false;
-    }
+  allow update, delete: if false;
+}
 
-    
 
     // Academy-scoped class records.
     match /classes/{classId} {
@@ -313,10 +370,19 @@ match /attendance/{attendanceId} {
 
   // Admins can read academy attendance.
   // Students can read only their own attendance.
+    // Admins can read attendance in their academy.
   allow read: if isAcademyAdmin(resource.data.academyId)
     || (
       isAcademyStudent(resource.data.academyId)
       && resource.data.studentId == request.auth.uid
+    );
+
+  // Students may check whether their own deterministic attendance
+  // document exists before creating it. This does not grant access
+  // to another student's attendance data.
+  allow get: if isActiveStudent()
+    && attendanceId.matches(
+      '^.*_' + request.auth.uid + '$'
     );
 
   // Admins may create manual attendance entries.
@@ -516,11 +582,19 @@ match /attendance/{attendanceId} {
         && request.resource.data.amount == resource.data.amount
         && request.resource.data.createdBy == resource.data.createdBy
         && request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(["amountPaid", "status", "updatedAt"])
+          .hasOnly(["amountPaid", "status", "updatedAt", "installments"])
         && request.resource.data.amountPaid is number
         && request.resource.data.amountPaid >= resource.data.amountPaid
         && request.resource.data.amountPaid <= resource.data.amount
-        && request.resource.data.status in ["pending", "partial", "paid"];
+        && request.resource.data.status in ["pending", "partial", "paid"]
+        && (
+          !("installments" in request.resource.data)
+          || (
+            request.resource.data.installments is list
+            && request.resource.data.paymentPlan == "installments"
+            && request.resource.data.installments.size() == request.resource.data.installmentCount
+          )
+        );
 
       allow delete: if false;
     }
@@ -528,62 +602,136 @@ match /attendance/{attendanceId} {
     // --------------------------------------------------
     // PAYMENT SUBMISSIONS
     // --------------------------------------------------
-    match /paymentSubmissions/{paymentId} {
+  match /paymentSubmissions/{paymentId} {
+  allow read: if signedIn()
+    && (
+      activeAdminFor(resource.data.academyId)
+      || (
+        activeStudentFor(resource.data.academyId)
+        && resource.data.studentId == request.auth.uid
+      )
+    );
 
-      // Academy admins can query submissions for their academy.
-      // A student can read only their own submission.
-      allow get, list: if isAcademyAdmin(resource.data.academyId)
-        || (
-          signedIn()
-          && resource.data.studentId == request.auth.uid
-          && get(userPath(request.auth.uid)).data.role == "student"
-          && get(userPath(request.auth.uid)).data.academyId
-            == resource.data.academyId
-        );
-
-      // Students can submit a payment against their own fee.
-      // This records a claim of payment, not proof of payment.
-      allow create: if signedIn()
-        && get(userPath(request.auth.uid)).data.role == "student"
-        && get(userPath(request.auth.uid)).data.isActive == true
-        && request.resource.data.studentId == request.auth.uid
-        && request.resource.data.academyId
-          == get(userPath(request.auth.uid)).data.academyId
-        && request.resource.data.feeId is string
-        && request.resource.data.amount is number
-        && request.resource.data.amount > 0
-        && request.resource.data.transactionReference is string
-        && request.resource.data.status == "pending"
-        && request.resource.data.createdAt == request.time
-        && exists(
-          /databases/$(database)/documents/fees/$(request.resource.data.feeId)
-        )
+  allow create: if signedIn()
+    && activeStudentFor(request.resource.data.academyId)
+    && request.resource.data.studentId == request.auth.uid
+    && request.resource.data.status == "pending"
+    && request.resource.data.amount is number
+    && request.resource.data.amount > 0
+    && request.resource.data.feeId is string
+    && exists(
+      /databases/$(database)/documents/fees/$(request.resource.data.feeId)
+    )
+    && get(
+      /databases/$(database)/documents/fees/$(request.resource.data.feeId)
+    ).data.academyId == request.resource.data.academyId
+    && get(
+      /databases/$(database)/documents/fees/$(request.resource.data.feeId)
+    ).data.studentId == request.auth.uid
+    && (
+      (
+        !("installmentNumber" in request.resource.data)
         && get(
           /databases/$(database)/documents/fees/$(request.resource.data.feeId)
-        ).data.academyId == request.resource.data.academyId
+        ).data.paymentPlan != "installments"
+      )
+      ||
+      (
+        request.resource.data.installmentNumber is int
+        && request.resource.data.installmentNumber >= 1
         && get(
           /databases/$(database)/documents/fees/$(request.resource.data.feeId)
-        ).data.studentId == request.auth.uid
-        && request.resource.data.amount
-          <= get(
-            /databases/$(database)/documents/fees/$(request.resource.data.feeId)
-          ).data.amount
-          - get(
-            /databases/$(database)/documents/fees/$(request.resource.data.feeId)
-          ).data.amountPaid;
+        ).data.paymentPlan == "installments"
+        && request.resource.data.installmentNumber <= get(
+          /databases/$(database)/documents/fees/$(request.resource.data.feeId)
+        ).data.installmentCount
+      )
+    );
 
-      // Only the academy admin can review a pending submission.
-      allow update: if isAcademyAdmin(resource.data.academyId)
-        && resource.data.status == "pending"
-        && request.resource.data.status in ["approved", "rejected"]
-        && request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(["status", "reviewedBy", "reviewedAt"])
-        && request.resource.data.reviewedBy == request.auth.uid
-        && request.resource.data.reviewedAt == request.time;
+  allow update: if signedIn()
+    && activeAdminFor(resource.data.academyId)
+    && request.resource.data.academyId == resource.data.academyId
+    && request.resource.data.studentId == resource.data.studentId
+    && request.resource.data.feeId == resource.data.feeId;
 
-      allow delete: if false;
-    }
+  allow delete: if signedIn()
+    && activeAdminFor(resource.data.academyId);
+}
 
+    // --------------------------------------------------
+// ADMIN NOTIFICATIONS
+// --------------------------------------------------
+match /notifications/{notificationId} {
+
+  // Admins can read notifications belonging to their academy.
+  allow get, list: if isAcademyAdmin(resource.data.academyId)
+    && resource.data.recipientRole == "admin";
+
+    // Individual notifications: only the intended student
+    // in the same academy can read them.
+    allow get, list: if isAcademyStudent(resource.data.academyId)
+      && resource.data.studentId == request.auth.uid;
+
+    // Academy-wide student announcements.
+    // targetType must explicitly identify an academy announcement.
+    allow get, list: if isAcademyStudent(resource.data.academyId)
+      && resource.data.recipientRole == "student"
+      && resource.data.targetType == "academy";
+
+  // Students can read notifications addressed to them.
+  // Student-specific notifications use studentId.
+  // Student announcements use recipientRole == "student".
+  allow get, list: if isAcademyStudent(resource.data.academyId)
+    && (
+      (
+        "studentId" in resource.data
+        && resource.data.studentId == request.auth.uid
+      )
+      ||
+      (
+        resource.data.recipientRole == "student"
+        && !("studentId" in resource.data)
+        && !("recipientId" in resource.data)
+        && !("userId" in resource.data)
+      )
+    );
+
+  // Admins can mark their own academy notifications as read.
+  allow update: if isAcademyAdmin(resource.data.academyId)
+    && resource.data.recipientRole == "admin"
+    && request.resource.data.academyId == resource.data.academyId
+    && request.resource.data.diff(resource.data)
+      .affectedKeys()
+      .hasOnly(["read", "isRead", "readAt"])
+    && request.resource.data.read == true
+    && request.resource.data.isRead == true
+    && request.resource.data.readAt == request.time;
+
+  // Students can mark only their own notifications as read.
+  allow update: if isAcademyStudent(resource.data.academyId)
+    && (
+      (
+        "studentId" in resource.data
+        && resource.data.studentId == request.auth.uid
+      )
+      ||
+      (
+        resource.data.recipientRole == "student"
+        && !("studentId" in resource.data)
+        && !("recipientId" in resource.data)
+        && !("userId" in resource.data)
+      )
+    )
+    && request.resource.data.academyId == resource.data.academyId
+    && request.resource.data.diff(resource.data)
+      .affectedKeys()
+      .hasOnly(["read", "isRead", "readAt"])
+    && request.resource.data.read == true
+    && request.resource.data.isRead == true
+    && request.resource.data.readAt == request.time;
+
+  allow create, delete: if false;
+}
 
     // --------------------------------------------------
     // DENY ALL OTHER COLLECTIONS

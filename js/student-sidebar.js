@@ -31,44 +31,46 @@
         </div>
       </div>
 
-      <nav class="sidebar-nav" aria-label="Student navigation">
-        <p class="sidebar-label">STUDENT MENU</p>
+      
+<nav class="sidebar-nav" aria-label="Student navigation">
+  <p class="sidebar-label">STUDENT MENU</p>
 
-        <a href="dashboard.html"
-           class="sidebar-link"
-           data-nav-path="dashboard.html">
-          <span class="nav-icon" aria-hidden="true">▦</span>
-          <span>Dashboard</span>
-        </a>
+  <a href="dashboard.html"
+     class="sidebar-link"
+     data-nav-path="dashboard.html">
+    <span class="nav-icon" aria-hidden="true">▦</span>
+    <span>Dashboard</span>
+  </a>
 
-        <a href="materials.html"
-           class="sidebar-link"
-           data-nav-path="materials.html">
-          <span class="nav-icon" aria-hidden="true">▤</span>
-          <span>Study Materials</span>
-        </a>
+  <a href="attendance.html"
+     class="sidebar-link"
+     data-nav-path="attendance.html">
+    <span class="nav-icon" aria-hidden="true">✓</span>
+    <span>Attendance</span>
+  </a>
 
-        <a href="schedules.html"
-           class="sidebar-link"
-           data-nav-path="schedules.html">
-          <span class="nav-icon" aria-hidden="true">◷</span>
-          <span>Schedules</span>
-        </a>
+  <a href="schedules.html"
+     class="sidebar-link"
+     data-nav-path="schedules.html">
+    <span class="nav-icon" aria-hidden="true">◷</span>
+    <span>Schedules</span>
+  </a>
 
-        <a href="attendance.html"
-           class="sidebar-link"
-           data-nav-path="attendance.html">
-          <span class="nav-icon" aria-hidden="true">✓</span>
-          <span>Attendance</span>
-        </a>
+  <a href="materials.html"
+     class="sidebar-link"
+     data-nav-path="materials.html">
+    <span class="nav-icon" aria-hidden="true">▤</span>
+    <span>Study Materials</span>
+  </a>
 
-        <a href="payments.html"
-           class="sidebar-link"
-           data-nav-path="payments.html">
-          <span class="nav-icon" aria-hidden="true">₹</span>
-          <span>Fees & Payments</span>
-        </a>
-      </nav>
+  <a href="payments.html"
+     class="sidebar-link"
+     data-nav-path="payments.html">
+    <span class="nav-icon" aria-hidden="true">₹</span>
+    <span>Fees &amp; Payments</span>
+  </a>
+</nav>
+
 
       <div class="sidebar-bottom">
         <a href="../login.html"
