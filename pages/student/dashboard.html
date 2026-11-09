@@ -375,48 +375,48 @@
       <div class="student-dashboard-content">
 
         <!-- Notifications appear above the learning overview. -->
-        <section
-          class="student-notifications"
-          id="student-notifications-panel"
-          aria-labelledby="student-notifications-heading"
-        >
-          <div class="student-notifications-header">
-            <div class="student-notifications-title">
-              <div class="student-notifications-icon" aria-hidden="true">♧</div>
-              <div>
-                <h2 id="student-notifications-heading">Notifications</h2>
-                <p id="student-notifications-subtitle">
-                  Important updates about your learning and account.
-                </p>
-              </div>
-            </div>
+<!-- Student Announcements -->
+<section
+  class="student-notifications"
+  id="student-announcements-panel"
+  aria-labelledby="student-announcements-heading"
+>
+  <div class="student-notifications-header">
+    <div class="student-notifications-title">
+      <div class="student-notifications-icon" aria-hidden="true">📢</div>
+      <div>
+        <h2 id="student-announcements-heading">Announcements</h2>
+        <p id="student-announcements-subtitle">
+          Important announcements from your academy and teachers.
+        </p>
+      </div>
+    </div>
 
-            <span
-              class="student-notification-count"
-              id="student-unread-count"
-              aria-label="Unread notifications"
-            >—</span>
-          </div>
+    <span
+      class="student-notification-count"
+      id="student-announcement-count"
+    >—</span>
+  </div>
 
-          <div
-            class="student-notifications-list"
-            id="student-notifications-list"
-            aria-live="polite"
-            aria-busy="true"
-          >
-            <div class="student-notification-empty">
-              <strong>Loading notifications…</strong>
-              <p>Please wait while we check for updates.</p>
-            </div>
-          </div>
+  <div
+    class="student-notifications-list"
+    id="student-announcements-list"
+    aria-live="polite"
+    aria-busy="true"
+  >
+    <div class="student-notification-empty">
+      <strong>Loading announcements…</strong>
+      <p>Please wait while we check for updates.</p>
+    </div>
+  </div>
 
-          <p
-            class="student-notification-message"
-            id="student-notification-message"
-            role="alert"
-            hidden
-          ></p>
-        </section>
+  <p
+    class="student-notification-message"
+    id="student-announcements-message"
+    role="alert"
+    hidden
+  ></p>
+</section>
 
         <!-- Keep the learning overview and its four existing cards. -->
         <section class="dashboard-section student-overview-section">

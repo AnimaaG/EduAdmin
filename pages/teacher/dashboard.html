@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Teacher dashboard - EduAdmin">
+  <meta name="theme-color" content="#f5f7fb">
+
+  <title>Teacher Dashboard | EduAdmin</title>
+
+  <link rel="stylesheet" href="../../css/app.css">
+
+  <script src="../../js/main.js" defer></script>
+  <script src="../../js/navigation.js" defer></script>
+  <script src="../../js/teacher-sidebar.js" defer></script>
+  <script type="module" src="../../js/teacher-dashboard.js"></script>
+  <script type="module" src="../../js/account-menu.js"></script>
+
+<style>
+/* ==========================================
+   TEACHER DASHBOARD
+========================================== */
+
+.dashboard-content {
+    padding: 26px 30px 40px;
+    background: #f5f7fc;
+}
+
+/* ==========================================
+   TEACHER PROFILE
+========================================== */
+
+.teacher-profile-panel {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr);
+    align-items: start;
+    gap: 22px;
+    padding: 28px;
+    margin-bottom: 24px;
+    background: #ffffff;
+    border: 1px solid #e5eaf3;
+    border-radius: 18px;
+    box-shadow: 0 4px 14px rgba(25, 40, 80, 0.04);
+}
+
+.teacher-profile-avatar {
+    width: 72px;
+    height: 72px;
+    display: grid;
+    place-items: center;
+    background: #eef0ff;
+    color: #5145d5;
+    border-radius: 18px;
+    font-size: 26px;
+    font-weight: 800;
+}
+
+.teacher-profile-main {
+    min-width: 0;
+    width: 100%;
+}
+
+.teacher-profile-heading {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+}
+
+.teacher-profile-heading .welcome-label {
+    color: #6258dc;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1.3px;
+}
+
+.teacher-profile-heading h2 {
+    margin: 0;
+    color: #172554;
+    font-size: 24px;
+    font-weight: 800;
+    line-height: 1.35;
+}
+
+.teacher-profile-heading p {
+    margin: 0;
+    color: #78859e;
+    font-size: 13px;
+}
+
+/* Profile information cards */
+
+.teacher-details-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 13px;
+    width: 100%;
+    margin-top: 24px;
+}
+
+.teacher-detail {
+    min-width: 0;
+    padding: 15px;
+    background: #f7f9fd;
+    border: 1px solid #edf0f6;
+    border-radius: 12px;
+}
+
+.teacher-detail span {
+    display: block;
+    margin-bottom: 8px;
+    color: #78859e;
+    font-size: 12px;
+}
+
+.teacher-detail strong {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    color: #172554;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+    word-break: normal;
+}
+
+/* ==========================================
+   WELCOME BANNER
+========================================== */
+
+.welcome-panel {
+    position: relative;
+    overflow: hidden;
+    display: block;
+    padding: 34px;
+    margin-bottom: 30px;
+    border: none;
+    border-radius: 19px;
+    background: linear-gradient(
+        115deg,
+        #3931b5,
+        #5548ec 65%,
+        #7167f7
+    );
+    color: #ffffff;
+    box-shadow: 0 12px 28px rgba(77, 67, 220, 0.16);
+}
+
+.welcome-panel::after {
+    content: "";
+    position: absolute;
+    width: 280px;
+    height: 280px;
+    right: 8%;
+    top: -140px;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 50%;
+    box-shadow:
+        0 0 0 28px rgba(255,255,255,.035),
+        0 0 0 58px rgba(255,255,255,.025);
+    pointer-events: none;
+}
+
+.welcome-panel .welcome-label {
+    color: #d9d6ff;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1.2px;
+}
+
+.welcome-panel h2 {
+    margin: 12px 0 8px;
+    color: #ffffff;
+    font-size: 29px;
+    font-weight: 800;
+}
+
+.welcome-panel p {
+    margin: 0;
+    color: rgba(255,255,255,.9);
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+/* ==========================================
+   SECTION HEADINGS
+========================================== */
+
+.dashboard-section {
+    min-width: 0;
+}
+
+.dashboard-section h2 {
+    margin: 0 0 5px;
+    color: #172554;
+    font-size: 18px;
+    font-weight: 800;
+}
+
+.section-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 17px;
+}
+
+.section-title-row p {
+    margin: 0;
+    color: #7b87a0;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+/* ==========================================
+   OVERVIEW CARDS
+========================================== */
+
+.dashboard-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 17px;
+    margin-top: 18px;
+    margin-bottom: 30px;
+}
+
+.dashboard-stat-card {
+    min-width: 0;
+    min-height: 165px;
+    padding: 21px;
+    background: #ffffff;
+    border: 1px solid #e4eaf3;
+    border-radius: 16px;
+    box-shadow: 0 3px 10px rgba(25, 40, 80, 0.035);
+    transition: transform .2s ease, box-shadow .2s ease;
+}
+
+.dashboard-stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 9px 22px rgba(25, 40, 80, 0.08);
+}
+
+.stat-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    color: #68758f;
+    font-size: 13px;
+    font-weight: 650;
+}
+
+.stat-icon {
+    width: 39px;
+    height: 39px;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.stat-icon.purple {
+    background: #eef0ff;
+    color: #5145d5;
+}
+
+.stat-icon.blue {
+    background: #e0f2fe;
+    color: #0284c7;
+}
+
+.stat-icon.green {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.stat-icon.orange {
+    background: #ffedd5;
+    color: #c2410c;
+}
+
+.dashboard-stat-value {
+    display: block;
+    margin: 15px 0 7px;
+    color: #172554;
+    font-size: 30px;
+    font-weight: 850;
+    line-height: 1.2;
+}
+
+.dashboard-stat-card small {
+    display: block;
+    color: #8994aa;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+/* ==========================================
+   TODAY'S SCHEDULE & ASSIGNED CLASSES
+========================================== */
+
+.teacher-dashboard-grid {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 20px;
+    align-items: start;
+}
+
+.teacher-dashboard-grid > .dashboard-section {
+    min-width: 0;
+}
+
+.teacher-dashboard-grid .dashboard-section {
+    padding: 20px;
+    background: #ffffff;
+    border: 1px solid #e5eaf3;
+    border-radius: 16px;
+    box-shadow: 0 3px 10px rgba(25, 40, 80, 0.035);
+}
+
+.teacher-list {
+    display: grid;
+    gap: 11px;
+}
+
+.teacher-list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 16px;
+    background: #fbfcff;
+    border: 1px solid #e8edf5;
+    border-radius: 12px;
+    transition: border-color .2s ease, background .2s ease;
+}
+
+.teacher-list-item:hover {
+    border-color: #bcb7ff;
+    background: #ffffff;
+}
+
+.teacher-list-item strong {
+    display: block;
+    margin-bottom: 6px;
+    color: #172554;
+    font-size: 14px;
+    font-weight: 750;
+}
+
+.teacher-list-item small {
+    display: block;
+    color: #78859e;
+    font-size: 12px;
+    line-height: 1.7;
+}
+
+.teacher-list-time {
+    flex-shrink: 0;
+    color: #172554;
+    font-size: 13px;
+    font-weight: 750;
+    text-align: right;
+}
+
+.teacher-status {
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 20px;
+    background: #ecfdf5;
+    color: #047857;
+    font-size: 11px;
+    font-weight: 750;
+    text-transform: capitalize;
+}
+
+/* Section buttons */
+
+.teacher-dashboard-grid .btn {
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+/* Empty states */
+
+.teacher-dashboard-grid .empty-state {
+    padding: 22px 15px;
+    border: 1px dashed #dce3ef;
+    border-radius: 12px;
+    background: #fafbfe;
+    text-align: center;
+    color: #8994aa;
+}
+
+/* Dashboard message */
+
+.teacher-dashboard-message {
+    margin: 0 0 16px;
+}
+
+/* ==========================================
+   RESPONSIVE DESIGN
+========================================== */
+
+@media (max-width: 1100px) {
+    .dashboard-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .teacher-details-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 800px) {
+    .teacher-dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 600px) {
+    .dashboard-content {
+        padding: 18px 14px 30px;
+    }
+
+    .teacher-profile-panel {
+        grid-template-columns: 1fr;
+        gap: 15px;
+        padding: 20px;
+    }
+
+    .teacher-details-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 18px;
+    }
+
+    .teacher-detail {
+        padding: 12px;
+    }
+
+    .welcome-panel {
+        padding: 25px 22px;
+    }
+
+    .welcome-panel h2 {
+        font-size: 23px;
+    }
+
+    .dashboard-stats {
+        gap: 10px;
+    }
+
+    .dashboard-stat-card {
+        min-height: 145px;
+        padding: 15px;
+    }
+
+    .dashboard-stat-value {
+        font-size: 26px;
+    }
+
+    .teacher-dashboard-grid .dashboard-section {
+        padding: 15px;
+    }
+
+    .section-title-row {
+        align-items: flex-start;
+    }
+
+    .teacher-list-item {
+        flex-direction: column;
+    }
+
+    .teacher-list-time {
+        text-align: left;
+    }
+}
+
+@media (max-width: 380px) {
+    .teacher-details-grid,
+    .dashboard-stats {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+</head>
+
+<body>
+
+  <div class="dashboard-layout">
+
+    <div id="teacher-sidebar-mount"></div>
+
+    <div
+      class="sidebar-overlay"
+      id="sidebar-overlay"
+    ></div>
+
+    <main class="dashboard-main">
+
+      <header class="dashboard-topbar">
+
+        <div class="topbar-left">
+
+          <button
+            type="button"
+            class="sidebar-toggle"
+            id="sidebar-toggle"
+            aria-label="Open navigation menu"
+            aria-controls="teacher-sidebar"
+            aria-expanded="false"
+          >☰</button>
+
+          <div>
+            <h1>Teacher Dashboard</h1>
+            <p>Your teaching workspace at a glance.</p>
+          </div>
+
+        </div>
+
+      </header>
+
+      <div class="dashboard-content">
+
+        <p
+          id="teacher-dashboard-message"
+          class="message teacher-dashboard-message"
+          role="status"
+          aria-live="polite"
+        >Loading your teacher dashboard...</p>
+
+                <!-- WELCOME PANEL -->
+
+        <section class="welcome-panel">
+
+          <div>
+            <span class="welcome-label">TEACHING OVERVIEW</span>
+
+            <h2 id="teacher-welcome-heading">
+              Welcome to your dashboard
+            </h2>
+
+            <p id="teacher-welcome-description">
+              View your assigned classes, today's sessions and
+              teaching activities.
+            </p>
+          </div>
+
+        </section>
+
+<!-- TEACHER PROFILE -->
+<section class="teacher-profile-panel" aria-labelledby="teacher-name">
+
+    <div class="teacher-profile-avatar" id="teacher-profile-avatar">T</div>
+
+    <div class="teacher-profile-main">
+
+        <div class="teacher-profile-heading">
+            <span class="welcome-label">TEACHER PROFILE</span>
+            <h2 id="teacher-name">Loading teacher details...</h2>
+            <p id="teacher-profile-subtitle">Your personal teaching information</p>
+        </div>
+
+        <div class="teacher-details-grid" id="teacher-details-grid">
+
+            <div class="teacher-detail">
+                <span>Email</span>
+                <strong id="teacher-email">—</strong>
+            </div>
+
+            <div class="teacher-detail">
+                <span>Phone</span>
+                <strong id="teacher-phone">—</strong>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+        <!-- SUMMARY CARDS -->
+
+        <section
+          class="dashboard-section"
+          aria-labelledby="teacher-overview-title"
+        >
+
+          <div class="section-title-row">
+            <div>
+              <h2 id="teacher-overview-title">My Overview</h2>
+              <p>Summary of your assigned teaching activities.</p>
+            </div>
+          </div>
+
+          <div class="dashboard-stats">
+
+            <article class="dashboard-stat-card">
+              <div class="stat-heading">
+                <span>Assigned classes</span>
+                <span class="stat-icon purple">C</span>
+              </div>
+
+              <strong
+                class="dashboard-stat-value"
+                id="teacher-total-classes"
+              >—</strong>
+
+              <small id="teacher-classes-status">
+                Loading classes...
+              </small>
+            </article>
+
+            <article class="dashboard-stat-card">
+              <div class="stat-heading">
+                <span>Today's sessions</span>
+                <span class="stat-icon blue">T</span>
+              </div>
+
+              <strong
+                class="dashboard-stat-value"
+                id="teacher-today-sessions"
+              >—</strong>
+
+              <small>Sessions scheduled for today</small>
+            </article>
+
+            <article class="dashboard-stat-card">
+              <div class="stat-heading">
+                <span>Upcoming sessions</span>
+                <span class="stat-icon green">U</span>
+              </div>
+
+              <strong
+                class="dashboard-stat-value"
+                id="teacher-upcoming-sessions"
+              >—</strong>
+
+              <small>Future scheduled sessions</small>
+            </article>
+          </div>
+
+        </section>
+
+        <!-- TODAY'S SESSIONS AND ASSIGNED CLASSES -->
+
+        <div class="teacher-dashboard-grid">
+
+          <section class="dashboard-section">
+
+            <div class="section-title-row">
+              <div>
+                <h2>Today's Schedule</h2>
+                <p id="teacher-today-date">Today's classes</p>
+              </div>
+
+              <a href="timetable.html" class="btn btn-secondary">
+                Full timetable
+              </a>
+            </div>
+
+            <div
+              class="teacher-list"
+              id="teacher-today-schedule"
+            >
+              <div class="empty-state">
+                <p>Loading today's schedule...</p>
+              </div>
+            </div>
+
+          </section>
+
+          <section class="dashboard-section">
+
+            <div class="section-title-row">
+              <div>
+                <h2>My Assigned Classes</h2>
+                <p>Classes assigned to your teacher account.</p>
+              </div>
+
+              <a href="classes.html" class="btn btn-secondary">
+                View all
+              </a>
+            </div>
+
+            <div
+              class="teacher-list"
+              id="teacher-assigned-classes"
+            >
+              <div class="empty-state">
+                <p>Loading assigned classes...</p>
+              </div>
+            </div>
+
+          </section>
+
+        </div>
+
+      </div>
+
+    </main>
+
+  </div>
+
+</body>
+</html>

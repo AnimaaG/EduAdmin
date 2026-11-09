@@ -578,6 +578,20 @@
       border-bottom: 1px solid #f1eff7;
     }
 
+    .ui-activity-item {
+  padding: 10px 0;
+  border-bottom: 1px solid #f1eff7;
+}
+
+.ui-activity-item h5 {
+  margin: 5px 0;
+}
+
+.ui-activity-item p {
+  margin: 3px 0;
+  line-height: 1.4;
+}
+
     .ui-activity-row:last-child { border-bottom: 0; }
     .ui-activity-icon {
       display: grid;
@@ -1128,15 +1142,17 @@
           <section class="ui-panel">
             <div class="ui-panel-head">
               <div>
-                <h4>Recent activity</h4>
-                <p>Latest updates recorded by your academy.</p>
+                <h4>Latest Announcements</h4>
+                <p>Most recent announcements published by your teachers.</p>
               </div>
-              <span class="ui-tag">Live feed</span>
+              <span class="ui-tag">Latest 5</span>
             </div>
-            <div id="recent-activity-list" class="ui-activity-list">
-              <div class="ui-empty">Loading recent activity...</div>
+
+            <div id="admin-announcements-list" class="ui-activity-list">
+              <div class="ui-empty">Loading announcements...</div>
             </div>
-            <p id="activity-message" class="ui-message"></p>
+
+            <p id="announcements-message" class="ui-message"></p>
           </section>
         </div>
 

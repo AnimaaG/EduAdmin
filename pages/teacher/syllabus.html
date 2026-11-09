@@ -1,0 +1,727 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Syllabus | EduAdmin</title>
+
+  <link rel="stylesheet" href="../../css/app.css">
+
+  <style>
+    /* =====================================================
+       PAGE LAYOUT
+    ===================================================== */
+
+    .syllabus-page {
+      width: 100%;
+      min-width: 0;
+    }
+
+    .syllabus-summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 15px;
+      margin-bottom: 22px;
+    }
+
+    .syllabus-summary-card,
+    .syllabus-panel {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+    }
+
+    .syllabus-summary-card {
+      padding: 18px;
+    }
+
+    .syllabus-summary-card span {
+      display: block;
+      margin-bottom: 9px;
+      color: #718096;
+      font-size: 13px;
+    }
+
+    .syllabus-summary-card strong {
+      display: block;
+      color: #172033;
+      font-size: 25px;
+      font-weight: 700;
+    }
+
+    .syllabus-panel {
+      margin-bottom: 22px;
+      padding: 22px;
+    }
+
+    .syllabus-panel-heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .syllabus-panel-heading h2 {
+      margin: 0 0 5px;
+      color: #172033;
+      font-size: 18px;
+    }
+
+    .syllabus-panel-heading p {
+      margin: 0;
+      color: #718096;
+      font-size: 13px;
+    }
+
+
+    /* =====================================================
+       FORM
+    ===================================================== */
+
+    .syllabus-form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 17px;
+    }
+
+    .syllabus-field {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      min-width: 0;
+    }
+
+    .syllabus-full-width {
+      grid-column: 1 / -1;
+    }
+
+    .syllabus-field label,
+    .syllabus-filter label {
+      color: #334155;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .syllabus-field input,
+    .syllabus-field select,
+    .syllabus-field textarea,
+    .syllabus-filter select {
+      width: 100%;
+      min-width: 0;
+      padding: 11px 12px;
+      border: 1px solid #dfe3eb;
+      border-radius: 8px;
+      background: #fff;
+      color: #263248;
+      font: inherit;
+      font-size: 13px;
+      outline: none;
+    }
+
+    .syllabus-field input:focus,
+    .syllabus-field select:focus,
+    .syllabus-field textarea:focus,
+    .syllabus-filter select:focus {
+      border-color: #5145ff;
+      box-shadow: 0 0 0 3px rgba(81, 69, 255, .09);
+    }
+
+    .syllabus-field input[readonly] {
+      background: #f8fafc;
+      color: #64748b;
+    }
+
+    .syllabus-field textarea {
+      resize: vertical;
+      line-height: 1.6;
+      min-height: 120px;
+    }
+
+    .syllabus-field small {
+      color: #718096;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .syllabus-form-actions {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+
+    /* =====================================================
+       BUTTONS
+    ===================================================== */
+
+    .syllabus-primary-btn,
+    .syllabus-clear-btn {
+      padding: 11px 19px;
+      border: 0;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .2s ease;
+    }
+
+    .syllabus-primary-btn {
+      background: #5145ff;
+      color: #fff;
+    }
+
+    .syllabus-primary-btn:hover {
+      background: #4338ca;
+    }
+
+    .syllabus-primary-btn.edit-mode {
+      background: #0f766e;
+    }
+
+    .syllabus-primary-btn.edit-mode:hover {
+      background: #115e59;
+    }
+
+    .syllabus-clear-btn {
+      border: 1px solid #dbe3ef;
+      background: #fff;
+      color: #475569;
+    }
+
+    .syllabus-clear-btn:hover {
+      background: #f1f5f9;
+    }
+
+    .syllabus-primary-btn:disabled,
+    .syllabus-clear-btn:disabled {
+      opacity: .6;
+      cursor: not-allowed;
+    }
+
+
+    /* =====================================================
+       MESSAGES
+    ===================================================== */
+
+    .syllabus-message {
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-radius: 8px;
+      background: #f8fafc;
+      color: #64748b;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .syllabus-message.error {
+      background: #fef2f2;
+      color: #b91c1c;
+    }
+
+    .syllabus-message.success {
+      background: #f0fdf4;
+      color: #15803d;
+    }
+
+
+    /* =====================================================
+       SYLLABUS LIST
+    ===================================================== */
+
+    .syllabus-list-panel {
+      min-width: 0;
+    }
+
+    .syllabus-list-heading {
+      flex-wrap: wrap;
+    }
+
+    .syllabus-filter {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      min-width: 220px;
+    }
+
+    .syllabus-filter select {
+      min-width: 175px;
+    }
+
+    .syllabus-chapters {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .syllabus-chapter {
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .syllabus-chapter-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 15px;
+      padding: 16px;
+      background: #f8fafc;
+    }
+
+    .syllabus-chapter-title {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .syllabus-chapter-title h3 {
+      margin: 0 0 5px;
+      color: #172033;
+      font-size: 15px;
+      overflow-wrap: anywhere;
+    }
+
+    .syllabus-chapter-title p {
+      margin: 0;
+      color: #718096;
+      font-size: 12px;
+    }
+
+    .syllabus-chapter-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .syllabus-edit-btn,
+    .syllabus-delete-btn {
+      padding: 8px 13px;
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .2s ease;
+    }
+
+    .syllabus-edit-btn {
+      border: 1px solid #c7d2fe;
+      background: #eef2ff;
+      color: #4338ca;
+    }
+
+    .syllabus-edit-btn:hover {
+      background: #e0e7ff;
+    }
+
+    .syllabus-delete-btn {
+      border: 1px solid #fecaca;
+      background: #fef2f2;
+      color: #dc2626;
+    }
+
+    .syllabus-delete-btn:hover {
+      background: #fee2e2;
+    }
+
+    .syllabus-edit-btn:disabled,
+    .syllabus-delete-btn:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
+    .syllabus-empty {
+      padding: 35px 20px;
+      text-align: center;
+      color: #718096;
+      font-size: 13px;
+    }
+
+
+    /* =====================================================
+       RESPONSIVE
+    ===================================================== */
+
+    @media (max-width: 900px) {
+      .syllabus-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 600px) {
+      .syllabus-panel {
+        padding: 16px;
+      }
+
+      .syllabus-form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .syllabus-full-width {
+        grid-column: auto;
+      }
+
+      .syllabus-list-heading {
+        align-items: flex-start;
+      }
+
+      .syllabus-filter {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .syllabus-filter select {
+        width: 100%;
+      }
+
+      .syllabus-chapter-header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .syllabus-chapter-actions {
+        width: 100%;
+      }
+
+      .syllabus-edit-btn,
+      .syllabus-delete-btn {
+        flex: 1;
+      }
+
+      .syllabus-form-actions {
+        flex-direction: column-reverse;
+        align-items: stretch;
+      }
+
+      .syllabus-primary-btn,
+      .syllabus-clear-btn {
+        width: 100%;
+      }
+    }
+    .syllabus-complete-btn {
+  padding: 8px 13px;
+  border: 1px solid #bbf7d0;
+  border-radius: 7px;
+  background: #f0fdf4;
+  color: #15803d;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.syllabus-complete-btn.completed {
+  border-color: #cbd5e1;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.syllabus-complete-btn:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+.syllabus-chapter-status {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 4px 9px;
+  border-radius: 20px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.syllabus-chapter-status.completed {
+  background: #dcfce7;
+  color: #166534;
+}
+.syllabus-chapter-actions {
+  flex-wrap: wrap;
+}
+
+.syllabus-complete-btn {
+  flex: 1;
+}
+  </style>
+</head>
+
+<body>
+
+  <div class="dashboard-layout">
+
+    <div id="teacher-sidebar-mount"></div>
+
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <main class="dashboard-main">
+
+      <!-- TOPBAR -->
+
+      <header class="dashboard-topbar">
+
+        <div class="topbar-left">
+
+          <button
+            type="button"
+            class="sidebar-toggle"
+            id="sidebar-toggle"
+            aria-label="Open navigation menu"
+            aria-controls="teacher-sidebar"
+            aria-expanded="false"
+          >☰</button>
+
+          <div>
+            <h1>Syllabus</h1>
+            <p>Manage your class syllabus.</p>
+          </div>
+
+        </div>
+
+        <div class="topbar-actions">
+          <div id="account-menu-mount"></div>
+        </div>
+
+      </header>
+
+
+      <!-- MAIN CONTENT -->
+
+      <div class="dashboard-content">
+
+        <section class="syllabus-page">
+
+
+          <!-- SUMMARY -->
+
+<div class="syllabus-summary">
+
+  <div class="syllabus-summary-card">
+    <span>Total Chapters</span>
+    <strong id="total-chapters">0</strong>
+  </div>
+
+  <div class="syllabus-summary-card">
+    <span>Completed Chapters</span>
+    <strong id="completed-chapters">0</strong>
+  </div>
+
+  <div class="syllabus-summary-card">
+    <span>Syllabus Completion</span>
+    <strong id="overall-progress">0%</strong>
+  </div>
+
+</div>
+
+
+          <!-- ADD / EDIT CHAPTER -->
+
+          <section class="syllabus-panel">
+
+            <div class="syllabus-panel-heading">
+
+              <div>
+                <h2>Add Syllabus Chapter</h2>
+
+                <p>
+                  Add one chapter name or multiple chapter names.
+                  No topic details are required.
+                </p>
+              </div>
+
+            </div>
+
+
+            <form id="syllabus-form">
+
+              <div class="syllabus-form-grid">
+
+
+                <!-- CLASS -->
+
+                <div class="syllabus-field">
+
+                  <label for="syllabus-class">
+                    Assigned Class
+                  </label>
+
+                  <select id="syllabus-class" required>
+
+                    <option value="">
+                      Loading assigned classes...
+                    </option>
+
+                  </select>
+
+                </div>
+
+
+                <!-- SUBJECT -->
+
+                <div class="syllabus-field">
+
+                  <label for="syllabus-subject">
+                    Subject
+                  </label>
+
+                  <input
+                    type="text"
+                    id="syllabus-subject"
+                    placeholder="Select a class first"
+                    readonly
+                  >
+
+                </div>
+
+
+                <!-- CHAPTER NAME -->
+
+                <div class="syllabus-field syllabus-full-width">
+
+                  <label for="chapter-title">
+                    Chapter Name(s)
+                  </label>
+
+                  <textarea
+                    id="chapter-title"
+                    rows="5"
+                    placeholder="Enter one chapter name, or multiple chapter names on separate lines."
+                    required
+                  ></textarea>
+
+                  <small>
+                    Enter one chapter name or multiple names,
+                    one per line. Each name becomes a separate
+                    syllabus chapter.
+                  </small>
+
+                </div>
+
+              </div>
+
+
+              <!-- FORM ACTIONS -->
+
+              <div class="syllabus-form-actions">
+
+                <button
+                  type="button"
+                  id="clear-chapter-button"
+                  class="syllabus-clear-btn"
+                >
+                  Clear
+                </button>
+
+                <button
+                  type="submit"
+                  id="add-chapter-button"
+                  class="syllabus-primary-btn"
+                >
+                  Add Chapter(s)
+                </button>
+
+              </div>
+
+            </form>
+
+
+            <!-- FORM MESSAGE -->
+
+            <div
+              id="syllabus-form-message"
+              class="syllabus-message"
+              hidden
+            ></div>
+
+          </section>
+
+
+          <!-- SAVED SYLLABUS -->
+
+          <section class="syllabus-panel syllabus-list-panel">
+
+            <div class="syllabus-panel-heading syllabus-list-heading">
+
+              <div>
+                <h2>My Syllabus</h2>
+
+                <p>
+                  View, edit or delete your saved chapters.
+                </p>
+              </div>
+
+
+              <!-- CLASS FILTER -->
+
+              <div class="syllabus-filter">
+
+                <label for="syllabus-filter-class">
+                  Class
+                </label>
+
+                <select id="syllabus-filter-class">
+
+                  <option value="all">
+                    All assigned classes
+                  </option>
+
+                </select>
+
+              </div>
+
+            </div>
+
+
+            <!-- LIST MESSAGE -->
+
+            <div
+              id="syllabus-list-message"
+              class="syllabus-message"
+            >
+              Loading your syllabus...
+            </div>
+
+
+            <!-- CHAPTERS -->
+
+            <div
+              id="syllabus-chapters"
+              class="syllabus-chapters"
+            ></div>
+
+          </section>
+
+        </section>
+
+      </div>
+
+    </main>
+
+  </div>
+
+
+  <!-- EXISTING DASHBOARD SCRIPTS -->
+
+  <script src="../../js/main.js" defer></script>
+
+  <script src="../../js/navigation.js" defer></script>
+
+  <script src="../../js/teacher-sidebar.js" defer></script>
+
+  <script
+    type="module"
+    src="../../js/teacher-syllabus.js"
+  ></script>
+
+  <script
+    type="module"
+    src="../../js/account-menu.js"
+  ></script>
+
+</body>
+</html>

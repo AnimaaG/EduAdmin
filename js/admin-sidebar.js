@@ -10,7 +10,6 @@
     ? document.currentScript.src
     : new URL("./admin-sidebar.js", window.location.href).href;
 
-  let stopBadgeListener = null;
 
   function initAdminSidebar() {
     const mount = document.getElementById("admin-sidebar-mount");
@@ -49,23 +48,6 @@
             <span>Dashboard</span>
           </a>
 
-          <a
-            href="notifications.html"
-            class="sidebar-link"
-            data-nav-path="notifications.html"
-            id="admin-notifications-nav"
-          >
-            <span class="nav-icon" aria-hidden="true">!</span>
-            <span class="notification-nav-label">Notifications</span>
-            <span
-              id="admin-notification-dot"
-              class="admin-notification-dot"
-              aria-label="Unread notifications"
-              title="Unread notifications"
-              hidden
-            ></span>
-          </a>
-
           <a href="classes.html" data-nav-path="classes.html">
             <span class="nav-icon" aria-hidden="true">▤</span>
             <span>Classes</span>
@@ -84,6 +66,11 @@
           <a href="attendance.html" data-nav-path="attendance.html">
             <span class="nav-icon" aria-hidden="true">✓</span>
             <span>Attendance</span>
+          </a>
+
+          <a href="syllabus.html" data-nav-path="syllabus.html">
+            <span class="nav-icon" aria-hidden="true">▤</span>
+            <span>Syllabus</span>
           </a>
 
           <a href="materials.html" data-nav-path="materials.html">
@@ -203,183 +190,7 @@
       window.EduNavigation.setActiveLink();
     }
 
-    setupLiveNotificationBadge();
   }
-
-function setupLiveNotificationBadge() {
-  const dot = document.getElementById(
-    "admin-notification-dot"
-  );
-
-  if (!dot) return;
-
-  if (
-    !document.getElementById(
-      "admin-notification-badge-styles"
-    )
-  ) {
-    const style = document.createElement("style");
-
-    style.id = "admin-notification-badge-styles";
-
-    style.textContent = `
-      #admin-notifications-nav {
-        position: relative;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-
-      #admin-notifications-nav .notification-nav-label {
-        flex: 1;
-      }
-
-      .admin-notification-dot {
-        display: inline-block;
-        flex: 0 0 9px;
-        width: 9px;
-        height: 9px;
-        margin-left: auto;
-        border-radius: 50%;
-        background: #e11d48;
-        box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.13);
-      }
-
-      .admin-notification-dot[hidden] {
-        display: none !important;
-      }
-    `;
-
-    document.head.appendChild(style);
-  }
-
-  const configUrl = new URL(
-    "./firebase-config.js",
-    scriptUrl
-  );
-
-  import(configUrl.href)
-    .then(async (config) => {
-      if (!config.db || !config.auth) {
-        throw new Error(
-          "firebase-config.js must export db and auth."
-        );
-      }
-
-      const authModule = await import(
-        "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js"
-      );
-
-      const firestore = await import(
-        "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js"
-      );
-
-      const { onAuthStateChanged } = authModule;
-
-      const {
-        doc,
-        getDoc,
-        collection,
-        query,
-        where,
-        onSnapshot
-      } = firestore;
-
-      const user = await new Promise((resolve, reject) => {
-        const unsubscribe = onAuthStateChanged(
-          config.auth,
-          (currentUser) => {
-            unsubscribe();
-            resolve(currentUser);
-          },
-          reject
-        );
-      });
-
-      if (!user) {
-        throw new Error("No authenticated user.");
-      }
-
-      const profileSnapshot = await getDoc(
-        doc(config.db, "users", user.uid)
-      );
-
-      if (!profileSnapshot.exists()) {
-        throw new Error("User profile not found.");
-      }
-
-      const profile = profileSnapshot.data();
-
-      if (
-        profile.role !== "admin" ||
-        profile.isActive !== true ||
-        !profile.academyId
-      ) {
-        throw new Error(
-          "An active academy admin account is required."
-        );
-      }
-
-      const unreadQuery = query(
-        collection(config.db, "notifications"),
-        where("academyId", "==", profile.academyId),
-        where("recipientRole", "==", "admin")
-      );
-
-      stopBadgeListener = onSnapshot(
-        unreadQuery,
-        (snapshot) => {
-          let unread = 0;
-
-          snapshot.forEach((notification) => {
-            const data = notification.data();
-
-            if (
-              data.read !== true &&
-              data.isRead !== true
-            ) {
-              unread++;
-            }
-          });
-
-          dot.hidden = unread === 0;
-
-          dot.title = unread
-            ? `${unread} unread notification${
-                unread === 1 ? "" : "s"
-              }`
-            : "No unread notifications";
-
-          dot.setAttribute(
-            "aria-hidden",
-            unread === 0 ? "true" : "false"
-          );
-        },
-        (error) => {
-          dot.hidden = true;
-
-          console.error(
-            "EduAdmin: Notification badge listener failed.",
-            error
-          );
-        }
-      );
-    })
-    .catch((error) => {
-      dot.hidden = true;
-
-      console.error(
-        "EduAdmin: Could not connect the notification badge.",
-        error
-      );
-    });
-}
-
-  window.addEventListener("beforeunload", () => {
-    if (typeof stopBadgeListener === "function") {
-      stopBadgeListener();
-    }
-  });
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initAdminSidebar, {

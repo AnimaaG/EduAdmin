@@ -1,0 +1,379 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Teacher announcements - EduAdmin">
+  <meta name="theme-color" content="#f5f7fb">
+
+  <title>Teacher Announcements | EduAdmin</title>
+
+  <link rel="stylesheet" href="../../css/app.css">
+
+  <script src="../../js/main.js" defer></script>
+  <script src="../../js/navigation.js" defer></script>
+  <script src="../../js/teacher-sidebar.js" defer></script>
+  <script type="module" src="../../js/account-menu.js"></script>
+  <script type="module" src="../../js/teacher-announcements.js"></script>
+
+  <style>
+    .dashboard-content {
+      padding: 26px 30px 40px;
+      background: #f5f7fc;
+    }
+
+    .announcement-section {
+      padding: 24px;
+      margin-bottom: 24px;
+      background: #fff;
+      border: 1px solid #e5eaf3;
+      border-radius: 16px;
+      box-shadow: 0 3px 10px rgba(25, 40, 80, .035);
+    }
+
+    .announcement-heading {
+      margin-bottom: 22px;
+    }
+
+    .announcement-heading h2 {
+      margin: 0 0 6px;
+      color: #172554;
+      font-size: 19px;
+      font-weight: 800;
+    }
+
+    .announcement-heading p {
+      margin: 0;
+      color: #78859e;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    #announcement-form {
+      display: grid;
+      gap: 18px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .form-group label {
+      color: #334155;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 12px 14px;
+      border: 1px solid #dce3ef;
+      border-radius: 9px;
+      background: #fff;
+      color: #1e293b;
+      font: inherit;
+      font-size: 14px;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+      border-color: #5548ec;
+      box-shadow: 0 0 0 3px rgba(85, 72, 236, .1);
+    }
+
+    .form-group textarea {
+      min-height: 130px;
+      resize: vertical;
+      line-height: 1.6;
+    }
+
+    #class-fields {
+      padding: 18px;
+      border: 1px solid #e5eaf3;
+      border-radius: 12px;
+      background: #f8f9fd;
+    }
+
+    #class-fields[hidden],
+    #announcement-message[hidden] {
+      display: none;
+    }
+
+    #publish-announcement {
+      justify-self: start;
+      padding: 12px 22px;
+      border: 0;
+      border-radius: 9px;
+      background: #5145d5;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .2s, transform .2s;
+    }
+
+    #publish-announcement:hover {
+      background: #3931b5;
+      transform: translateY(-1px);
+    }
+
+    #publish-announcement:disabled {
+      opacity: .6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    #announcement-message {
+      padding: 12px 15px;
+      margin: 0 0 18px;
+      border-radius: 9px;
+      font-size: 13px;
+    }
+
+    #my-announcements {
+      display: grid;
+      gap: 14px;
+    }
+
+    .announcement-card {
+      padding: 19px;
+      border: 1px solid #e5eaf3;
+      border-left: 4px solid #5548ec;
+      border-radius: 11px;
+      background: #fff;
+    }
+
+    .announcement-card h3 {
+      margin: 0 0 10px;
+      color: #172554;
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .announcement-card p {
+      margin: 7px 0;
+      color: #64748b;
+      font-size: 13px;
+      line-height: 1.6;
+      overflow-wrap: anywhere;
+    }
+
+    .announcement-card p strong {
+      color: #334155;
+    }
+
+    @media (max-width: 600px) {
+      .dashboard-content {
+        padding: 18px 14px 30px;
+      }
+
+      .announcement-section {
+        padding: 18px;
+      }
+
+      #publish-announcement {
+        width: 100%;
+      }
+    }
+    .announcement-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.announcement-actions button,
+#cancel-edit {
+  padding: 9px 16px;
+  border: 0;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.edit-announcement {
+  background: #e8eaff;
+  color: #4338ca;
+}
+
+.delete-announcement {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+#cancel-edit {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+#cancel-edit[hidden] {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  .announcement-actions {
+    flex-wrap: wrap;
+  }
+}
+  </style>
+</head>
+
+<body>
+
+  <div class="dashboard-layout">
+
+    <!-- EXISTING TEACHER SIDEBAR -->
+    <div id="teacher-sidebar-mount"></div>
+
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <main class="dashboard-main">
+
+      <!-- TOPBAR -->
+      <header class="dashboard-topbar">
+
+        <div class="topbar-left">
+
+          <button
+            type="button"
+            class="sidebar-toggle"
+            id="sidebar-toggle"
+            aria-label="Open navigation menu"
+            aria-controls="teacher-sidebar"
+            aria-expanded="false"
+          >☰</button>
+
+          <div>
+            <h1>Announcements</h1>
+            <p>Share important updates with your students.</p>
+          </div>
+
+        </div>
+
+      </header>
+
+      <div class="dashboard-content">
+
+        <!-- CREATE ANNOUNCEMENT -->
+        <section class="announcement-section">
+
+          <div class="announcement-heading">
+            <h2>Create Announcement</h2>
+            <p>
+              Share updates with a specific class or all academy students.
+            </p>
+          </div>
+
+          <p id="announcement-message" role="status" hidden></p>
+
+          <form id="announcement-form">
+
+            <div class="form-group">
+              <label for="announcement-title">
+                Announcement title *
+              </label>
+
+              <input
+                id="announcement-title"
+                maxlength="120"
+                required
+                placeholder="Enter announcement title"
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="announcement-message-text">
+                Announcement *
+              </label>
+
+              <textarea
+                id="announcement-message-text"
+                rows="5"
+                maxlength="2000"
+                required
+                placeholder="Write your announcement"
+              ></textarea>
+            </div>
+
+            <div class="form-group">
+              <label for="announcement-date">
+                Announcement date *
+              </label>
+
+              <input
+                id="announcement-date"
+                type="date"
+                required
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="announcement-target">
+                Send announcement to *
+              </label>
+
+              <select id="announcement-target" required>
+                <option value="academy">All Students</option>
+                <option value="class">Specific Class / Subject</option>
+              </select>
+            </div>
+
+            <div id="class-fields" hidden>
+
+              <div class="form-group">
+                <label for="announcement-class">
+                  Select Class / Subject *
+                </label>
+
+                <select id="announcement-class">
+                  <option value="">Loading your classes...</option>
+                </select>
+              </div>
+
+            </div>
+
+            <button id="publish-announcement" type="submit">
+              Publish Announcement
+            </button>
+
+            <button id="cancel-edit" type="button" hidden>
+            Cancel Edit
+          </button>
+
+          </form>
+
+        </section>
+
+        <!-- MY ANNOUNCEMENTS -->
+        <section class="announcement-section">
+
+          <div class="announcement-heading">
+            <h2>My Announcements</h2>
+            <p>
+              View announcements published from your teacher account.
+            </p>
+          </div>
+
+          <div id="my-announcements">
+            <p>Loading announcements...</p>
+          </div>
+
+        </section>
+
+      </div>
+
+    </main>
+
+  </div>
+
+</body>
+</html>

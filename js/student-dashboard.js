@@ -1,3 +1,4 @@
+
 import { auth, db } from "./firebase-config.js";
 
 import {
@@ -5,11 +6,9 @@ import {
   doc,
   getDoc,
   getDocs,
-  onSnapshot,
   query,
-  serverTimestamp,
-  updateDoc,
-  where
+  where,
+  onSnapshot
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 
 import {
@@ -37,18 +36,15 @@ if (!dashboard) {
   const overviewDescription = $("#student-overview-description");
   const dashboardMessage = $("#student-dashboard-message");
 
-  const notificationList = $("#student-notifications-list");
-  const notificationCount = $("#student-unread-count");
-  const notificationSubtitle = $("#student-notifications-subtitle");
-  const notificationMessage = $("#student-notification-message");
+  // Announcement elements
+  const announcementList = $("#student-announcements-list");
+  const announcementCount = $("#student-announcement-count");
+  const announcementSubtitle = $("#student-announcements-subtitle");
+  const announcementMessage = $("#student-announcements-message");
 
   let currentUser = null;
   let currentProfile = null;
-  let stopNotifications = null;
-  let notificationDocuments = [];
-  const busyNotificationIds = new Set();
-  
-
+  let announcementUnsubscribers = [];
   function setCard(index, value, description) {
     if (cards[index]) {
       cards[index].textContent = String(value);
@@ -65,17 +61,18 @@ if (!dashboard) {
     dashboardMessage.textContent = message;
     dashboardMessage.className = `form-message ${type}`;
     dashboardMessage.hidden = !message;
+
     dashboardMessage.setAttribute(
       "role",
       type === "error" ? "alert" : "status"
     );
   }
 
-  function showNotificationMessage(message) {
-    if (!notificationMessage) return;
+  function showAnnouncementMessage(message) {
+    if (!announcementMessage) return;
 
-    notificationMessage.textContent = message;
-    notificationMessage.hidden = !message;
+    announcementMessage.textContent = message;
+    announcementMessage.hidden = !message;
   }
 
   function localDateString(date = new Date()) {
@@ -87,12 +84,14 @@ if (!dashboard) {
   }
 
   function studentName(profile, user) {
-    return profile.fullName ||
+    return (
+      profile.fullName ||
       profile.name ||
       profile.displayName ||
       user.displayName ||
       user.email ||
-      "Student";
+      "Student"
+    );
   }
 
   function updateHeaderName(name) {
@@ -103,87 +102,23 @@ if (!dashboard) {
     });
   }
 
-  function notificationIsRead(item) {
-    return item.read === true || item.isRead === true;
-  }
+  function makeElement(tag, className, text) {
+    const element = document.createElement(tag);
 
-  function notificationType(item) {
-    const rawType = String(
-      item.type || item.category || item.eventType || "general"
-    ).toLowerCase();
-
-    if (
-      rawType.includes("fee") ||
-      rawType.includes("payment")
-    ) {
-      return "payment";
+    if (className) {
+      element.className = className;
     }
 
-    if (
-      rawType.includes("schedule") ||
-      rawType.includes("class")
-    ) {
-      return "class";
+    if (text !== undefined) {
+      element.textContent = text;
     }
 
-    if (
-      rawType.includes("material") ||
-      rawType.includes("study")
-    ) {
-      return "material";
-    }
-
-    if (rawType.includes("attendance")) {
-      return "attendance";
-    }
-
-    return "general";
+    return element;
   }
 
-  function notificationTypeLabel(item) {
-    const type = notificationType(item);
-
-    const labels = {
-      payment: "Fees & payments",
-      class: "Classes & schedules",
-      material: "Study materials",
-      attendance: "Attendance",
-      general: "General update"
-    };
-
-    return labels[type];
-  }
-
-  function notificationIcon(item) {
-    const type = notificationType(item);
-
-    const icons = {
-      payment: "₹",
-      class: "▦",
-      material: "▤",
-      attendance: "✓",
-      general: "i"
-    };
-
-    return icons[type];
-  }
-
-  function notificationTitle(item) {
-    return item.title ||
-      item.heading ||
-      item.subject ||
-      "Learning update";
-  }
-
-  function notificationBody(item) {
-    return item.message ||
-      item.description ||
-      item.body ||
-      "There is an update to review.";
-  }
-
-  function notificationDate(item) {
+  function announcementDate(item) {
     const value =
+      item.announcementDate ||
       item.createdAt ||
       item.timestamp ||
       item.date ||
@@ -208,8 +143,8 @@ if (!dashboard) {
     return null;
   }
 
-  function formatNotificationDate(item) {
-    const date = notificationDate(item);
+  function formatAnnouncementDate(item) {
+    const date = announcementDate(item);
 
     if (!date) return "Date unavailable";
 
@@ -222,76 +157,38 @@ if (!dashboard) {
     }).format(date);
   }
 
-  function makeElement(tag, className, text) {
-    const element = document.createElement(tag);
-
-    if (className) {
-      element.className = className;
-    }
-
-    if (text !== undefined) {
-      element.textContent = text;
-    }
-
-    return element;
+  function announcementTitle(item) {
+    return (
+      item.title ||
+      item.subject ||
+      item.heading ||
+      "Announcement"
+    );
   }
 
-  /*
-   * Supports notifications addressed directly to this student:
-   * recipientId, studentId, userId or recipientUid.
-   *
-   * Also supports academy-wide student announcements with
-   * recipientRole: "student" and no individual recipient ID.
-   */
-  function belongsToCurrentStudent(item) {
-    if (!currentUser || !currentProfile) return false;
-
-    const uid = currentUser.uid;
-    const email = String(currentUser.email || "").toLowerCase();
-
-    const recipientIds = [
-      item.recipientId,
-      item.studentId,
-      item.userId,
-      item.recipientUid,
-      item.uid
-    ]
-      .filter(value => value !== undefined && value !== null)
-      .map(String);
-
-    const recipientEmails = [
-      item.recipientEmail,
-      item.studentEmail,
-      item.email
-    ]
-      .filter(Boolean)
-      .map(value => String(value).toLowerCase());
-
-    const isDirectRecipient =
-      recipientIds.includes(uid) ||
-      (email && recipientEmails.includes(email));
-
-    if (isDirectRecipient) return true;
-
-    const hasIndividualRecipient =
-      recipientIds.length > 0 ||
-      recipientEmails.length > 0;
-
-    const recipientRole = String(
-      item.recipientRole || item.targetRole || ""
-    ).toLowerCase();
-
-    const isStudentBroadcast =
-      recipientRole === "student" &&
-      !hasIndividualRecipient;
-
-    return isStudentBroadcast;
+  function announcementBody(item) {
+    return (
+      item.message ||
+      item.description ||
+      item.body ||
+      "No announcement details provided."
+    );
   }
 
-  function renderNotificationEmpty(title, description) {
-    if (!notificationList) return;
+  function announcementTarget(item) {
+    if (item.targetType === "class") {
+      return item.className
+        ? `Class: ${item.className}`
+        : "Class announcement";
+    }
 
-    notificationList.replaceChildren();
+    return "Academy-wide announcement";
+  }
+
+  function renderAnnouncementEmpty(title, description) {
+    if (!announcementList) return;
+
+    announcementList.replaceChildren();
 
     const empty = makeElement(
       "div",
@@ -301,7 +198,7 @@ if (!dashboard) {
     const icon = makeElement(
       "div",
       "student-notification-empty-icon",
-      "✓"
+      "i"
     );
 
     icon.setAttribute("aria-hidden", "true");
@@ -310,281 +207,282 @@ if (!dashboard) {
     const paragraph = makeElement("p", "", description);
 
     empty.append(icon, heading, paragraph);
-    notificationList.appendChild(empty);
+    announcementList.appendChild(empty);
   }
 
-  function renderNotifications() {
-    if (!notificationList) return;
+function renderAnnouncements(announcements) {
+  if (!announcementList) return;
 
-    const unread = notificationDocuments
-      .filter(item =>
-        belongsToCurrentStudent(item) &&
-        !notificationIsRead(item)
-      )
-      .sort((a, b) => {
-        const dateA = notificationDate(a)?.getTime() || 0;
-        const dateB = notificationDate(b)?.getTime() || 0;
+  const sorted = [...announcements]
+    .sort((a, b) => {
+      const dateA = announcementDate(a)?.getTime() || 0;
+      const dateB = announcementDate(b)?.getTime() || 0;
 
-        return dateB - dateA;
-      });
+      return dateB - dateA;
+    })
+    .slice(0, 5); // Show only the latest 5
 
-    if (notificationCount) {
-      notificationCount.textContent = String(unread.length);
-      notificationCount.setAttribute(
-        "aria-label",
-        `${unread.length} unread notifications`
-      );
-    }
-
-    if (notificationSubtitle) {
-      notificationSubtitle.textContent = unread.length
-        ? `You have ${unread.length} unread notification${unread.length === 1 ? "" : "s"}.`
-        : "You're all caught up with your learning updates.";
-    }
-
-    notificationList.setAttribute("aria-busy", "false");
-    notificationList.replaceChildren();
-
-    if (!unread.length) {
-      renderNotificationEmpty(
-        "No notifications",
-        "You have no pending notifications right now."
-      );
-      return;
-    }
-
-    // No slice/limit: show every unread notification.
-    unread.forEach(item => {
-      const row = makeElement(
-        "article",
-        "student-notification-item is-unread"
-      );
-
-      const icon = makeElement(
-        "div",
-        "student-notification-symbol",
-        notificationIcon(item)
-      );
-
-      icon.setAttribute("aria-hidden", "true");
-
-      const copy = makeElement(
-        "div",
-        "student-notification-copy"
-      );
-
-      const title = makeElement(
-        "strong",
-        "",
-        notificationTitle(item)
-      );
-
-      const body = makeElement(
-        "p",
-        "",
-        notificationBody(item)
-      );
-
-      const meta = makeElement(
-        "div",
-        "student-notification-meta"
-      );
-
-      const category = makeElement(
-        "span",
-        "student-notification-category",
-        notificationTypeLabel(item)
-      );
-
-      const date = makeElement(
-        "span",
-        "",
-        formatNotificationDate(item)
-      );
-
-      meta.append(category, date);
-      copy.append(title, body, meta);
-
-      const actions = makeElement(
-        "div",
-        "student-notification-actions"
-      );
-
-      const readButton = makeElement(
-        "button",
-        "student-notification-read",
-        busyNotificationIds.has(item.id)
-          ? "Marking…"
-          : "Mark as read"
-      );
-
-      readButton.type = "button";
-      readButton.disabled = busyNotificationIds.has(item.id);
-      readButton.addEventListener("click", () => {
-        markNotificationRead(item);
-      });
-
-      actions.appendChild(readButton);
-      row.append(icon, copy, actions);
-      notificationList.appendChild(row);
-    });
-  }
-
-  async function markNotificationRead(item) {
-    if (!item?.id || busyNotificationIds.has(item.id)) return;
-
-    busyNotificationIds.add(item.id);
-    showNotificationMessage("");
-    renderNotifications();
-
-    try {
-      await updateDoc(
-        doc(db, "notifications", item.id),
-        {
-          read: true,
-          isRead: true,
-          readAt: serverTimestamp()
-        }
-      );
-
-      /*
-       * The Firestore listener will refresh the list.
-       * The local update below makes the interface responsive
-       * while the listener processes the server change.
-       */
-      notificationDocuments = notificationDocuments.map(existing =>
-        existing.id === item.id
-          ? { ...existing, read: true, isRead: true }
-          : existing
-      );
-
-      showNotificationMessage("");
-    } catch (error) {
-      console.error(
-        "Could not mark student notification as read:",
-        error
-      );
-
-      showNotificationMessage(
-        error.code === "permission-denied"
-          ? "You do not have permission to update this notification. Check the Firestore rules for student notifications."
-          : "Could not mark this notification as read. Please try again."
-      );
-    } finally {
-      busyNotificationIds.delete(item.id);
-      renderNotifications();
-    }
-  }
-
-function startNotificationListener(academyId) {
-  if (typeof stopNotifications === "function") {
-    stopNotifications();
-    stopNotifications = null;
-  }
-
-  if (!currentUser || !academyId) {
-    showNotificationMessage("Student or academy information is missing.");
-    return;
-  }
-
-  if (notificationList) {
-    notificationList.setAttribute("aria-busy", "true");
-    renderNotificationEmpty(
-      "Loading notifications…",
-      "Please wait while we check for updates."
+  if (announcementCount) {
+    announcementCount.textContent = String(sorted.length);
+    announcementCount.setAttribute(
+      "aria-label",
+      `${sorted.length} latest announcements`
     );
   }
 
-  let studentNotifications = [];
-  let academyAnnouncements = [];
-
-  const studentQuery = query(
-    collection(db, "notifications"),
-    where("academyId", "==", academyId),
-    where("studentId", "==", currentUser.uid)
-  );
-
-  /*
-   * Academy-wide announcements must explicitly use:
-   * targetType: "academy"
-   * recipientRole: "student"
-   *
-   * This avoids treating another student's individual notification
-   * as a notification for every student in the academy.
-   */
-  const announcementQuery = query(
-    collection(db, "notifications"),
-    where("academyId", "==", academyId),
-    where("recipientRole", "==", "student"),
-    where("targetType", "==", "academy")
-  );
-
-  function mergeNotifications() {
-    const unique = new Map();
-
-    [...studentNotifications, ...academyAnnouncements].forEach(item => {
-      unique.set(item.id, item);
-    });
-
-    notificationDocuments = [...unique.values()];
-    renderNotifications();
-
-    if (notificationList) {
-      notificationList.setAttribute("aria-busy", "false");
-    }
+  if (announcementSubtitle) {
+    announcementSubtitle.textContent = sorted.length
+      ? `Showing the latest ${sorted.length} announcement${sorted.length === 1 ? "" : "s"}.`
+      : "There are no announcements right now.";
   }
 
-  const unsubscribeStudent = onSnapshot(
-    studentQuery,
-    snapshot => {
-      studentNotifications = snapshot.docs.map(document => ({
-        id: document.id,
-        ...document.data()
-      }));
+  announcementList.setAttribute("aria-busy", "false");
+  announcementList.replaceChildren();
 
-      showNotificationMessage("");
-      mergeNotifications();
-    },
-    error => {
-      console.error("Student-specific notifications failed:", error);
+  if (!sorted.length) {
+    renderAnnouncementEmpty(
+      "No announcements",
+      "New academy announcements will appear here."
+    );
+    return;
+  }
 
-      studentNotifications = [];
-      mergeNotifications();
+  sorted.forEach(item => {
+    const row = makeElement(
+      "article",
+      "student-notification-item"
+    );
 
-      showNotificationMessage(
-        "Could not load your individual notifications. Check Firestore rules and indexes."
-      );
-    }
+    const icon = makeElement(
+      "div",
+      "student-notification-symbol",
+      "i"
+    );
+
+    icon.setAttribute("aria-hidden", "true");
+
+    const copy = makeElement(
+      "div",
+      "student-notification-copy"
+    );
+
+    const title = makeElement(
+      "strong",
+      "",
+      announcementTitle(item)
+    );
+
+    const body = makeElement(
+      "p",
+      "",
+      announcementBody(item)
+    );
+
+    const meta = makeElement(
+      "div",
+      "student-notification-meta"
+    );
+
+    const target = makeElement(
+      "span",
+      "student-notification-category",
+      announcementTarget(item)
+    );
+
+    const date = makeElement(
+      "span",
+      "",
+      formatAnnouncementDate(item)
+    );
+
+    meta.append(target, date);
+    copy.append(title, body, meta);
+
+    row.append(icon, copy);
+    announcementList.appendChild(row);
+  });
+}
+
+async function loadStudentAnnouncements(academyId) {
+  if (!currentUser || !academyId || !announcementList) {
+    showAnnouncementMessage(
+      "Student or academy information is missing."
+    );
+    return;
+  }
+
+  // Stop previous live listeners.
+  announcementUnsubscribers.forEach(unsubscribe => unsubscribe());
+  announcementUnsubscribers = [];
+
+  announcementList.setAttribute("aria-busy", "true");
+
+  renderAnnouncementEmpty(
+    "Loading announcements…",
+    "Please wait while announcements are loaded."
   );
 
-  const unsubscribeAnnouncements = onSnapshot(
-    announcementQuery,
-    snapshot => {
-      academyAnnouncements = snapshot.docs.map(document => ({
-        id: document.id,
-        ...document.data()
-      }));
+  const notificationsRef = collection(db, "notifications");
+  const announcementsMap = new Map();
 
-      showNotificationMessage("");
-      mergeNotifications();
-    },
-    error => {
-      console.error("Academy announcements failed:", error);
+  function refreshAnnouncements() {
+    const announcements = [...announcementsMap.values()];
+    renderAnnouncements(announcements);
+    showAnnouncementMessage("");
+  }
 
-      academyAnnouncements = [];
-      mergeNotifications();
+  function handleListenerError(error) {
+    console.error("Announcement listener error:", error);
 
-      showNotificationMessage(
-        "Could not load academy announcements. Check Firestore rules and indexes."
+    showAnnouncementMessage(
+      error.code === "permission-denied"
+        ? "Access denied. Check your Firestore announcement rules."
+        : "Could not update announcements. Please try again."
+    );
+
+    announcementList.setAttribute("aria-busy", "false");
+  }
+
+  try {
+    // 1. Academy-wide announcements.
+    const academyQuery = query(
+      notificationsRef,
+      where("academyId", "==", academyId),
+      where("recipientRole", "==", "student"),
+      where("type", "==", "announcement"),
+      where("targetType", "==", "academy")
+    );
+
+    const academyUnsubscribe = onSnapshot(
+      academyQuery,
+      snapshot => {
+        snapshot.docChanges().forEach(change => {
+          if (change.type === "removed") {
+            announcementsMap.delete(change.doc.id);
+          } else {
+            announcementsMap.set(change.doc.id, {
+              id: change.doc.id,
+              ...change.doc.data()
+            });
+          }
+        });
+
+        refreshAnnouncements();
+        announcementList.setAttribute("aria-busy", "false");
+      },
+      handleListenerError
+    );
+
+    announcementUnsubscribers.push(academyUnsubscribe);
+
+    // 2. Individual announcements for this student.
+    const directQuery = query(
+      notificationsRef,
+      where("academyId", "==", academyId),
+      where("studentId", "==", currentUser.uid)
+    );
+
+    const directUnsubscribe = onSnapshot(
+      directQuery,
+      snapshot => {
+        snapshot.docChanges().forEach(change => {
+          if (change.type === "removed") {
+            announcementsMap.delete(change.doc.id);
+            return;
+          }
+
+          const data = change.doc.data();
+
+          if (data.type === "announcement") {
+            announcementsMap.set(change.doc.id, {
+              id: change.doc.id,
+              ...data
+            });
+          }
+        });
+
+        refreshAnnouncements();
+        announcementList.setAttribute("aria-busy", "false");
+      },
+      handleListenerError
+    );
+
+    announcementUnsubscribers.push(directUnsubscribe);
+
+    // 3. Find classes in this academy where this student is enrolled.
+    const classesQuery = query(
+      collection(db, "classes"),
+      where("academyId", "==", academyId)
+    );
+
+    const classesSnapshot = await getDocs(classesQuery);
+
+    const enrolledClasses = classesSnapshot.docs
+      .map(classDoc => ({
+        id: classDoc.id,
+        ...classDoc.data()
+      }))
+      .filter(classData =>
+        classData.status === "active" &&
+        Array.isArray(classData.studentIds) &&
+        classData.studentIds.includes(currentUser.uid)
       );
-    }
-  );
 
-  stopNotifications = () => {
-    unsubscribeStudent();
-    unsubscribeAnnouncements();
-  };
-} 
+    // 4. Listen to each enrolled class's announcements.
+    enrolledClasses.forEach(classData => {
+      const classAnnouncementQuery = query(
+        notificationsRef,
+        where("academyId", "==", academyId),
+        where("recipientRole", "==", "student"),
+        where("type", "==", "announcement"),
+        where("targetType", "==", "class"),
+        where("classId", "==", classData.id)
+      );
+
+      const unsubscribe = onSnapshot(
+        classAnnouncementQuery,
+        snapshot => {
+          snapshot.docChanges().forEach(change => {
+            if (change.type === "removed") {
+              announcementsMap.delete(change.doc.id);
+            } else {
+              announcementsMap.set(change.doc.id, {
+                id: change.doc.id,
+                ...change.doc.data()
+              });
+            }
+          });
+
+          refreshAnnouncements();
+          announcementList.setAttribute("aria-busy", "false");
+        },
+        handleListenerError
+      );
+
+      announcementUnsubscribers.push(unsubscribe);
+    });
+
+    // Render an empty state if there are no announcements.
+    refreshAnnouncements();
+    announcementList.setAttribute("aria-busy", "false");
+
+  } catch (error) {
+    console.error("Could not load student announcements:", error);
+
+    announcementList.setAttribute("aria-busy", "false");
+
+    renderAnnouncementEmpty(
+      "Announcements unavailable",
+      "Please try again later."
+    );
+
+    showAnnouncementMessage(
+      error.code === "permission-denied"
+        ? "Firestore denied access. Check your student announcement rules."
+        : "Could not load announcements."
+    );
+  }
+}
 
   async function loadStudentDashboard(user) {
     showDashboardMessage("Loading your student account…");
@@ -623,9 +521,10 @@ function startNotificationListener(academyId) {
           `Welcome, ${name}. Here is your current learning overview.`;
       }
 
-      startNotificationListener(academyId);
+      // Load announcements
+      await loadStudentAnnouncements(academyId);
 
-      // Classes and their sessions are stored together by the admin portal.
+      // Load active academy classes
       const classesSnapshot = await getDocs(
         query(
           collection(db, "classes"),
@@ -678,8 +577,6 @@ function startNotificationListener(academyId) {
         "Upcoming scheduled sessions"
       );
 
-      // Study material count remains unconnected until its schema
-      // and student access rules are confirmed.
       setCard(
         2,
         "—",
@@ -692,6 +589,7 @@ function startNotificationListener(academyId) {
         "Loading attendance records…"
       );
 
+      // Load attendance
       try {
         const attendanceSnapshot = await getDocs(
           query(
@@ -728,6 +626,7 @@ function startNotificationListener(academyId) {
             ? `${present} present/late out of ${marked.length} marked sessions`
             : "No marked attendance records yet"
         );
+
       } catch (error) {
         console.error(
           "Student attendance overview could not be loaded:",
@@ -747,6 +646,7 @@ function startNotificationListener(academyId) {
         `Signed in as ${name}. Your academy account is connected.`,
         "success"
       );
+
     } catch (error) {
       console.error(
         "Student dashboard load failed:",
@@ -764,20 +664,10 @@ function startNotificationListener(academyId) {
 
   onAuthStateChanged(auth, user => {
     if (!user) {
-      if (typeof stopNotifications === "function") {
-        stopNotifications();
-      }
-
       window.location.href = "../login.html";
       return;
     }
 
     loadStudentDashboard(user);
-  });
-
-  window.addEventListener("beforeunload", () => {
-    if (typeof stopNotifications === "function") {
-      stopNotifications();
-    }
   });
 }

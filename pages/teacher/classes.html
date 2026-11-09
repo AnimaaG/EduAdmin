@@ -1,0 +1,493 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Classes | EduAdmin</title>
+
+  <link rel="stylesheet" href="../../css/app.css">
+
+  <style>
+    .my-classes-page,
+    .my-classes-page * {
+      box-sizing: border-box;
+    }
+
+    .my-classes-page {
+      width: 100%;
+      min-width: 0;
+      padding: 26px 30px;
+      background: #f4f6fc;
+    }
+
+    .classes-page-heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .classes-page-heading h2 {
+      margin: 0 0 6px;
+      color: #172033;
+      font-size: 23px;
+    }
+
+    .classes-page-heading p {
+      margin: 0;
+      color: #64748b;
+      font-size: 13px;
+    }
+
+    .classes-summary {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .summary-card {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 19px;
+      background: #fff;
+      border: 1px solid #e5eaf2;
+      border-radius: 13px;
+      box-shadow: 0 3px 12px rgba(30, 41, 59, .035);
+    }
+
+    .summary-icon {
+      display: grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      flex: 0 0 44px;
+      border-radius: 12px;
+      background: #eef2ff;
+      color: #4f46e5;
+      font-size: 20px;
+      font-weight: 800;
+    }
+
+    .summary-card:nth-child(2) .summary-icon {
+      background: #dcfce7;
+      color: #15803d;
+    }
+
+    .summary-card:nth-child(3) .summary-icon {
+      background: #fff7ed;
+      color: #c2410c;
+    }
+
+    .summary-card strong {
+      display: block;
+      color: #172033;
+      font-size: 22px;
+      line-height: 1.2;
+    }
+
+    .summary-card span {
+      display: block;
+      margin-top: 4px;
+      color: #64748b;
+      font-size: 12px;
+    }
+
+    .classes-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .classes-search {
+      width: min(100%, 340px);
+      padding: 11px 14px;
+      border: 1px solid #dbe2ed;
+      border-radius: 9px;
+      background: #fff;
+      color: #334155;
+      font-size: 13px;
+      outline: none;
+    }
+
+    .classes-search:focus {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, .1);
+    }
+
+    .classes-filter {
+      min-width: 145px;
+      padding: 11px 13px;
+      border: 1px solid #dbe2ed;
+      border-radius: 9px;
+      background: #fff;
+      color: #334155;
+      font-size: 13px;
+    }
+
+    .classes-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px;
+    }
+
+    .class-card {
+      min-width: 0;
+      padding: 22px;
+      background: #fff;
+      border: 1px solid #e5eaf2;
+      border-radius: 15px;
+      box-shadow: 0 4px 16px rgba(30, 41, 59, .04);
+      transition: transform .18s ease, box-shadow .18s ease;
+    }
+
+    .class-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 9px 22px rgba(30, 41, 59, .08);
+    }
+
+    .class-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 17px;
+    }
+
+    .class-card-icon {
+      display: grid;
+      place-items: center;
+      width: 48px;
+      height: 48px;
+      flex: 0 0 48px;
+      border-radius: 13px;
+      background: linear-gradient(135deg, #4f46e5, #7667f5);
+      color: white;
+      font-size: 19px;
+      font-weight: 800;
+    }
+
+    .class-status {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: 20px;
+      background: #dcfce7;
+      color: #166534;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: capitalize;
+    }
+
+    .class-status.inactive {
+      background: #f1f5f9;
+      color: #64748b;
+    }
+
+    .class-card h3 {
+      margin: 0 0 6px;
+      color: #172033;
+      font-size: 19px;
+    }
+
+    .class-subject {
+      margin: 0;
+      color: #4f46e5;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .class-description {
+      min-height: 40px;
+      margin: 15px 0 18px;
+      color: #64748b;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .class-info-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 11px;
+      margin-bottom: 18px;
+    }
+
+    .class-info-item {
+      padding: 12px;
+      border: 1px solid #edf0f5;
+      border-radius: 10px;
+      background: #f8fafc;
+      min-width: 0;
+    }
+
+    .class-info-item span {
+      display: block;
+      margin-bottom: 5px;
+      color: #64748b;
+      font-size: 11px;
+    }
+
+    .class-info-item strong {
+      display: block;
+      color: #334155;
+      font-size: 13px;
+      overflow-wrap: anywhere;
+    }
+
+    .sessions-heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .sessions-heading strong {
+      color: #334155;
+      font-size: 13px;
+    }
+
+    .session-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .session-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 12px;
+      border-radius: 9px;
+      background: #f8fafc;
+      border: 1px solid #edf0f5;
+    }
+
+    .session-date {
+      color: #334155;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .session-time {
+      color: #64748b;
+      font-size: 11px;
+      text-align: right;
+    }
+
+    .no-sessions {
+      padding: 12px;
+      border-radius: 9px;
+      background: #f8fafc;
+      color: #94a3b8;
+      font-size: 12px;
+    }
+
+    .class-card-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-top: 18px;
+      padding-top: 15px;
+      border-top: 1px solid #edf0f5;
+    }
+
+    .student-count {
+      color: #475569;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .class-id {
+      color: #94a3b8;
+      font-size: 10px;
+      overflow-wrap: anywhere;
+    }
+
+    .classes-empty {
+      grid-column: 1 / -1;
+      padding: 55px 20px;
+      text-align: center;
+      background: #fff;
+      border: 1px solid #e5eaf2;
+      border-radius: 14px;
+      color: #64748b;
+    }
+
+    .classes-empty h3 {
+      margin: 0 0 8px;
+      color: #172033;
+    }
+
+    .classes-message {
+      display: none;
+      padding: 13px 15px;
+      margin-bottom: 18px;
+      border-radius: 9px;
+      font-size: 13px;
+    }
+
+    .classes-message.error {
+      display: block;
+      color: #991b1b;
+      background: #fee2e2;
+    }
+
+    .classes-message.info {
+      display: block;
+      color: #1e40af;
+      background: #dbeafe;
+    }
+
+    @media (max-width: 1000px) {
+      .classes-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    @media (max-width: 700px) {
+      .my-classes-page {
+        padding: 18px 14px;
+      }
+
+      .classes-summary {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      .classes-toolbar {
+        align-items: stretch;
+      }
+
+      .classes-search,
+      .classes-filter {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="dashboard-layout">
+
+    <div id="teacher-sidebar-mount"></div>
+
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <main class="dashboard-main">
+
+      <header class="dashboard-topbar">
+
+        <div class="topbar-left">
+
+          <button
+            type="button"
+            class="sidebar-toggle"
+            id="sidebar-toggle"
+            aria-label="Open navigation menu"
+            aria-controls="teacher-sidebar"
+            aria-expanded="false"
+          >☰</button>
+
+          <div>
+            <h1>My Classes</h1>
+            <p>View your assigned classes and schedules.</p>
+          </div>
+
+        </div>
+
+        <div class="topbar-actions">
+          <div id="account-menu-mount"></div>
+        </div>
+
+      </header>
+
+      <div class="dashboard-content">
+
+        <section class="my-classes-page">
+
+          <div id="classes-message" class="classes-message"></div>
+
+          <div class="classes-page-heading">
+            <div>
+              <h2>My Classes</h2>
+              <p>Manage and review the classes assigned to you.</p>
+            </div>
+          </div>
+
+          <div class="classes-summary">
+
+            <div class="summary-card">
+              <div class="summary-icon">▦</div>
+              <div>
+                <strong id="total-classes">0</strong>
+                <span>Total Assigned Classes</span>
+              </div>
+            </div>
+
+            <div class="summary-card">
+              <div class="summary-icon">✓</div>
+              <div>
+                <strong id="active-classes">0</strong>
+                <span>Active Classes</span>
+              </div>
+            </div>
+
+            <div class="summary-card">
+              <div class="summary-icon">♙</div>
+              <div>
+                <strong id="total-students">0</strong>
+                <span>Assigned Student Count</span>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="classes-toolbar">
+
+            <input
+              type="search"
+              id="class-search"
+              class="classes-search"
+              placeholder="Search by class or subject..."
+              aria-label="Search classes"
+            >
+
+            <select id="class-status-filter" class="classes-filter">
+              <option value="all">All Classes</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+
+          </div>
+
+          <div id="classes-grid" class="classes-grid">
+            <div class="classes-empty">
+              Loading your assigned classes...
+            </div>
+          </div>
+
+        </section>
+
+      </div>
+
+    </main>
+
+  </div>
+
+  <script src="../../js/main.js" defer></script>
+  <script src="../../js/navigation.js" defer></script>
+  <script src="../../js/teacher-sidebar.js" defer></script>
+  <script type="module" src="../../js/teacher-classes.js"></script>
+  <script type="module" src="../../js/account-menu.js"></script>
+
+</body>
+</html>

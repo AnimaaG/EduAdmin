@@ -1,0 +1,647 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Class Attendance | EduAdmin</title>
+
+  <link rel="stylesheet" href="../../css/app.css">
+
+  <style>
+    /* Do not override the sidebar's width or main-content positioning. */
+    .attendance-page,
+    .attendance-page * {
+      box-sizing: border-box;
+    }
+
+ .dashboard-main {
+  min-width: 0;
+  width: 100%;
+}
+
+.attendance-page {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+    .attendance-page {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      padding: 24px;
+      background: #f4f6fc;
+      overflow-x: hidden;
+    }
+
+    .attendance-page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+
+    .attendance-page-header h2 {
+      margin: 0 0 6px;
+      font-size: 22px;
+    }
+
+    .attendance-page-header p {
+      margin: 0;
+      color: #64748b;
+      font-size: 13px;
+    }
+
+    .attendance-message {
+      display: none;
+      padding: 12px 15px;
+      margin-bottom: 16px;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+
+    .attendance-message.error {
+      display: block;
+      color: #991b1b;
+      background: #fee2e2;
+    }
+
+    .attendance-message.success {
+      display: block;
+      color: #166534;
+      background: #dcfce7;
+    }
+
+    .attendance-summary {
+      margin-bottom: 18px;
+      color: #475569;
+      font-size: 14px;
+    }
+
+    /* Calendar and chart */
+    .attendance-overview {
+      display: grid;
+      grid-template-columns: minmax(280px, 370px) minmax(0, 1fr);
+      gap: 20px;
+      width: 100%;
+      min-width: 0;
+      margin-bottom: 24px;
+      align-items: stretch;
+    }
+
+    .attendance-panel {
+      min-width: 0;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 20px;
+    }
+
+    .calendar-heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .calendar-heading strong {
+      font-size: 15px;
+      text-align: center;
+    }
+
+    .calendar-nav {
+      width: 36px;
+      height: 36px;
+      border: 1px solid #dbe3ef;
+      background: #fff;
+      color: #334155;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 20px;
+    }
+
+    .calendar-weekdays,
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 7px;
+      text-align: center;
+    }
+
+    .calendar-weekdays {
+      margin-bottom: 12px;
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .calendar-day {
+      width: 100%;
+      min-width: 0;
+      height: 40px;
+      border: 1px solid transparent;
+      border-radius: 9px;
+      background: #f5f7fb;
+      color: #334155;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .calendar-day.has-class {
+      background: #dcfce7;
+      border-color: #86efac;
+      color: #166534;
+      font-weight: 700;
+    }
+
+    .calendar-day.selected {
+      background: #2563eb;
+      border-color: #2563eb;
+      color: #fff;
+      font-weight: 700;
+    }
+
+    .calendar-day:focus-visible,
+    .calendar-nav:focus-visible {
+      outline: 2px solid #2563eb;
+      outline-offset: 2px;
+    }
+
+    .calendar-legend {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 16px;
+      color: #64748b;
+      font-size: 12px;
+    }
+
+    .calendar-legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 3px;
+      background: #dcfce7;
+      border: 1px solid #86efac;
+    }
+
+    /* Graph */
+    .chart-panel h3 {
+      margin: 0 0 6px;
+      font-size: 17px;
+    }
+
+    .chart-date-label {
+      margin-bottom: 16px;
+      color: #64748b;
+      font-size: 13px;
+    }
+
+    .chart-container {
+      position: relative;
+      width: 100%;
+      height: 250px;
+      min-width: 0;
+    }
+
+    #attendance-chart {
+      display: block;
+      width: 100%;
+      height: 250px;
+    }
+
+    /* Attendance table */
+    .attendance-class-card {
+      width: 100%;
+      min-width: 0;
+      margin-bottom: 20px;
+      padding: 20px;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+    }
+
+    .class-heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .class-heading h3 {
+      margin: 0 0 6px;
+      font-size: 20px;
+    }
+
+    .class-heading p {
+      margin: 0;
+      color: #64748b;
+      font-size: 13px;
+    }
+
+    .class-student-count {
+      color: #475569;
+      white-space: nowrap;
+      font-size: 13px;
+    }
+
+    .attendance-table-wrapper {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    .attendance-table {
+      width: 100%;
+      min-width: 850px;
+      border-collapse: collapse;
+    }
+
+    .attendance-table th {
+      padding: 14px 12px;
+      background: #f8fafc;
+      color: #475569;
+      font-size: 12px;
+      font-weight: 700;
+      text-align: left;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .attendance-table td {
+      padding: 13px 12px;
+      border-bottom: 1px solid #e2e8f0;
+      color: #334155;
+      font-size: 13px;
+      vertical-align: middle;
+    }
+
+    .attendance-table tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .attendance-status {
+      min-width: 120px;
+      padding: 9px 10px;
+      border: 1px solid #dbe2ed;
+      border-radius: 8px;
+      background: #fff;
+      color: #334155;
+    }
+
+    .save-attendance {
+      padding: 10px 17px;
+      border: 0;
+      border-radius: 8px;
+      background: #2563eb;
+      color: #fff;
+      cursor: pointer;
+    }
+
+    .save-attendance:disabled {
+      opacity: .55;
+      cursor: not-allowed;
+    }
+
+    .empty-state {
+      padding: 35px 15px;
+      text-align: center;
+      color: #64748b;
+    }
+
+    .empty-state h3 {
+      margin: 0 0 8px;
+      color: #1e293b;
+    }
+
+    @media (max-width: 900px) {
+      .attendance-overview {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .calendar-panel {
+        max-width: none;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .attendance-page {
+        padding: 14px;
+      }
+
+      .attendance-panel,
+      .attendance-class-card {
+        padding: 14px;
+      }
+
+      .attendance-page-header {
+        align-items: flex-start;
+      }
+
+      .chart-container,
+      #attendance-chart {
+        height: 230px;
+      }
+    }
+    
+/* =========================================
+   Teacher attendance table
+========================================= */
+
+.attendance-class-card {
+  background: #ffffff;
+  border: 1px solid #e5eaf2;
+  border-radius: 16px;
+  padding: 22px;
+  margin-bottom: 24px;
+  box-shadow: 0 5px 18px rgba(30, 41, 59, 0.04);
+}
+
+.class-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.class-heading h3 {
+  font-size: 19px;
+  margin: 0 0 5px;
+  color: #172033;
+}
+
+.class-heading p {
+  color: #64748b;
+  font-size: 13px;
+  margin: 0;
+}
+
+.class-student-count {
+  padding: 7px 12px;
+  border-radius: 20px;
+  background: #eef2ff;
+  color: #4338ca;
+  font-weight: 700;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.attendance-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid #e5eaf2;
+  border-radius: 12px;
+}
+
+.attendance-table {
+  width: 100%;
+  min-width: 1050px;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: #ffffff;
+}
+
+.attendance-table thead th {
+  padding: 15px 16px;
+  background: #f1f5ff;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .045em;
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.attendance-table tbody td {
+  padding: 16px;
+  color: #334155;
+  font-size: 13px;
+  border-bottom: 1px solid #edf0f5;
+  white-space: nowrap;
+}
+
+.attendance-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.attendance-table tbody tr:hover {
+  background: #f8faff;
+}
+
+.attendance-table tbody td:first-child {
+  color: #172033;
+  font-weight: 700;
+}
+
+.attendance-table .time-value {
+  font-weight: 600;
+  color: #334155;
+}
+
+.attendance-table .time-missing {
+  color: #94a3b8;
+  font-weight: 400;
+}
+
+.attendance-table .checkin-value {
+  color: #15803d;
+  font-weight: 700;
+}
+
+.attendance-table .checkout-value {
+  color: #2563eb;
+  font-weight: 700;
+}
+
+.attendance-table .login-value {
+  color: #7c3aed;
+  font-weight: 600;
+}
+
+.attendance-table .duration-value {
+  display: inline-block;
+  padding: 5px 9px;
+  background: #f1f5f9;
+  color: #475569;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+@media (max-width: 600px) {
+  .attendance-class-card {
+    padding: 14px;
+  }
+
+  .class-heading {
+    align-items: flex-start;
+  }
+}
+
+  </style>
+</head>
+
+<body>
+
+  <div class="dashboard-layout">
+
+    <!-- Sidebar -->
+    <div id="teacher-sidebar-mount"></div>
+
+    <!-- Mobile sidebar overlay -->
+    <div
+      class="sidebar-overlay"
+      id="sidebar-overlay"
+    ></div>
+
+    <!-- Main content -->
+    <main class="dashboard-main">
+
+      <!-- Header: same structure as teacher dashboard -->
+      <header class="dashboard-topbar">
+
+        <div class="topbar-left">
+
+          <button
+            type="button"
+            class="sidebar-toggle"
+            id="sidebar-toggle"
+            aria-label="Open navigation menu"
+            aria-controls="teacher-sidebar"
+            aria-expanded="false"
+          >☰</button>
+
+          <div>
+            <h1>Class Attendance</h1>
+            <p>View attendance for your assigned classes.</p>
+          </div>
+
+        </div>
+
+        <div class="topbar-actions">
+          <div id="account-menu-mount"></div>
+        </div>
+
+      </header>
+
+      <!-- Attendance content -->
+      <div class="dashboard-content">
+
+        <section class="attendance-page">
+
+          <div
+            id="attendance-message"
+            class="attendance-message"
+          ></div>
+
+          <div class="attendance-page-header">
+            <div>
+              <h2>Today's Attendance</h2>
+              <p id="attendance-summary">
+                Loading assigned classes...
+              </p>
+            </div>
+          </div>
+
+          <div class="attendance-overview">
+
+            <!-- Calendar -->
+            <section class="attendance-panel calendar-panel">
+
+              <div class="calendar-heading">
+
+                <button
+                  type="button"
+                  class="calendar-nav"
+                  id="calendar-previous"
+                  aria-label="Previous month"
+                >‹</button>
+
+                <strong id="calendar-month-label">
+                  Loading...
+                </strong>
+
+                <button
+                  type="button"
+                  class="calendar-nav"
+                  id="calendar-next"
+                  aria-label="Next month"
+                >›</button>
+
+              </div>
+
+              <div class="calendar-weekdays">
+                <span>Sun</span>
+                <span>Mon</span>
+                <span>Tue</span>
+                <span>Wed</span>
+                <span>Thu</span>
+                <span>Fri</span>
+                <span>Sat</span>
+              </div>
+
+              <div
+                id="attendance-calendar-grid"
+                class="calendar-grid"
+              ></div>
+
+              <div class="calendar-legend">
+                <span class="calendar-legend-dot"></span>
+                <span>Assigned class scheduled</span>
+              </div>
+
+            </section>
+
+            <!-- Attendance chart -->
+            <section class="attendance-panel chart-panel">
+
+              <h3>Attendance Overview</h3>
+
+              <div
+                id="chart-date-label"
+                class="chart-date-label"
+              >
+                Attendance for selected date
+              </div>
+
+              <div class="chart-container">
+                <canvas id="attendance-chart"></canvas>
+              </div>
+
+            </section>
+
+          </div>
+
+          <div id="attendance-selected-date-label"></div>
+
+          <div id="attendance-session-details"></div>
+
+          <div id="attendance-classes-container">
+            <div class="empty-state">
+              Loading attendance...
+            </div>
+          </div>
+
+        </section>
+
+      </div>
+
+    </main>
+
+  </div>
+
+  <!-- Scripts -->
+  <script src="../../js/main.js" defer></script>
+  <script src="../../js/navigation.js" defer></script>
+  <script src="../../js/teacher-sidebar.js" defer></script>
+  <script type="module" src="../../js/teacher-attendance.js"></script>
+  <script type="module" src="../../js/account-menu.js"></script>
+
+</body>
+
+</html>

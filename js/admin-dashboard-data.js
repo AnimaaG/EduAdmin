@@ -10,6 +10,8 @@ import {
   getDoc,
   query,
   where,
+  orderBy,
+  limit,
   onSnapshot
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 
@@ -269,6 +271,54 @@ function renderActivity(records) {
     list.append(row);
   });
 }
+
+
+function renderAdminAnnouncements(announcements) {
+  const container = document.getElementById("admin-announcements-list");
+  const message = document.getElementById("announcements-message");
+
+  if (!container) return;
+
+  container.replaceChildren();
+  if (message) message.textContent = "";
+
+  if (!announcements.length) {
+    container.textContent = "No teacher announcements found.";
+    return;
+  }
+
+  announcements.forEach((announcement) => {
+    const item = document.createElement("div");
+    item.className = "ui-activity-item";
+
+    const teacher = announcement.teacherName || "Unknown teacher";
+    const target =
+      announcement.targetType === "class"
+        ? `class ${announcement.className || announcement.classId || "Not specified"}`
+        : "the entire academy";
+
+    const subject = announcement.subject
+      ? ` and subject ${announcement.subject}`
+      : "";
+
+    const intro = document.createElement("p");
+    intro.textContent =
+      `There is an announcement by ${teacher} for ${target}${subject}.`;
+
+    const title = document.createElement("h5");
+    title.textContent = announcement.title || "Untitled announcement";
+
+    const details = document.createElement("p");
+    details.textContent = announcement.message || "";
+
+    const date = document.createElement("p");
+    date.textContent = `Date: ${announcement.announcementDate || "Not specified"}`;
+
+    item.append(intro, title, details, date);
+    container.appendChild(item);
+  });
+}
+
 // ============================================
 // CLASS CALENDAR
 // Uses existing classes collection and sessions
@@ -713,6 +763,32 @@ function startDashboard(profile) {
   stopListeners();
   setupClassCalendar();
   const academyId = profile.academyId;
+  // Latest 5 teacher announcements
+unsubscribeFunctions.push(onSnapshot(
+  query(
+    collection(db, "notifications"),
+    where("academyId", "==", academyId),
+    where("recipientRole", "==", "student"),
+    where("type", "==", "announcement"),
+    orderBy("createdAt", "desc"),
+    limit(5)
+  ),
+  (snapshot) => {
+    renderAdminAnnouncements(
+      snapshot.docs.map((item) => ({
+        id: item.id,
+        ...item.data()
+      }))
+    );
+  },
+  (error) => {
+    console.error("Announcements error:", error);
+    const container = $("admin-announcements-list");
+    if (container) {
+      container.textContent = "Unable to load teacher announcements.";
+    }
+  }
+));
   const users = collection(db, "users");
   const classesCollection = collection(db, "classes");
   const feesCollection = collection(db, "fees");
@@ -1026,6 +1102,8 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       startDashboard(profile);
+
+      
     } catch (error) {
       console.error("Dashboard initialization failed:", error);
 
@@ -1040,5 +1118,6 @@ document.addEventListener("DOMContentLoaded", () => {
       showMessage("attendance-message", "Attendance data could not be loaded.");
       showMessage("activity-message", "Activity data could not be loaded.");
     }
+    
   });
 });

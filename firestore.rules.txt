@@ -40,6 +40,18 @@ service cloud.firestore {
         && get(userPath(request.auth.uid)).data.academyId == academyId;
     }
 
+    function isActiveTeacher() {
+  return signedIn()
+    && exists(userPath(request.auth.uid))
+    && get(userPath(request.auth.uid)).data.role == "teacher"
+    && get(userPath(request.auth.uid)).data.isActive == true;
+}
+
+function isAcademyTeacher(academyId) {
+  return isActiveTeacher()
+    && get(userPath(request.auth.uid)).data.academyId == academyId;
+}
+
 function userProfile() {
   return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
 }
@@ -92,6 +104,137 @@ match /academies/{academyId} {
 }
 
 
+// --------------------------------------------------
+// SYLLABUS
+// --------------------------------------------------
+
+match /syllabus/{syllabusId} {
+
+  function syllabusClassExists(classId) {
+    return exists(
+      /databases/$(database)/documents/classes/$(classId)
+    );
+  }
+
+  function syllabusClassData(classId) {
+    return get(
+      /databases/$(database)/documents/classes/$(classId)
+    ).data;
+  }
+
+  // Admin and teacher can read syllabus in their academy.
+  allow read: if
+    isAcademyAdmin(resource.data.academyId)
+    ||
+    (
+      isAcademyTeacher(resource.data.academyId)
+      && resource.data.teacherId == request.auth.uid
+    );
+
+  // Admin can create syllabus for any class in their academy.
+  allow create: if
+    isAcademyAdmin(request.resource.data.academyId)
+
+    && request.resource.data.classId is string
+    && syllabusClassExists(request.resource.data.classId)
+
+    && syllabusClassData(request.resource.data.classId).academyId
+      == request.resource.data.academyId
+
+    && request.resource.data.className is string
+    && request.resource.data.teacherId is string
+    && request.resource.data.teacherName is string
+    && request.resource.data.subject is string
+    && request.resource.data.chapterTitle is string
+    && request.resource.data.topics is list
+    && request.resource.data.isCompleted == false;
+
+  // Teachers can create syllabus for their assigned classes.
+  allow create: if
+    isAcademyTeacher(request.resource.data.academyId)
+
+    && request.resource.data.teacherId == request.auth.uid
+
+    && request.resource.data.classId is string
+    && syllabusClassExists(request.resource.data.classId)
+
+    && syllabusClassData(request.resource.data.classId).academyId
+      == request.resource.data.academyId
+
+    && syllabusClassData(request.resource.data.classId).teacherId
+      == request.auth.uid
+
+    && syllabusClassData(request.resource.data.classId).subject
+      == request.resource.data.subject
+
+    && request.resource.data.className is string
+    && request.resource.data.teacherName is string
+    && request.resource.data.subject is string
+    && request.resource.data.chapterTitle is string
+    && request.resource.data.topics is list;
+
+  // Admin can edit syllabus content in their academy.
+  allow update: if
+    isAcademyAdmin(resource.data.academyId)
+
+    && request.resource.data.academyId == resource.data.academyId
+    && request.resource.data.classId == resource.data.classId
+    && request.resource.data.teacherId == resource.data.teacherId
+    && request.resource.data.subject == resource.data.subject
+
+    && request.resource.data.diff(resource.data)
+      .affectedKeys()
+      .hasOnly([
+        "chapterTitle",
+        "topics",
+        "updatedAt"
+      ])
+
+    && request.resource.data.chapterTitle is string
+    && request.resource.data.topics is list;
+
+  // Teachers can update their own syllabus.
+  allow update: if
+    isAcademyTeacher(resource.data.academyId)
+
+    && resource.data.teacherId == request.auth.uid
+
+    && request.resource.data.academyId == resource.data.academyId
+    && request.resource.data.classId == resource.data.classId
+    && request.resource.data.teacherId == resource.data.teacherId
+    && request.resource.data.subject == resource.data.subject
+
+    && request.resource.data.diff(resource.data)
+      .affectedKeys()
+      .hasOnly([
+        "chapterTitle",
+        "topics",
+        "className",
+        "teacherName",
+        "isCompleted",
+        "updatedAt"
+      ])
+
+    && request.resource.data.chapterTitle is string
+    && request.resource.data.topics is list
+
+    && (
+      !("isCompleted" in request.resource.data)
+      || request.resource.data.isCompleted is bool
+    );
+
+  // Admin can delete any syllabus chapter in their academy.
+  allow delete: if
+    isAcademyAdmin(resource.data.academyId);
+
+  // Teacher can delete only their own syllabus.
+  allow delete: if
+    isAcademyTeacher(resource.data.academyId)
+    && resource.data.teacherId == request.auth.uid;
+}
+
+
+
     // --------------------------------------------------
     // USER PROFILES
     // --------------------------------------------------
@@ -107,6 +250,11 @@ match /academies/{academyId} {
 
       // Only admins can query user profiles.
       allow list: if isAdmin();
+
+      allow list: if signedIn()
+      && isAcademyTeacher(resource.data.academyId)
+      && resource.data.role == "student"
+      && resource.data.isActive == true;
 
       // Profile creation during registration.
       allow create: if signedIn()
@@ -304,9 +452,14 @@ match /academies/{academyId} {
     // Academy-scoped class records.
     match /classes/{classId} {
 
-      // Active admins and students in this academy can read classes.
-      allow read: if isAcademyAdmin(resource.data.academyId)
-        || isAcademyStudent(resource.data.academyId);
+    // Admins and students can read classes in their academy.
+// Teachers can read only classes assigned to them.
+allow read: if isAcademyAdmin(resource.data.academyId)
+  || isAcademyStudent(resource.data.academyId)
+  || (
+    isAcademyTeacher(resource.data.academyId)
+    && resource.data.teacherId == request.auth.uid
+  );
 
       // An active admin can create a class only in their academy.
       allow create: if isAdmin()
@@ -376,6 +529,46 @@ match /attendance/{attendanceId} {
       isAcademyStudent(resource.data.academyId)
       && resource.data.studentId == request.auth.uid
     );
+
+    // Teachers can read attendance only for their assigned classes.
+allow read: if isAcademyTeacher(resource.data.academyId)
+  && resource.data.teacherId == request.auth.uid
+  && classExists(resource.data.classId)
+  && classData(resource.data.classId).teacherId == request.auth.uid;
+
+
+// Teachers can create attendance only for their assigned classes.
+allow create: if isAcademyTeacher(request.resource.data.academyId)
+  && request.resource.data.teacherId == request.auth.uid
+  && request.resource.data.markedBy == request.auth.uid
+  && request.resource.data.classId is string
+  && classExists(request.resource.data.classId)
+  && classData(request.resource.data.classId).academyId
+    == request.resource.data.academyId
+  && classData(request.resource.data.classId).teacherId
+    == request.auth.uid
+  && classData(request.resource.data.classId).status == "active"
+  && request.resource.data.studentId is string
+  && request.resource.data.date is string
+  && request.resource.data.status in [
+    "present", "absent", "late", "excused"
+  ];
+
+
+// Teachers can update attendance only for their assigned classes.
+allow update: if isAcademyTeacher(resource.data.academyId)
+  && resource.data.teacherId == request.auth.uid
+  && classExists(resource.data.classId)
+  && classData(resource.data.classId).teacherId == request.auth.uid
+  && request.resource.data.academyId == resource.data.academyId
+  && request.resource.data.classId == resource.data.classId
+  && request.resource.data.teacherId == request.auth.uid
+  && request.resource.data.studentId == resource.data.studentId
+  && request.resource.data.date == resource.data.date
+  && request.resource.data.markedBy == request.auth.uid
+  && request.resource.data.status in [
+    "present", "absent", "late", "excused"
+  ];
 
   // Students may check whether their own deterministic attendance
   // document exists before creating it. This does not grant access
@@ -658,70 +851,192 @@ match /attendance/{attendanceId} {
     && activeAdminFor(resource.data.academyId);
 }
 
-    // --------------------------------------------------
-// ADMIN NOTIFICATIONS
-// --------------------------------------------------
+//----------------------------------
+// Announcment
+// ----------------------------------
+
 match /notifications/{notificationId} {
 
-  // Admins can read notifications belonging to their academy.
-  allow get, list: if isAcademyAdmin(resource.data.academyId)
-    && resource.data.recipientRole == "admin";
+  function announcementClassExists(classId) {
+    return exists(
+      /databases/$(database)/documents/classes/$(classId)
+    );
+  }
 
-    // Individual notifications: only the intended student
-    // in the same academy can read them.
-    allow get, list: if isAcademyStudent(resource.data.academyId)
-      && resource.data.studentId == request.auth.uid;
+  function announcementClassData(classId) {
+    return get(
+      /databases/$(database)/documents/classes/$(classId)
+    ).data;
+  }
 
-    // Academy-wide student announcements.
-    // targetType must explicitly identify an academy announcement.
-    allow get, list: if isAcademyStudent(resource.data.academyId)
-      && resource.data.recipientRole == "student"
-      && resource.data.targetType == "academy";
+  function studentBelongsToAnnouncementClass(classId) {
+  return isAcademyStudent(resource.data.academyId)
+    && announcementClassExists(classId)
+    && announcementClassData(classId).academyId
+      == resource.data.academyId
+    && announcementClassData(classId).status == "active"
+    && announcementClassData(classId).studentIds is list
+    && announcementClassData(classId).studentIds
+      .hasAny([request.auth.uid]);
+}
 
-  // Students can read notifications addressed to them.
-  // Student-specific notifications use studentId.
-  // Student announcements use recipientRole == "student".
-  allow get, list: if isAcademyStudent(resource.data.academyId)
+// ------------------------------------------
+// STUDENT: READ CLASS / SUBJECT ANNOUNCEMENTS
+// ------------------------------------------
+allow get, list: if
+  resource.data.recipientRole == "student"
+  && resource.data.type == "announcement"
+  && resource.data.targetType == "class"
+  && resource.data.classId is string
+  && studentBelongsToAnnouncementClass(
+    resource.data.classId
+  );
+
+  // ------------------------------------------
+  // TEACHER: CREATE ANNOUNCEMENTS
+  // ------------------------------------------
+  allow create: if isAcademyTeacher(request.resource.data.academyId)
+    && request.resource.data.teacherId == request.auth.uid
+    && request.resource.data.recipientRole == "student"
+    && request.resource.data.type == "announcement"
+    && request.resource.data.title is string
+    && request.resource.data.message is string
+    && request.resource.data.announcementDate is string
+    && request.resource.data.teacherName is string
+    && request.resource.data.read == false
+    && request.resource.data.isRead == false
+    && request.resource.data.createdAt == request.time
+
     && (
+      // Academy-wide announcement.
       (
-        "studentId" in resource.data
-        && resource.data.studentId == request.auth.uid
+        request.resource.data.targetType == "academy"
+        && request.resource.data.classId == null
+        && request.resource.data.className == null
+        && request.resource.data.subject == null
       )
+
       ||
+
+      // Class-specific announcement.
       (
-        resource.data.recipientRole == "student"
-        && !("studentId" in resource.data)
-        && !("recipientId" in resource.data)
-        && !("userId" in resource.data)
+        request.resource.data.targetType == "class"
+        && request.resource.data.classId is string
+        && announcementClassExists(request.resource.data.classId)
+        && announcementClassData(request.resource.data.classId).academyId
+          == request.resource.data.academyId
+        && announcementClassData(request.resource.data.classId).teacherId
+          == request.auth.uid
+        && announcementClassData(request.resource.data.classId).status
+          == "active"
+        && announcementClassData(request.resource.data.classId).className
+          == request.resource.data.className
+        && announcementClassData(request.resource.data.classId).subject
+          == request.resource.data.subject
       )
     );
 
-  // Admins can mark their own academy notifications as read.
-  allow update: if isAcademyAdmin(resource.data.academyId)
-    && resource.data.recipientRole == "admin"
+  // ------------------------------------------
+  // TEACHER: READ OWN ANNOUNCEMENTS
+  // ------------------------------------------
+  allow get, list: if isAcademyTeacher(resource.data.academyId)
+    && resource.data.teacherId == request.auth.uid
+    && resource.data.recipientRole == "student"
+    && resource.data.type == "announcement";
+
+    
+  // ------------------------------------------
+  // TEACHER: UPDATE OWN ANNOUNCEMENTS
+  // ------------------------------------------
+  allow update: if isAcademyTeacher(resource.data.academyId)
+    && resource.data.teacherId == request.auth.uid
+    && resource.data.type == "announcement"
+    && resource.data.recipientRole == "student"
+
+    // Preserve announcement ownership and identity.
     && request.resource.data.academyId == resource.data.academyId
+    && request.resource.data.teacherId == resource.data.teacherId
+    && request.resource.data.type == resource.data.type
+    && request.resource.data.recipientRole == resource.data.recipientRole
+
+    // Only allow editing announcement content and target.
     && request.resource.data.diff(resource.data)
       .affectedKeys()
-      .hasOnly(["read", "isRead", "readAt"])
-    && request.resource.data.read == true
-    && request.resource.data.isRead == true
-    && request.resource.data.readAt == request.time;
+      .hasOnly([
+        "title",
+        "message",
+        "announcementDate",
+        "targetType",
+        "classId",
+        "className",
+        "subject"
+      ])
 
-  // Students can mark only their own notifications as read.
-  allow update: if isAcademyStudent(resource.data.academyId)
+    && request.resource.data.title is string
+    && request.resource.data.message is string
+    && request.resource.data.announcementDate is string
+
+    // Validate the selected target.
     && (
       (
-        "studentId" in resource.data
-        && resource.data.studentId == request.auth.uid
+        request.resource.data.targetType == "academy"
+        && request.resource.data.classId == null
+        && request.resource.data.className == null
+        && request.resource.data.subject == null
       )
       ||
       (
-        resource.data.recipientRole == "student"
-        && !("studentId" in resource.data)
-        && !("recipientId" in resource.data)
-        && !("userId" in resource.data)
+        request.resource.data.targetType == "class"
+        && request.resource.data.classId is string
+        && announcementClassExists(request.resource.data.classId)
+        && announcementClassData(request.resource.data.classId).academyId
+          == resource.data.academyId
+        && announcementClassData(request.resource.data.classId).teacherId
+          == request.auth.uid
+        && announcementClassData(request.resource.data.classId).status
+          == "active"
+        && announcementClassData(request.resource.data.classId).className
+          == request.resource.data.className
+        && announcementClassData(request.resource.data.classId).subject
+          == request.resource.data.subject
       )
-    )
+    );
+
+  // ------------------------------------------
+  // TEACHER: DELETE OWN ANNOUNCEMENTS
+  // ------------------------------------------
+  allow delete: if isAcademyTeacher(resource.data.academyId)
+    && resource.data.teacherId == request.auth.uid
+    && resource.data.type == "announcement"
+    && resource.data.recipientRole == "student";
+
+
+  // ------------------------------------------
+  // ADMIN: READ ACADEMY ANNOUNCEMENTS
+  // ------------------------------------------
+  allow get, list: if isAcademyAdmin(resource.data.academyId)
+    && resource.data.recipientRole == "student"
+    && resource.data.type == "announcement";
+
+  // ------------------------------------------
+  // STUDENT: READ INDIVIDUAL NOTIFICATIONS
+  // ------------------------------------------
+  allow get, list: if isAcademyStudent(resource.data.academyId)
+    && resource.data.studentId == request.auth.uid;
+
+  // ------------------------------------------
+  // STUDENT: READ ACADEMY-WIDE ANNOUNCEMENTS
+  // ------------------------------------------
+  allow get, list: if isAcademyStudent(resource.data.academyId)
+    && resource.data.recipientRole == "student"
+    && resource.data.type == "announcement"
+    && resource.data.targetType == "academy";
+
+  // ------------------------------------------
+  // STUDENT: MARK OWN INDIVIDUAL NOTIFICATIONS READ
+  // ------------------------------------------
+  allow update: if isAcademyStudent(resource.data.academyId)
+    && resource.data.studentId == request.auth.uid
     && request.resource.data.academyId == resource.data.academyId
     && request.resource.data.diff(resource.data)
       .affectedKeys()
@@ -730,8 +1045,9 @@ match /notifications/{notificationId} {
     && request.resource.data.isRead == true
     && request.resource.data.readAt == request.time;
 
-  allow create, delete: if false;
+  allow delete: if false;
 }
+
 
     // --------------------------------------------------
     // DENY ALL OTHER COLLECTIONS
