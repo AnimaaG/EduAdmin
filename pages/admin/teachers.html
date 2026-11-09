@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -37,150 +36,69 @@
             <p>Manage teacher profiles and assignments.</p>
           </div>
         </div>
+
+        <div class="topbar-actions">
+          <div id="account-menu-mount"></div>
+        </div>
       </header>
 
       <div class="dashboard-content">
-        <section class="page-heading">
-          <div>
-            <h1>Teacher management</h1>
-            <p>Maintain teacher details and class assignments.</p>
-          </div>
+        <section class="page-container" style="padding: 0;">
+          
+          <div id="teachers-message" class="message info" role="status" hidden style="margin-bottom: 20px;"></div>
 
-          <button
-            type="button"
-            class="primary-button"
-            id="add-teacher-button"
-          >+ Add teacher</button>
-        </section>
-
-        <div
-          id="teachers-message"
-          class="message info"
-          role="status"
-          hidden
-        ></div>
-
-        <section class="card" id="teacher-form-section" hidden>
-          <div class="section-title-row">
-            <div>
-              <h2>Add teacher</h2>
-              <p>Enter the teacher's details.</p>
+          <section class="teachers-panel">
+            <div class="teachers-panel-header">
+              <div>
+                <span class="teachers-eyebrow">ACADEMY FACULTY</span>
+                <h2>Teacher management</h2>
+                <p>Maintain teacher details, contact information, and subjects.</p>
+              </div>
+              <div class="teachers-total">
+                <span id="teachers-total-count">0</span>
+                <small>Teachers</small>
+              </div>
             </div>
-          </div>
 
-          <form id="teacher-form" class="form-grid">
-            <div class="form-group">
-              <label for="teacher-name">Full name *</label>
+            <div class="teachers-toolbar">
+              <div>
+                <h3>Active teachers</h3>
+                <p>Search teachers by name, email, phone, or subject.</p>
+              </div>
               <input
-                id="teacher-name"
-                name="name"
-                type="text"
-                maxlength="120"
-                autocomplete="name"
-                placeholder="Enter full name"
-                required
+                type="search"
+                id="teacher-search"
+                placeholder="Search teachers..."
+                aria-label="Search teachers"
+                disabled
               >
             </div>
 
-            <div class="form-group">
-              <label for="teacher-email">Email address *</label>
-              <input
-                id="teacher-email"
-                name="email"
-                type="email"
-                maxlength="254"
-                autocomplete="email"
-                placeholder="Enter email address"
-                required
-              >
+            <div class="teachers-table-wrap">
+              <table class="teachers-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Teacher</th>
+                    <th scope="col">Email</th>
+                    <th scope="col">Phone</th>
+                    <th scope="col">Subject</th>
+                    <th scope="col">Status</th>
+                  </tr>
+                </thead>
+                <tbody id="teachers-table-body">
+                  <tr>
+                    <td colspan="5">
+                      <div class="empty-state">
+                        <h3>Loading teacher records...</h3>
+                        <p>Please wait while we retrieve active teachers.</p>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
+          </section>
 
-            <div class="form-group">
-              <label for="teacher-phone">Phone number</label>
-              <input
-                id="teacher-phone"
-                name="phone"
-                type="tel"
-                maxlength="25"
-                autocomplete="tel"
-                placeholder="Enter phone number"
-              >
-            </div>
-
-            <div class="form-group">
-              <label for="teacher-subject">Subject or specialization</label>
-              <input
-                id="teacher-subject"
-                name="subject"
-                type="text"
-                maxlength="120"
-                placeholder="Enter subject"
-              >
-            </div>
-
-            <div class="form-group full-width">
-              <label for="teacher-notes">Notes</label>
-              <textarea
-                id="teacher-notes"
-                name="notes"
-                maxlength="1000"
-                placeholder="Optional notes"
-              ></textarea>
-            </div>
-
-            <div class="full-width" style="display:flex; gap:10px; flex-wrap:wrap;">
-              <button type="submit" class="primary-button">
-                Save teacher
-              </button>
-
-              <button
-                type="button"
-                class="secondary-button"
-                id="cancel-teacher-button"
-              >Cancel</button>
-            </div>
-          </form>
-        </section>
-
-        <section class="dashboard-section">
-          <div class="toolbar">
-            <input
-              type="search"
-              id="teacher-search"
-              placeholder="Search teachers..."
-              aria-label="Search teachers"
-              disabled
-            >
-          </div>
-
-          <div class="table-wrapper">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th scope="col">Teacher</th>
-                  <th scope="col">Email</th>
-                  <th scope="col">Phone</th>
-                  <th scope="col">Subject</th>
-                  <th scope="col">Status</th>
-                </tr>
-              </thead>
-
-              <tbody id="teachers-table-body">
-                <tr>
-                  <td colspan="5">
-                    <div class="empty-state">
-                      <h3>No teacher records loaded</h3>
-                      <p>Teacher data is not connected yet.</p>
-                      <small>
-                        Connect the academy data service to load and save
-                        actual teacher records.
-                      </small>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
         </section>
       </div>
 

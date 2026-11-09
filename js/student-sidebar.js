@@ -1,9 +1,7 @@
-
 /**
  * EduAdmin - Student Sidebar
  *
  * Shared navigation for Student Portal pages.
- * Student account data and authentication are not connected yet.
  */
 
 (() => {
@@ -31,46 +29,44 @@
         </div>
       </div>
 
-      
-<nav class="sidebar-nav" aria-label="Student navigation">
-  <p class="sidebar-label">STUDENT MENU</p>
+      <nav class="sidebar-nav" aria-label="Student navigation">
+        <p class="sidebar-label">STUDENT MENU</p>
 
-  <a href="dashboard.html"
-     class="sidebar-link"
-     data-nav-path="dashboard.html">
-    <span class="nav-icon" aria-hidden="true">▦</span>
-    <span>Dashboard</span>
-  </a>
+        <a href="dashboard.html"
+           class="sidebar-link"
+           data-nav-path="dashboard.html">
+          <span class="nav-icon" aria-hidden="true">▦</span>
+          <span>Dashboard</span>
+        </a>
 
-  <a href="attendance.html"
-     class="sidebar-link"
-     data-nav-path="attendance.html">
-    <span class="nav-icon" aria-hidden="true">✓</span>
-    <span>Attendance</span>
-  </a>
+        <a href="attendance.html"
+           class="sidebar-link"
+           data-nav-path="attendance.html">
+          <span class="nav-icon" aria-hidden="true">✓</span>
+          <span>Attendance</span>
+        </a>
 
-  <a href="schedules.html"
-     class="sidebar-link"
-     data-nav-path="schedules.html">
-    <span class="nav-icon" aria-hidden="true">◷</span>
-    <span>Schedules</span>
-  </a>
+        <a href="schedules.html"
+           class="sidebar-link"
+           data-nav-path="schedules.html">
+          <span class="nav-icon" aria-hidden="true">◷</span>
+          <span>Schedules</span>
+        </a>
 
-  <a href="materials.html"
-     class="sidebar-link"
-     data-nav-path="materials.html">
-    <span class="nav-icon" aria-hidden="true">▤</span>
-    <span>Study Materials</span>
-  </a>
+        <a href="materials.html"
+           class="sidebar-link"
+           data-nav-path="materials.html">
+          <span class="nav-icon" aria-hidden="true">▤</span>
+          <span>Study Materials</span>
+        </a>
 
-  <a href="payments.html"
-     class="sidebar-link"
-     data-nav-path="payments.html">
-    <span class="nav-icon" aria-hidden="true">₹</span>
-    <span>Fees &amp; Payments</span>
-  </a>
-</nav>
-
+        <a href="payments.html"
+           class="sidebar-link"
+           data-nav-path="payments.html">
+          <span class="nav-icon" aria-hidden="true">₹</span>
+          <span>Fees &amp; Payments</span>
+        </a>
+      </nav>
 
       <div class="sidebar-bottom">
         <a href="../login.html"
@@ -84,8 +80,6 @@
   `;
 
   const sidebar = document.getElementById("student-sidebar");
-  const toggle = document.getElementById("sidebar-toggle");
-  const overlay = document.getElementById("sidebar-overlay");
 
   function setActiveLink() {
     const currentFile = window.location.pathname.split("/").pop() || "dashboard.html";
@@ -105,19 +99,34 @@
 
   function closeSidebar() {
     sidebar.classList.remove("is-open");
-    overlay?.classList.remove("is-visible");
-    toggle?.setAttribute("aria-expanded", "false");
+    document.getElementById("sidebar-overlay")?.classList.remove("is-visible");
+    document.getElementById("sidebar-toggle")?.setAttribute("aria-expanded", "false");
   }
 
   function toggleSidebar() {
     const isOpen = sidebar.classList.toggle("is-open");
+    const overlay = document.getElementById("sidebar-overlay");
+    const toggle = document.getElementById("sidebar-toggle");
 
     overlay?.classList.toggle("is-visible", isOpen);
     toggle?.setAttribute("aria-expanded", String(isOpen));
   }
 
-  toggle?.addEventListener("click", toggleSidebar);
-  overlay?.addEventListener("click", closeSidebar);
+  // Safely bind mobile toggle controls (handles dynamic loading)
+  function initMobileControls() {
+    const toggle = document.getElementById("sidebar-toggle");
+    const overlay = document.getElementById("sidebar-overlay");
+
+    if (toggle && !toggle.dataset.mobileInitialized) {
+      toggle.dataset.mobileInitialized = "true";
+      toggle.addEventListener("click", toggleSidebar);
+    }
+
+    if (overlay && !overlay.dataset.mobileInitialized) {
+      overlay.dataset.mobileInitialized = "true";
+      overlay.addEventListener("click", closeSidebar);
+    }
+  }
 
   sidebar.querySelectorAll(".sidebar-link").forEach((link) => {
     link.addEventListener("click", closeSidebar);
@@ -130,4 +139,12 @@
   });
 
   setActiveLink();
+
+  // Initialize mobile controls immediately and also on DOMContentLoaded as a fallback
+  initMobileControls();
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initMobileControls);
+  } else {
+    setTimeout(initMobileControls, 50);
+  }
 })();
