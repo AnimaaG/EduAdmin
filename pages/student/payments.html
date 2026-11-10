@@ -13,6 +13,38 @@
   <script type="module" src="../../js/account-menu.js"></script>
 
   <style>
+    .fee-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .5rem;
+      margin: 1.25rem 0;
+      padding: .75rem;
+      background: var(--card-bg, #fff);
+      border: 1px solid var(--border-color, #e5e7eb);
+      border-radius: 14px;
+    }
+
+    .fee-tab {
+      border: 1px solid var(--border-color, #d1d5db);
+      border-radius: 9px;
+      padding: .7rem 1rem;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 600;
+    }
+
+    .fee-tab[aria-selected="true"] {
+      background: var(--primary-color, #2563eb);
+      color: #fff;
+      border-color: var(--primary-color, #2563eb);
+    }
+
+    .fee-tab-panel[hidden] {
+      display: none !important;
+    }
+
     #student-installment-group[hidden],
     #student-upi-qr-section[hidden] {
       display: none !important;
@@ -23,6 +55,26 @@
       border: 1px solid #dbeafe;
       border-radius: 10px;
       margin: .75rem 0;
+    }
+
+    .fee-installment-row > td {
+      padding: 1rem;
+      background: var(--card-bg, #f8fafc);
+    }
+
+    .fee-installment-details h4 {
+      margin: 0 0 .75rem;
+      font-size: .95rem;
+    }
+
+    .fee-installment-details .table-container {
+      max-width: 100%;
+      overflow-x: auto;
+    }
+
+    .fee-installment-details table {
+      width: 100%;
+      min-width: 600px;
     }
   </style>
 </head>
@@ -55,7 +107,7 @@
         role="status"
         aria-live="polite"></p>
 
-      <section class="dashboard-section">
+      <section class="dashboard-section"><section class="dashboard-section">
         <div class="section-heading">
           <div>
             <h2>Payment Overview</h2>
@@ -79,9 +131,70 @@
             <h3 id="student-outstanding-balance">₹0.00</h3>
           </article>
         </div>
+
+        <!-- NEW: Upcoming Due Payment Card -->
+        <article class="stat-card" style="margin-top: 1rem; background: #f8fafc; border: 1px solid #e2e8f0;">
+          <p class="stat-label">Upcoming / Nearest Due Payment</p>
+          <h3 id="student-upcoming-due-amount" style="color: #2563eb; font-size: 1.25rem;">—</h3>
+          <p id="student-upcoming-due-info" style="margin-top: 0.25rem; color: #64748b; font-size: 0.875rem;">Loading upcoming dues...</p>
+        </article>
       </section>
 
-      <section class="dashboard-section">
+      <!-- TAB NAVIGATION -->
+      <nav class="fee-tabs" role="tablist" aria-label="Student payment sections">
+        <button class="fee-tab" id="tab-assigned" type="button"
+          role="tab" aria-selected="true" aria-controls="panel-assigned"
+          data-fee-tab="panel-assigned">Assigned Fees</button>
+
+        <button class="fee-tab" id="tab-history" type="button"
+          role="tab" aria-selected="false" aria-controls="panel-history"
+          data-fee-tab="panel-history">Payment History</button>
+
+        <button class="fee-tab" id="tab-upi" type="button"
+          role="tab" aria-selected="false" aria-controls="panel-upi"
+          data-fee-tab="panel-upi">UPI Payment Instructions</button>
+
+        <button class="fee-tab" id="tab-submit" type="button"
+          role="tab" aria-selected="false" aria-controls="panel-submit"
+          data-fee-tab="panel-submit">Submit Payment Details</button>
+      </nav>
+
+      <!-- TAB 1: ASSIGNED FEES -->
+      <section class="dashboard-section fee-tab-panel"
+        id="panel-assigned" role="tabpanel" aria-labelledby="tab-assigned">
+
+        <div class="section-heading">
+          <div>
+            <h2>Assigned Fees</h2>
+            <p>All fee assignments and installment schedules assigned to you.</p>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Fee Type</th>
+                <th>Description</th>
+                <th>Assigned</th>
+                <th>Paid</th>
+                <th>Balance</th>
+                <th>Due Date</th>
+                <th>Plan</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="student-assigned-fees-body">
+              <tr><td colspan="8">Loading assigned fees...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- TAB 2: PAYMENT HISTORY -->
+      <section class="dashboard-section fee-tab-panel"
+        id="panel-history" role="tabpanel" aria-labelledby="tab-history" hidden>
+
         <div class="section-heading">
           <div>
             <h2>Payment History</h2>
@@ -126,7 +239,10 @@
         </div>
       </section>
 
-      <section class="dashboard-section">
+      <!-- TAB 3: UPI INSTRUCTIONS -->
+      <section class="dashboard-section fee-tab-panel"
+        id="panel-upi" role="tabpanel" aria-labelledby="tab-upi" hidden>
+
         <div class="section-heading">
           <div>
             <h2>UPI Payment Instructions</h2>
@@ -155,7 +271,10 @@
         </div>
       </section>
 
-      <section class="dashboard-section">
+      <!-- TAB 4: SUBMIT PAYMENT -->
+      <section class="dashboard-section fee-tab-panel"
+        id="panel-submit" role="tabpanel" aria-labelledby="tab-submit" hidden>
+
         <div class="section-heading">
           <div>
             <h2>Submit Payment Details</h2>

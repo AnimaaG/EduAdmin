@@ -767,7 +767,7 @@ allow update: if isAcademyTeacher(resource.data.academyId)
         && get(userPath(request.resource.data.studentId)).data.academyId
           == request.resource.data.academyId;
 
-      // Only the academy admin can change payment balance/status.
+   // Only the academy admin can change payment balance/status.
       // Fee identity and original amount remain unchanged.
       allow update: if isAcademyAdmin(resource.data.academyId)
         && request.resource.data.academyId == resource.data.academyId
@@ -779,14 +779,10 @@ allow update: if isAcademyTeacher(resource.data.academyId)
         && request.resource.data.amountPaid is number
         && request.resource.data.amountPaid >= resource.data.amountPaid
         && request.resource.data.amountPaid <= resource.data.amount
-        && request.resource.data.status in ["pending", "partial", "paid"]
+        && request.resource.data.status in ["pending", "partial", "paid", "unpaid", "pending_review"]
         && (
           !("installments" in request.resource.data)
-          || (
-            request.resource.data.installments is list
-            && request.resource.data.paymentPlan == "installments"
-            && request.resource.data.installments.size() == request.resource.data.installmentCount
-          )
+          || request.resource.data.installments is list
         );
 
       allow delete: if false;
@@ -795,10 +791,11 @@ allow update: if isAcademyTeacher(resource.data.academyId)
     // --------------------------------------------------
     // PAYMENT SUBMISSIONS
     // --------------------------------------------------
+ 
   match /paymentSubmissions/{paymentId} {
   allow read: if signedIn()
     && (
-      activeAdminFor(resource.data.academyId)
+      isAcademyAdmin(resource.data.academyId)
       || (
         activeStudentFor(resource.data.academyId)
         && resource.data.studentId == request.auth.uid
@@ -808,7 +805,7 @@ allow update: if isAcademyTeacher(resource.data.academyId)
   allow create: if signedIn()
     && activeStudentFor(request.resource.data.academyId)
     && request.resource.data.studentId == request.auth.uid
-    && request.resource.data.status == "pending"
+    && request.resource.data.status in ["pending", "pending_review"]
     && request.resource.data.amount is number
     && request.resource.data.amount > 0
     && request.resource.data.feeId is string
@@ -842,13 +839,15 @@ allow update: if isAcademyTeacher(resource.data.academyId)
     );
 
   allow update: if signedIn()
-    && activeAdminFor(resource.data.academyId)
+    && isAcademyAdmin(resource.data.academyId)
     && request.resource.data.academyId == resource.data.academyId
     && request.resource.data.studentId == resource.data.studentId
-    && request.resource.data.feeId == resource.data.feeId;
+    && request.resource.data.feeId == resource.data.feeId
+    && request.resource.data.status in ["approved", "rejected"]
+    && request.resource.data.reviewedBy == request.auth.uid;
 
   allow delete: if signedIn()
-    && activeAdminFor(resource.data.academyId);
+    && isAcademyAdmin(resource.data.academyId);
 }
 
 //----------------------------------

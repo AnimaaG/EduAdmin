@@ -1,7 +1,5 @@
 /**
- * EduAdmin - Student Sidebar
- *
- * Shared navigation for Student Portal pages.
+ * EduAdmin - Student Sidebar + Live Notification Badges
  */
 
 (function () {
@@ -58,6 +56,7 @@
           <a href="payments.html" data-nav-path="payments.html">
             <span class="nav-icon" aria-hidden="true">₹</span>
             <span>Fees &amp; Payments</span>
+            <span id="badge-payments" class="sidebar-badge" hidden>0</span>
           </a>
         </nav>
 
@@ -80,31 +79,24 @@
 
     function openSidebar() {
       if (!sidebar || !toggle || !overlay) return;
-
       sidebar.classList.add("open");
       overlay.classList.add("visible");
       document.body.classList.add("sidebar-open");
-
       toggle.setAttribute("aria-expanded", "true");
       toggle.setAttribute("aria-label", "Close navigation menu");
     }
 
     function closeSidebar() {
       if (!sidebar || !toggle || !overlay) return;
-
       sidebar.classList.remove("open");
       overlay.classList.remove("visible");
       document.body.classList.remove("sidebar-open");
-
       toggle.setAttribute("aria-expanded", "false");
       toggle.setAttribute("aria-label", "Open navigation menu");
     }
 
     function setActiveLink() {
-      const currentFile = window.location.pathname
-        .split("/")
-        .pop()
-        .toLowerCase();
+      const currentFile = window.location.pathname.split("/").pop().toLowerCase();
 
       sidebar.querySelectorAll("[data-nav-path]").forEach((link) => {
         const target = link.getAttribute("data-nav-path").toLowerCase();
@@ -114,6 +106,8 @@
 
         if (active) {
           link.setAttribute("aria-current", "page");
+          const badge = link.querySelector(".sidebar-badge");
+          if (badge) badge.hidden = true;
         } else {
           link.removeAttribute("aria-current");
         }
@@ -132,13 +126,11 @@
 
     if (overlay) overlay.addEventListener("click", closeSidebar);
 
-    sidebar
-      .querySelectorAll(".sidebar-nav a, .sidebar-bottom a")
-      .forEach((link) => {
-        link.addEventListener("click", () => {
-          if (isMobile()) closeSidebar();
-        });
+    sidebar.querySelectorAll(".sidebar-nav a, .sidebar-bottom a").forEach((link) => {
+      link.addEventListener("click", () => {
+        if (isMobile()) closeSidebar();
       });
+    });
 
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape") closeSidebar();
@@ -149,6 +141,34 @@
     });
 
     setActiveLink();
+    initStudentBadges();
+  }
+
+  async function initStudentBadges() {
+    try {
+      const { auth, db } = await import("./firebase-config.js");
+      const { onAuthStateChanged } = await import("https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js");
+      const { collection, query, where, onSnapshot } = await import("https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js");
+
+      onAuthStateChanged(auth, async (user) => {
+        if (!user) return;
+        const currentFile = window.location.pathname.split("/").pop().toLowerCase();
+
+        // Monitor pending/unpaid fees for students
+        if (currentFile !== "payments.html") {
+          const qFees = query(collection(db, "fees"), where("studentId", "==", user.uid), where("status", "in", ["pending", "partial"]));
+          onSnapshot(qFees, (snap) => {
+            const b = document.getElementById("badge-payments");
+            if (b) {
+              b.textContent = snap.size;
+              b.hidden = snap.size === 0;
+            }
+          });
+        }
+      });
+    } catch (e) {
+      console.error("Student badge initialization failed:", e);
+    }
   }
 
   if (document.readyState === "loading") {

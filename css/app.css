@@ -2280,3 +2280,19 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--primary); }
   height: 48px;
   border-bottom: 1px solid #e1e7f0;
 }
+/* Sidebar Notification Badge Styling */
+.sidebar-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  border-radius: 9px;
+  line-height: 1;
+}

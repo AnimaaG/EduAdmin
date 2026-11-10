@@ -1,5 +1,5 @@
 /* =========================================================
-   EduAdmin — Admin Sidebar + Live Notification Badge
+   EduAdmin — Admin Sidebar + Live Notification Badges
    File: js/admin-sidebar.js
    ========================================================= */
 
@@ -9,7 +9,6 @@
   const scriptUrl = document.currentScript
     ? document.currentScript.src
     : new URL("./admin-sidebar.js", window.location.href).href;
-
 
   function initAdminSidebar() {
     const mount = document.getElementById("admin-sidebar-mount");
@@ -56,11 +55,13 @@
           <a href="teachers.html" data-nav-path="teachers.html">
             <span class="nav-icon" aria-hidden="true">♙</span>
             <span>Teachers</span>
+            <span id="badge-teachers" class="sidebar-badge" hidden>0</span>
           </a>
 
           <a href="students.html" data-nav-path="students.html">
             <span class="nav-icon" aria-hidden="true">♧</span>
             <span>Students</span>
+            <span id="badge-students" class="sidebar-badge" hidden>0</span>
           </a>
 
           <a href="attendance.html" data-nav-path="attendance.html">
@@ -86,6 +87,7 @@
           <a href="fees.html" data-nav-path="fees.html">
             <span class="nav-icon" aria-hidden="true">₹</span>
             <span>Fees</span>
+            <span id="badge-fees" class="sidebar-badge" hidden>0</span>
           </a>
 
           <a href="settings.html" data-nav-path="settings.html">
@@ -147,6 +149,8 @@
 
         if (active) {
           link.setAttribute("aria-current", "page");
+          const badge = link.querySelector(".sidebar-badge");
+          if (badge) badge.hidden = true;
         } else {
           link.removeAttribute("aria-current");
         }
@@ -190,6 +194,83 @@
       window.EduNavigation.setActiveLink();
     }
 
+    initAdminBadges();
+  }
+
+  // Real-time badge listener for Admin
+  async function initAdminBadges() {
+    try {
+      const configUrl = new URL("./firebase-config.js", scriptUrl);
+      const config = await import(configUrl.href);
+
+      const authModule = await import("https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js");
+      const firestore = await import("https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js");
+
+      const { onAuthStateChanged } = authModule;
+      const { doc, getDoc, collection, query, where, onSnapshot } = firestore;
+
+      onAuthStateChanged(config.auth, async (user) => {
+        if (!user) return;
+        const userSnap = await getDoc(doc(config.db, "users", user.uid));
+        if (!userSnap.exists()) return;
+        const academyId = userSnap.data().academyId;
+        if (!academyId) return;
+
+        const currentFile = window.location.pathname.split("/").pop().toLowerCase();
+
+        // 1. Pending Teacher Requests
+        if (currentFile !== "teachers.html") {
+          const qTeacher = query(
+            collection(config.db, "registrationRequests"),
+            where("academyId", "==", academyId),
+            where("requestedRole", "==", "teacher"),
+            where("status", "==", "pending")
+          );
+          onSnapshot(qTeacher, (snap) => {
+            const b = document.getElementById("badge-teachers");
+            if (b) {
+              b.textContent = snap.size;
+              b.hidden = snap.size === 0;
+            }
+          });
+        }
+
+        // 2. Pending Student Requests
+        if (currentFile !== "students.html") {
+          const qStudent = query(
+            collection(config.db, "registrationRequests"),
+            where("academyId", "==", academyId),
+            where("requestedRole", "==", "student"),
+            where("status", "==", "pending")
+          );
+          onSnapshot(qStudent, (snap) => {
+            const b = document.getElementById("badge-students");
+            if (b) {
+              b.textContent = snap.size;
+              b.hidden = snap.size === 0;
+            }
+          });
+        }
+
+        // 3. Pending Fee Payments
+        if (currentFile !== "fees.html") {
+          const qFees = query(
+            collection(config.db, "paymentSubmissions"),
+            where("academyId", "==", academyId),
+            where("status", "==", "pending")
+          );
+          onSnapshot(qFees, (snap) => {
+            const b = document.getElementById("badge-fees");
+            if (b) {
+              b.textContent = snap.size;
+              b.hidden = snap.size === 0;
+            }
+          });
+        }
+      });
+    } catch (e) {
+      console.error("Admin badge initialization failed:", e);
+    }
   }
 
   if (document.readyState === "loading") {

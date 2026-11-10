@@ -1,4 +1,3 @@
-
 /* =========================================================
    EduAdmin — Teacher Sidebar
    File: js/teacher-sidebar.js
@@ -10,6 +9,7 @@
    - Firebase authentication
    - Teacher account validation
    - Teacher profile display
+   - Live notification badges
    ========================================================= */
 
 (function () {
@@ -98,6 +98,7 @@
             data-nav-path="announcements.html">
             <span class="nav-icon" aria-hidden="true">📢</span>
             <span>Announcements</span>
+            <span id="badge-announcements" class="sidebar-badge" hidden>0</span>
           </a>
 
         </nav>
@@ -167,6 +168,8 @@
 
         if (active) {
           link.setAttribute("aria-current", "page");
+          const badge = link.querySelector(".sidebar-badge");
+          if (badge) badge.hidden = true;
         } else {
           link.removeAttribute("aria-current");
         }
@@ -215,6 +218,7 @@
     }
 
     validateTeacherAccount();
+    initTeacherBadges();
   }
 
   async function validateTeacherAccount() {
@@ -324,6 +328,32 @@
         "EduAdmin: Teacher account validation failed.",
         error
       );
+    }
+  }
+
+  async function initTeacherBadges() {
+    try {
+      const { auth, db } = await import("./firebase-config.js");
+      const { onAuthStateChanged } = await import("https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js");
+      const { collection, query, where, onSnapshot } = await import("https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js");
+
+      onAuthStateChanged(auth, async (user) => {
+        if (!user) return;
+        const currentFile = window.location.pathname.split("/").pop().toLowerCase();
+
+        if (currentFile !== "announcements.html") {
+          const qAnnounce = query(collection(db, "notifications"), where("teacherId", "==", user.uid), where("read", "==", false));
+          onSnapshot(qAnnounce, (snap) => {
+            const b = document.getElementById("badge-announcements");
+            if (b) {
+              b.textContent = snap.size;
+              b.hidden = snap.size === 0;
+            }
+          });
+        }
+      });
+    } catch (e) {
+      console.error("Teacher badge initialization failed:", e);
     }
   }
 

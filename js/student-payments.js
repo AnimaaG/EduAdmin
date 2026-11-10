@@ -20,12 +20,15 @@ document.addEventListener("DOMContentLoaded", () => {
   const searchInput = $("student-payment-search");
   const statusFilter = $("student-payment-status-filter");
   const tableBody = $("student-payments-table-body");
+  const assignedFeesBody = $("student-assigned-fees-body");
   const paymentForm = $("student-payment-form");
   const message = $("student-payment-message");
 
   const totalFeesElement = $("student-total-fees");
   const amountPaidElement = $("student-amount-paid");
   const outstandingElement = $("student-outstanding-balance");
+  const upcomingAmountElement = $("student-upcoming-due-amount");
+  const upcomingInfoElement = $("student-upcoming-due-info");
 
   const upiElement = $("student-academy-upi");
   const payeeElement = $("student-academy-payee");
@@ -81,14 +84,18 @@ document.addEventListener("DOMContentLoaded", () => {
     return date.toLocaleDateString("en-IN");
   }
 
-  function formatStatus(status) {
+function formatStatus(status) {
     const labels = {
-      pending: "Pending review",
+      pending: "Pending",
+      pending_review: "Pending review",
       approved: "Approved",
-      rejected: "Rejected"
+      rejected: "Rejected",
+      paid: "Paid",
+      partial: "Partially paid",
+      unpaid: "Pending"
     };
 
-    return labels[String(status || "").toLowerCase()] || "Unknown";
+    return labels[String(status || "").toLowerCase()] || "Pending";
   }
 
   function getFeeBalance(fee) {
@@ -129,6 +136,79 @@ document.addEventListener("DOMContentLoaded", () => {
     return getFeeBalance(fee);
   }
 
+  function renderUpcomingDue() {
+    if (!upcomingAmountElement || !upcomingInfoElement) return;
+
+    const todayStr = new Date().toISOString().split("T")[0];
+    let nearestDue = null;
+
+    feeRecords.forEach((fee) => {
+      const total = Number(fee.amount) || 0;
+      const paid = Number(fee.amountPaid) || 0;
+      const balance = Math.max(0, total - paid);
+
+      if (balance <= 0 || fee.status === "paid") return;
+
+      if (fee.paymentPlan === "installments" && Array.isArray(fee.installments)) {
+        fee.installments.forEach((inst) => {
+          const instPaid = Number(inst.amountPaid) || 0;
+          const instTotal = Number(inst.amount) || 0;
+          const instBalance = Math.max(0, instTotal - instPaid);
+
+          if (instBalance > 0 && inst.dueDate) {
+            if (!nearestDue || inst.dueDate < nearestDue.dueDate) {
+              nearestDue = {
+                feeType: `${fee.feeType || "Fee"} (Inst. #${inst.number})`,
+                balance: instBalance,
+                dueDate: inst.dueDate
+              };
+            }
+          }
+        });
+      } else {
+        if (fee.dueDate) {
+          if (!nearestDue || fee.dueDate < nearestDue.dueDate) {
+            nearestDue = {
+              feeType: fee.feeType || "General Fee",
+              balance: balance,
+              dueDate: fee.dueDate
+            };
+          }
+        }
+      }
+    });
+
+    if (!nearestDue) {
+      upcomingAmountElement.textContent = "No Dues";
+      upcomingInfoElement.textContent = "You have no outstanding payments remaining.";
+      return;
+    }
+
+    upcomingAmountElement.textContent = formatAmount(nearestDue.balance);
+    const isOverdue = nearestDue.dueDate < todayStr;
+    upcomingInfoElement.textContent = `${nearestDue.feeType} — Due Date: ${formatDate(nearestDue.dueDate)} ${isOverdue ? "(Overdue)" : ""}`;
+  }
+
+  // ---------------- TABS ----------------
+
+  function activateTab(panelId) {
+    document.querySelectorAll("[data-fee-tab]").forEach((button) => {
+      const active = button.dataset.feeTab === panelId;
+      button.setAttribute("aria-selected", String(active));
+      button.tabIndex = active ? 0 : -1;
+    });
+
+    document.querySelectorAll(".fee-tab-panel").forEach((panel) => {
+      panel.hidden = panel.id !== panelId;
+    });
+  }
+
+  document.querySelectorAll("[data-fee-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      activateTab(button.dataset.feeTab);
+    });
+  });
+
   function updateSummary() {
     const totalFees = feeRecords.reduce(
       (sum, fee) => sum + (Number(fee.amount) || 0), 0
@@ -145,6 +225,147 @@ document.addEventListener("DOMContentLoaded", () => {
     setText(totalFeesElement, formatAmount(totalFees));
     setText(amountPaidElement, formatAmount(totalPaid));
     setText(outstandingElement, formatAmount(outstanding));
+  }
+
+  function createInstallmentDetails(fee) {
+    const installments = Array.isArray(fee.installments)
+      ? fee.installments
+      : [];
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "fee-installment-details";
+
+    if (fee.paymentPlan !== "installments" || installments.length === 0) {
+      wrapper.textContent = "No installment schedule";
+      return wrapper;
+    }
+
+    const heading = document.createElement("h4");
+    heading.textContent = `Installment Schedule (${installments.length})`;
+    wrapper.appendChild(heading);
+
+    const tableContainer = document.createElement("div");
+    tableContainer.className = "table-container";
+
+    const table = document.createElement("table");
+    table.className = "data-table";
+
+    const thead = document.createElement("thead");
+    const headerRow = document.createElement("tr");
+
+    [
+      "Installment",
+      "Due Date",
+      "Scheduled",
+      "Paid",
+      "Balance",
+      "Status"
+    ].forEach((headingText) => {
+      const th = document.createElement("th");
+      th.textContent = headingText;
+      headerRow.appendChild(th);
+    });
+
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+
+    installments.forEach((item) => {
+      const scheduled = Math.round((Number(item.amount) || 0) * 100) / 100;
+      const paid = Math.round((Number(item.amountPaid) || 0) * 100) / 100;
+      const balance = Math.max(0, Math.round((scheduled - paid) * 100) / 100);
+
+      const status =
+        balance <= 0
+          ? "Paid"
+          : paid > 0
+            ? "Partial"
+            : "Pending";
+
+      const row = document.createElement("tr");
+
+      [
+        item.number ?? "—",
+        item.dueDate || "—",
+        formatAmount(scheduled),
+        formatAmount(paid),
+        formatAmount(balance),
+        status
+      ].forEach((value) => {
+        const td = document.createElement("td");
+        td.textContent = String(value);
+        row.appendChild(td);
+      });
+
+      tbody.appendChild(row);
+    });
+
+    table.appendChild(tbody);
+    tableContainer.appendChild(table);
+    wrapper.appendChild(tableContainer);
+
+    return wrapper;
+  }
+
+function renderAssignedFees() {
+    if (!assignedFeesBody) return;
+
+    assignedFeesBody.replaceChildren();
+
+    if (!feeRecords.length) {
+      const row = document.createElement("tr");
+      const cell = document.createElement("td");
+      cell.colSpan = 8;
+      cell.textContent = "No fee assignments found.";
+      row.appendChild(cell);
+      assignedFeesBody.appendChild(row);
+      return;
+    }
+
+    feeRecords.forEach((fee) => {
+      const row = document.createElement("tr");
+
+      const total = Number(fee.amount) || 0;
+      const paid = Number(fee.amountPaid) || 0;
+      const balance = Math.max(0, total - paid);
+
+      // Check if there is an active pending payment submission for this fee
+      const hasPendingReview = paymentRecords.some(
+        (p) => p.feeId === fee.id && String(p.status).toLowerCase() === "pending_review"
+      );
+
+      const displayStatus = hasPendingReview ? "Pending review" : formatStatus(fee.status);
+
+      [
+        fee.feeType || "General",
+        fee.description || "—",
+        formatAmount(total),
+        formatAmount(paid),
+        formatAmount(balance),
+        fee.dueDate || "—",
+        fee.paymentPlan === "installments" ? "Installments" : "Full payment",
+        displayStatus
+      ].forEach((value) => {
+        const cell = document.createElement("td");
+        cell.textContent = String(value);
+        row.appendChild(cell);
+      });
+
+      assignedFeesBody.appendChild(row);
+
+      if (fee.paymentPlan === "installments") {
+        const detailsRow = document.createElement("tr");
+        detailsRow.className = "fee-installment-row";
+
+        const detailsCell = document.createElement("td");
+        detailsCell.colSpan = 8;
+
+        detailsCell.appendChild(createInstallmentDetails(fee));
+        detailsRow.appendChild(detailsCell);
+        assignedFeesBody.appendChild(detailsRow);
+      }
+    });
   }
 
   function renderFeeOptions() {
@@ -237,7 +458,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const balance = getPayableBalance(fee);
 
     if (amountInput) {
-            const balanceInPaise = Math.round(balance * 100);
+      const balanceInPaise = Math.round(balance * 100);
       const enteredInPaise = Math.round(
         (Number(amountInput.value) || 0) * 100
       );
@@ -383,7 +604,7 @@ document.addEventListener("DOMContentLoaded", () => {
     section.hidden = false;
   }
 
-  async function loadStudentData(user) {
+async function loadStudentData(user) {
     currentUser = user;
 
     const profileSnapshot = await getDoc(doc(db, "users", user.uid));
@@ -404,11 +625,10 @@ document.addEventListener("DOMContentLoaded", () => {
       throw new Error("Your account is not linked to an academy.");
     }
 
-    await Promise.all([
-      loadAcademyPaymentDetails(),
-      loadFees(),
-      loadPaymentHistory()
-    ]);
+    // Load payment history first so paymentRecords is populated before rendering assigned fees
+    await loadAcademyPaymentDetails();
+    await loadPaymentHistory();
+    await loadFees();
   }
 
   async function loadAcademyPaymentDetails() {
@@ -443,7 +663,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }));
 
     updateSummary();
+    renderAssignedFees();
     renderFeeOptions();
+    renderUpcomingDue();
 
     if (feeSelect.value) {
       renderInstallmentOptions(getSelectedFee());
@@ -505,16 +727,16 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-        const amountInPaise = Math.round(amount * 100);
-        const balanceInPaise = Math.round(balance * 100);
+    const amountInPaise = Math.round(amount * 100);
+    const balanceInPaise = Math.round(balance * 100);
 
-        if (amountInPaise > balanceInPaise) {
-          showMessage(
-            `The amount cannot exceed the selected balance of ${formatAmount(balance)}.`,
-            "error"
-          );
-          return;
-        }
+    if (amountInPaise > balanceInPaise) {
+      showMessage(
+        `The amount cannot exceed the selected balance of ${formatAmount(balance)}.`,
+        "error"
+      );
+      return;
+    }
 
     if (!["upi", "bank-transfer"].includes(method)) {
       showMessage("Select a valid payment method.", "error");
@@ -563,7 +785,7 @@ document.addEventListener("DOMContentLoaded", () => {
         method,
         transactionReference: reference,
         paymentDate,
-        status: "pending",
+        status: "pending_review",
         createdAt: serverTimestamp()
       };
 
@@ -619,6 +841,7 @@ document.addEventListener("DOMContentLoaded", () => {
       showMessage("Loading your fees and payment details...");
       await loadStudentData(user);
       showMessage("");
+      activateTab("panel-assigned");
     } catch (error) {
       console.error("Could not load student payment data:", error);
 

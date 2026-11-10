@@ -44,6 +44,7 @@ import { onAuthStateChanged } from
   const pendingPaymentBody = $("pending-payments-table-body");
   const feeBody = $("fee-records-table-body");
   const installmentBody = $("installment-records-table-body");
+  const todaysDueBody = $("todays-due-table-body");
   const message = $("fees-message");
 
   function showMessage(text, type = "info") {
@@ -540,7 +541,7 @@ import { onAuthStateChanged } from
 
   // ---------------- LOAD RECORDS ----------------
 
-  async function loadFees() {
+async function loadFees() {
     const q = query(
       collection(db, "fees"),
       where("academyId", "==", academyId)
@@ -550,7 +551,95 @@ import { onAuthStateChanged } from
     fees = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
 
         renderFees();
+        renderTodaysDuePayments();
         updateSummary();
+  }
+
+function renderTodaysDuePayments() {
+    if (!todaysDueBody) return;
+
+    todaysDueBody.replaceChildren();
+
+    // Use local calendar date instead of UTC to avoid timezone offset mismatches
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const term = ($("todays-due-search")?.value || "").trim().toLowerCase();
+
+    // Filter fees where due date is today or earlier, and balance > 0 (not fully paid)
+    const dueItems = [];
+
+    fees.forEach((fee) => {
+      const total = Number(fee.amount) || 0;
+      const paid = Number(fee.amountPaid) || 0;
+      const balance = Math.max(0, total - paid);
+
+      // Exclude fully paid fees
+      if (balance <= 0 || fee.status === "paid") return;
+
+      if (fee.paymentPlan === "installments" && Array.isArray(fee.installments)) {
+        fee.installments.forEach((inst) => {
+          const instPaid = Number(inst.amountPaid) || 0;
+          const instTotal = Number(inst.amount) || 0;
+          const instBalance = Math.max(0, instTotal - instPaid);
+
+          if (instBalance > 0 && inst.dueDate && inst.dueDate <= todayStr) {
+            dueItems.push({
+              studentName: fee.studentName,
+              feeType: `${fee.feeType} (Inst. #${inst.number})`,
+              amount: instTotal,
+              amountPaid: instPaid,
+              balance: instBalance,
+              dueDate: inst.dueDate,
+              paymentPlan: "Installment",
+              status: inst.status || "pending"
+            });
+          }
+        });
+      } else {
+        if (fee.dueDate && fee.dueDate <= todayStr) {
+          dueItems.push({
+            studentName: fee.studentName,
+            feeType: fee.feeType || "General",
+            amount: total,
+            amountPaid: paid,
+            balance: balance,
+            dueDate: fee.dueDate,
+            paymentPlan: "Full payment",
+            status: fee.status || "pending"
+          });
+        }
+      }
+    });
+
+    const filtered = dueItems.filter((item) => {
+      const searchable = [item.studentName, item.feeType].join(" ").toLowerCase();
+      return searchable.includes(term);
+    });
+
+    if (!filtered.length) {
+      const row = document.createElement("tr");
+      const cell = makeCell("No payment dues or overdues for today.");
+      cell.colSpan = 8;
+      row.appendChild(cell);
+      todaysDueBody.appendChild(row);
+      return;
+    }
+
+    filtered.forEach((item) => {
+      const row = document.createElement("tr");
+      [
+        item.studentName || "—",
+        item.feeType || "—",
+        money(item.amount),
+        money(item.amountPaid),
+        money(item.balance),
+        item.dueDate || "—",
+        item.paymentPlan,
+        item.status
+      ].forEach((val) => row.appendChild(makeCell(val)));
+
+      todaysDueBody.appendChild(row);
+    });
   }
 
   async function loadPayments() {
@@ -1051,6 +1140,7 @@ import { onAuthStateChanged } from
   $("fee-record-status")?.addEventListener("change", renderFees);
   $("payment-search")?.addEventListener("input", renderPayments);
   $("payment-status-filter")?.addEventListener("change", renderPayments);
+  $("todays-due-search")?.addEventListener("input", renderTodaysDuePayments);
 
   onAuthStateChanged(auth, async (user) => {
     if (!user) {

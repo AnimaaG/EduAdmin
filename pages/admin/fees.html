@@ -171,7 +171,7 @@
 
         <button class="fee-tab" id="tab-pending" type="button"
           role="tab" aria-selected="false" aria-controls="panel-pending"
-          data-fee-tab="panel-pending">Pending Payments</button>
+          data-fee-tab="panel-pending">Pending Review</button>
 
         <button class="fee-tab" id="tab-transactions" type="button"
           role="tab" aria-selected="false" aria-controls="panel-transactions"
@@ -180,6 +180,11 @@
         <button class="fee-tab" id="tab-records" type="button"
           role="tab" aria-selected="false" aria-controls="panel-records"
           data-fee-tab="panel-records">Fee Records</button>
+
+          <button class="fee-tab" id="tab-todays-due" type="button"
+          role="tab" aria-selected="false" aria-controls="panel-todays-due"
+          data-fee-tab="panel-todays-due">Todays Due Payments</button>
+
       </nav>
 
       <!-- TAB 1: ASSIGN FEE -->
@@ -437,6 +442,47 @@
             </thead>
             <tbody id="fee-records-table-body">
               <tr><td colspan="8">Loading fee records...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+      </section>
+
+      <!-- TAB 5: TODAYS DUE PAYMENTS -->
+      <section class="dashboard-section fee-tab-panel"
+        id="panel-todays-due" role="tabpanel" aria-labelledby="tab-todays-due" hidden>
+
+        <div class="section-heading">
+          <div>
+            <h2>Todays Due & Overdue Payments</h2>
+            <p>Students with payments due today or overdue (fully paid balances excluded).</p>
+          </div>
+        </div>
+
+        <div class="table-toolbar">
+          <div class="form-group">
+            <label for="todays-due-search">Search due payments</label>
+            <input type="search" id="todays-due-search"
+              placeholder="Search student name or fee type...">
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th>Fee Type</th>
+                <th>Total Amount</th>
+                <th>Amount Paid</th>
+                <th>Balance Due</th>
+                <th>Due Date</th>
+                <th>Plan Type</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="todays-due-table-body">
+              <tr><td colspan="8">Loading due payments...</td></tr>
             </tbody>
           </table>
         </div>

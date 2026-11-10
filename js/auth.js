@@ -382,20 +382,31 @@ document.addEventListener("DOMContentLoaded", () => {
   if (loginForm) loginForm.addEventListener("submit", handleLogin);
   if (registerForm) registerForm.addEventListener("submit", handleRegistration);
 
-  if (forgotLink) {
+if (forgotLink) {
     forgotLink.addEventListener("click", async (event) => {
       event.preventDefault();
-      const email = document.getElementById("login-email").value.trim();
+      const emailField = document.getElementById("login-email");
+      const email = emailField ? emailField.value.trim() : "";
 
       if (!email) {
-        showMessage("login-message", "Enter your email address first.", "error");
+        showMessage("login-message", "Please enter your email address above before clicking 'Forgot password?'.", "error");
+        if (emailField) emailField.focus();
         return;
       }
 
       try {
+        // Clear previous messages and show loading feedback
+        showMessage("login-message", "Sending password reset email...", "info");
+
         await sendPasswordResetEmail(auth, email);
-        showMessage("login-message", "If password recovery is available, a reset email will be sent.", "info");
+
+        showMessage(
+          "login-message",
+          "Password reset email sent! Check your inbox (and spam folder) for instructions.",
+          "success"
+        );
       } catch (error) {
+        console.error("Password reset failed:", error);
         showMessage("login-message", friendlyError(error), "error");
       }
     });
