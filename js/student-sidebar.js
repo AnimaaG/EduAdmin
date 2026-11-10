@@ -4,147 +4,158 @@
  * Shared navigation for Student Portal pages.
  */
 
-(() => {
+(function () {
   "use strict";
 
-  const mount = document.getElementById("student-sidebar-mount");
+  function initStudentSidebar() {
+    const mount = document.getElementById("student-sidebar-mount");
 
-  if (!mount) {
-    console.error("EduAdmin: Student sidebar mount was not found.");
-    return;
-  }
+    if (!mount) {
+      console.error("EduAdmin: Student sidebar mount was not found.");
+      return;
+    }
 
-  mount.innerHTML = `
-    <aside class="dashboard-sidebar" id="student-sidebar">
-      <div class="sidebar-brand">
-        <span class="brand-icon">E</span>
-        <span>EduAdmin</span>
-      </div>
+    if (document.getElementById("student-sidebar")) return;
 
-      <div class="academy-profile">
-        <div class="academy-avatar">S</div>
-        <div>
-          <strong>Student Portal</strong>
-          <small>Learning workspace</small>
+    mount.innerHTML = `
+      <aside class="dashboard-sidebar" id="student-sidebar" aria-label="Student navigation">
+        <a class="brand" href="../../index.html">
+          <span class="brand-icon" aria-hidden="true">E</span>
+          <span>EduAdmin</span>
+        </a>
+
+        <div class="academy-profile">
+          <div class="academy-avatar" aria-hidden="true">S</div>
+          <div>
+            <strong>Student Portal</strong>
+            <small>Learning workspace</small>
+          </div>
         </div>
-      </div>
 
-      <nav class="sidebar-nav" aria-label="Student navigation">
         <p class="sidebar-label">STUDENT MENU</p>
 
-        <a href="dashboard.html"
-           class="sidebar-link"
-           data-nav-path="dashboard.html">
-          <span class="nav-icon" aria-hidden="true">▦</span>
-          <span>Dashboard</span>
-        </a>
+        <nav class="sidebar-nav" aria-label="Student navigation">
+          <a href="dashboard.html" data-nav-path="dashboard.html">
+            <span class="nav-icon" aria-hidden="true">▦</span>
+            <span>Dashboard</span>
+          </a>
 
-        <a href="attendance.html"
-           class="sidebar-link"
-           data-nav-path="attendance.html">
-          <span class="nav-icon" aria-hidden="true">✓</span>
-          <span>Attendance</span>
-        </a>
+          <a href="attendance.html" data-nav-path="attendance.html">
+            <span class="nav-icon" aria-hidden="true">✓</span>
+            <span>Attendance</span>
+          </a>
 
-        <a href="schedules.html"
-           class="sidebar-link"
-           data-nav-path="schedules.html">
-          <span class="nav-icon" aria-hidden="true">◷</span>
-          <span>Schedules</span>
-        </a>
+          <a href="schedules.html" data-nav-path="schedules.html">
+            <span class="nav-icon" aria-hidden="true">◷</span>
+            <span>Schedules</span>
+          </a>
 
-        <a href="materials.html"
-           class="sidebar-link"
-           data-nav-path="materials.html">
-          <span class="nav-icon" aria-hidden="true">▤</span>
-          <span>Study Materials</span>
-        </a>
+          <a href="materials.html" data-nav-path="materials.html">
+            <span class="nav-icon" aria-hidden="true">▤</span>
+            <span>Study Materials</span>
+          </a>
 
-        <a href="payments.html"
-           class="sidebar-link"
-           data-nav-path="payments.html">
-          <span class="nav-icon" aria-hidden="true">₹</span>
-          <span>Fees &amp; Payments</span>
-        </a>
-      </nav>
+          <a href="payments.html" data-nav-path="payments.html">
+            <span class="nav-icon" aria-hidden="true">₹</span>
+            <span>Fees &amp; Payments</span>
+          </a>
+        </nav>
 
-      <div class="sidebar-bottom">
-        <a href="../login.html"
-           class="sidebar-link"
-           id="student-logout-link">
-          <span class="nav-icon" aria-hidden="true">↪</span>
-          <span>Back to Login</span>
-        </a>
-      </div>
-    </aside>
-  `;
+        <div class="sidebar-bottom">
+          <a href="../login.html" class="sidebar-link" id="student-logout-link">
+            <span class="nav-icon" aria-hidden="true">↪</span>
+            <span>Back to Login</span>
+          </a>
+        </div>
+      </aside>
+    `;
 
-  const sidebar = document.getElementById("student-sidebar");
+    const sidebar = document.getElementById("student-sidebar");
+    const toggle = document.getElementById("sidebar-toggle");
+    const overlay = document.getElementById("sidebar-overlay");
 
-  function setActiveLink() {
-    const currentFile = window.location.pathname.split("/").pop() || "dashboard.html";
+    function isMobile() {
+      return window.matchMedia("(max-width: 900px)").matches;
+    }
 
-    sidebar.querySelectorAll("[data-nav-path]").forEach((link) => {
-      const isActive = link.dataset.navPath === currentFile;
+    function openSidebar() {
+      if (!sidebar || !toggle || !overlay) return;
 
-      link.classList.toggle("active", isActive);
+      sidebar.classList.add("open");
+      overlay.classList.add("visible");
+      document.body.classList.add("sidebar-open");
 
-      if (isActive) {
-        link.setAttribute("aria-current", "page");
-      } else {
-        link.removeAttribute("aria-current");
-      }
+      toggle.setAttribute("aria-expanded", "true");
+      toggle.setAttribute("aria-label", "Close navigation menu");
+    }
+
+    function closeSidebar() {
+      if (!sidebar || !toggle || !overlay) return;
+
+      sidebar.classList.remove("open");
+      overlay.classList.remove("visible");
+      document.body.classList.remove("sidebar-open");
+
+      toggle.setAttribute("aria-expanded", "false");
+      toggle.setAttribute("aria-label", "Open navigation menu");
+    }
+
+    function setActiveLink() {
+      const currentFile = window.location.pathname
+        .split("/")
+        .pop()
+        .toLowerCase();
+
+      sidebar.querySelectorAll("[data-nav-path]").forEach((link) => {
+        const target = link.getAttribute("data-nav-path").toLowerCase();
+        const active = target === currentFile;
+
+        link.classList.toggle("active", active);
+
+        if (active) {
+          link.setAttribute("aria-current", "page");
+        } else {
+          link.removeAttribute("aria-current");
+        }
+      });
+    }
+
+    if (toggle) {
+      toggle.addEventListener("click", () => {
+        if (sidebar.classList.contains("open")) {
+          closeSidebar();
+        } else {
+          openSidebar();
+        }
+      });
+    }
+
+    if (overlay) overlay.addEventListener("click", closeSidebar);
+
+    sidebar
+      .querySelectorAll(".sidebar-nav a, .sidebar-bottom a")
+      .forEach((link) => {
+        link.addEventListener("click", () => {
+          if (isMobile()) closeSidebar();
+        });
+      });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeSidebar();
     });
+
+    window.addEventListener("resize", () => {
+      if (!isMobile()) closeSidebar();
+    });
+
+    setActiveLink();
   }
 
-  function closeSidebar() {
-    sidebar.classList.remove("is-open");
-    document.getElementById("sidebar-overlay")?.classList.remove("is-visible");
-    document.getElementById("sidebar-toggle")?.setAttribute("aria-expanded", "false");
-  }
-
-  function toggleSidebar() {
-    const isOpen = sidebar.classList.toggle("is-open");
-    const overlay = document.getElementById("sidebar-overlay");
-    const toggle = document.getElementById("sidebar-toggle");
-
-    overlay?.classList.toggle("is-visible", isOpen);
-    toggle?.setAttribute("aria-expanded", String(isOpen));
-  }
-
-  // Safely bind mobile toggle controls (handles dynamic loading)
-  function initMobileControls() {
-    const toggle = document.getElementById("sidebar-toggle");
-    const overlay = document.getElementById("sidebar-overlay");
-
-    if (toggle && !toggle.dataset.mobileInitialized) {
-      toggle.dataset.mobileInitialized = "true";
-      toggle.addEventListener("click", toggleSidebar);
-    }
-
-    if (overlay && !overlay.dataset.mobileInitialized) {
-      overlay.dataset.mobileInitialized = "true";
-      overlay.addEventListener("click", closeSidebar);
-    }
-  }
-
-  sidebar.querySelectorAll(".sidebar-link").forEach((link) => {
-    link.addEventListener("click", closeSidebar);
-  });
-
-  window.addEventListener("resize", () => {
-    if (window.innerWidth > 900) {
-      closeSidebar();
-    }
-  });
-
-  setActiveLink();
-
-  // Initialize mobile controls immediately and also on DOMContentLoaded as a fallback
-  initMobileControls();
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initMobileControls);
+    document.addEventListener("DOMContentLoaded", initStudentSidebar, {
+      once: true
+    });
   } else {
-    setTimeout(initMobileControls, 50);
+    initStudentSidebar();
   }
 })();
