@@ -73,8 +73,7 @@ targetSelect.addEventListener("change", updateTargetFields);
 async function loadTeacherClasses() {
   const classesQuery = query(
     collection(db, "classes"),
-    where("academyId", "==", currentTeacher.academyId),
-    where("teacherId", "==", currentTeacher.uid)
+    where("academyId", "==", currentTeacher.academyId)
   );
 
   const snapshot = await getDocs(classesQuery);
@@ -84,24 +83,29 @@ async function loadTeacherClasses() {
       id: item.id,
       ...item.data()
     }))
-    .filter(item => item.status === "active");
+    .filter(item => {
+      if (String(item.status || "").toLowerCase() !== "active") return false;
+      const subjects = Array.isArray(item.subjects) ? item.subjects : [];
+      return subjects.some(subj => subj.teacherId === currentTeacher.uid);
+    });
 
-  classSelect.innerHTML =
-    '<option value="">Select a class</option>';
+  classSelect.innerHTML = '<option value="">Select a class</option>';
 
   teacherClasses.forEach(item => {
-    const option = document.createElement("option");
-
-    option.value = item.id;
-    option.textContent =
-      `${item.className || "Class"} - ${item.subject || "Subject"}`;
-
-    classSelect.appendChild(option);
+    const teacherSubjects = (item.subjects || []).filter(s => s.teacherId === currentTeacher.uid);
+    teacherSubjects.forEach(subj => {
+      const subName = subj.subjectName || "Subject";
+      const option = document.createElement("option");
+      option.value = `${item.id}::${subName}`;
+      option.dataset.classId = item.id;
+      option.dataset.subject = subName;
+      option.textContent = `${item.className || "Class"} - ${subName}`;
+      classSelect.appendChild(option);
+    });
   });
 
-  if (!teacherClasses.length) {
-    classSelect.innerHTML =
-      '<option value="">No assigned active classes found</option>';
+  if (!classSelect.children.length || classSelect.children.length === 1) {
+    classSelect.innerHTML = '<option value="">No assigned active classes found</option>';
   }
 }
 
@@ -147,7 +151,12 @@ function startEditingAnnouncement(item) {
       return;
     }
 
-    classSelect.value = item.classId;
+    const matchingOption = Array.from(classSelect.options).find(
+      opt => opt.dataset.classId === item.classId && (!item.subject || opt.dataset.subject === item.subject)
+    ) || Array.from(classSelect.options).find(
+      opt => opt.dataset.classId === item.classId
+    );
+    classSelect.value = matchingOption ? matchingOption.value : "";
   }
 
   publishButton.textContent = "Save Changes";
@@ -385,10 +394,13 @@ form.addEventListener("submit", async event => {
   }
 
   let classData = null;
+  let selectedSubjectName = null;
 
   if (targetType === "class") {
+    const selectedOption = classSelect.options[classSelect.selectedIndex];
+    const selectedClassId = selectedOption?.dataset.classId || classSelect.value;
     classData = teacherClasses.find(
-      item => item.id === classSelect.value
+      item => item.id === selectedClassId
     );
 
     if (!classData) {
@@ -398,6 +410,8 @@ form.addEventListener("submit", async event => {
       );
       return;
     }
+
+    selectedSubjectName = selectedOption?.dataset.subject || classData.subject || "";
   }
 
   publishButton.disabled = true;
@@ -410,8 +424,8 @@ form.addEventListener("submit", async event => {
       announcementDate,
       targetType,
       classId: classData?.id || null,
-      className: classData?.className || null,
-      subject: classData?.subject || null
+      className: classData?.className || classData?.name || null,
+      subject: selectedSubjectName
     };
 
     if (editingAnnouncementId) {

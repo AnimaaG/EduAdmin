@@ -1,4 +1,3 @@
-
 import { auth, db } from "./firebase-config.js";
 
 import {
@@ -23,6 +22,18 @@ document.addEventListener("DOMContentLoaded", () => {
   const formSection = document.getElementById("student-form-section");
   const form = document.getElementById("student-form");
   const cancelButton = document.getElementById("cancel-student-button");
+
+  // Edit Modal Elements
+  const editModal = document.getElementById("edit-student-modal");
+  const editStudentForm = document.getElementById("edit-student-form");
+  const editStudentId = document.getElementById("edit-student-id");
+  const editStudentName = document.getElementById("edit-student-name");
+  const editStudentEmail = document.getElementById("edit-student-email");
+  const editStudentPhone = document.getElementById("edit-student-phone");
+  const editStudentClassesContainer = document.getElementById("edit-student-classes-container"); // Multi-class container
+  const editStudentStatus = document.getElementById("edit-student-status");
+  const closeEditModalBtn = document.getElementById("close-edit-modal");
+  const cancelEditModalBtn = document.getElementById("cancel-edit-modal");
 
   if (!message) {
     console.error("Student page is missing #students-message.");
@@ -110,7 +121,7 @@ document.addEventListener("DOMContentLoaded", () => {
       <div class="students-toolbar">
         <div>
           <h3>Registered students</h3>
-          <p>Search students or update their enrollment status.</p>
+          <p>Search students or update their details and enrollment status.</p>
         </div>
         <input
           type="search"
@@ -205,55 +216,31 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-
 function getAssignedClass(student) {
-  const classNames = new Set();
+    const classNames = new Set();
 
-  // Support existing class-name and class-ID fields.
-  if (student.className) classNames.add(student.className);
-  if (student.assignedClassName) classNames.add(student.assignedClassName);
-
-  const classIds = new Set();
-
-  if (student.classId) classIds.add(student.classId);
-  if (student.assignedClassId) classIds.add(student.assignedClassId);
-
-  if (Array.isArray(student.classIds)) {
-    student.classIds.forEach(id => classIds.add(id));
-  }
-
-  if (Array.isArray(student.assignedClassIds)) {
-    student.assignedClassIds.forEach(id => classIds.add(id));
-  }
-
-  // Read the new class-to-student assignments.
-  classes.forEach(classItem => {
-    if (
-      Array.isArray(classItem.studentIds) &&
-      classItem.studentIds.includes(student.id)
-    ) {
-      classNames.add(
-        classItem.className || classItem.name || "Unnamed class"
-      );
+    // Check if student has multi-class array stored
+    const classIds = new Set();
+    if (student.classId) classIds.add(student.classId);
+    if (student.assignedClassId) classIds.add(student.assignedClassId);
+    if (Array.isArray(student.classIds)) {
+      student.classIds.forEach(id => classIds.add(id));
     }
-  });
 
-  // Resolve any existing class IDs to class names.
-  classIds.forEach(id => {
-    const classItem = classes.find(item => item.id === id);
+    classIds.forEach(id => {
+      const classItem = classes.find(item => item.id === id);
+      if (classItem) {
+        classNames.add(classItem.className || classItem.name || "Unnamed class");
+      }
+    });
 
-    if (classItem) {
-      classNames.add(
-        classItem.className || classItem.name || "Unnamed class"
-      );
+    // Fallback to stored className string if no IDs matched
+    if (classNames.size === 0 && student.className) {
+      return student.className;
     }
-  });
 
-  return classNames.size
-    ? [...classNames].join(", ")
-    : "Not assigned";
-}
-
+    return classNames.size ? [...classNames].join(", ") : "Not assigned";
+  }
 
   function getAssignedFee(student) {
     const studentFees = feeRecords.filter(fee => fee.studentId === student.id);
@@ -295,13 +282,8 @@ function getAssignedClass(student) {
     ).length;
 
     const terminated = students.filter(
-    student => getStudentStatus(student) === "terminated"
-  ).length;
-
-    const totalFees = students.reduce(
-      (sum, student) => sum + getAssignedFee(student),
-      0
-    );
+      student => getStudentStatus(student) === "terminated"
+    ).length;
 
     document.getElementById("students-total-count").textContent = students.length;
     document.getElementById("students-summary-total").textContent = students.length;
@@ -386,105 +368,138 @@ function getAssignedClass(student) {
           </td>
 
           <td>
-            <div class="student-status-controls">
-              <select
-                class="student-status-select"
-                data-status-select="${escapeHTML(student.id)}"
-                aria-label="New status for ${escapeHTML(name)}"
-                ${disabled ? "disabled" : ""}
-              >
-                <option value="active" ${status === "active" ? "selected" : ""}>Active</option>
-                <option value="left" ${status === "left" ? "selected" : ""}>Left class</option>
-                <option value="terminated" ${status === "terminated" ? "selected" : ""}>Terminated</option>
-              </select>
-              <button
-                type="button"
-                class="student-update-button"
-                data-update-student="${escapeHTML(student.id)}"
-                ${disabled ? "disabled" : ""}
-              >
-                ${disabled ? "Updating..." : "Update"}
-              </button>
-            </div>
+            <button
+              type="button"
+              class="student-update-button"
+              data-edit-student="${escapeHTML(student.id)}"
+              ${disabled ? "disabled" : ""}
+            >
+              ${disabled ? "Loading..." : "Update"}
+            </button>
           </td>
         </tr>
       `;
     }).join("");
 
-    studentsBody.querySelectorAll("[data-update-student]").forEach(button => {
+    studentsBody.querySelectorAll("[data-edit-student]").forEach(button => {
       button.addEventListener("click", () => {
-        const studentId = button.dataset.updateStudent;
-        const select = studentsBody.querySelector(
-          `[data-status-select="${CSS.escape(studentId)}"]`
-        );
-
-        if (select) updateStudentStatus(studentId, select.value);
+        const studentId = button.dataset.editStudent;
+        openEditModal(studentId);
       });
     });
   }
 
-  async function updateStudentStatus(studentId, newStatus) {
-    const student = students.find(item => item.id === studentId);
-    if (!student || updatingStudentId) return;
+  function openEditModal(studentId) {
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
 
-    const currentStatus = getStudentStatus(student);
+    editStudentId.value = student.id;
+    editStudentName.value = getStudentName(student);
+    editStudentEmail.value = student.email || "";
+    editStudentPhone.value = student.phone || student.contactNumber || "";
+    editStudentStatus.value = getStudentStatus(student);
 
-    if (!["active", "left", "terminated"].includes(newStatus)) return;
+    // Populate class checkboxes dynamically
+    if (editStudentClassesContainer) {
+      if (classes.length === 0) {
+        editStudentClassesContainer.innerHTML = '<span style="color: #64748b; font-size: 13px;">No classes available in this academy.</span>';
+      } else {
+        editStudentClassesContainer.replaceChildren();
+        
+        const assignedIds = new Set();
+        if (student.classId) assignedIds.add(student.classId);
+        if (student.assignedClassId) assignedIds.add(student.assignedClassId);
+        if (Array.isArray(student.classIds)) {
+          student.classIds.forEach(id => assignedIds.add(id));
+        }
 
-    if (newStatus === currentStatus) {
-      showMessage("The student already has this status.", "info");
+        classes.forEach(c => {
+          const wrapper = document.createElement("label");
+          wrapper.style.cssText = "display: flex; align-items: center; gap: 8px; font-size: 13px; color: #334155; cursor: pointer;";
+
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.name = "editStudentClass";
+          checkbox.value = c.id;
+          if (assignedIds.has(c.id)) {
+            checkbox.checked = true;
+          }
+
+          const textSpan = document.createElement("span");
+          textSpan.textContent = c.className || c.name || "Unnamed class";
+
+          wrapper.append(checkbox, textSpan);
+          editStudentClassesContainer.append(wrapper);
+        });
+      }
+    }
+
+    if (editModal) editModal.hidden = false;
+  }
+
+  closeEditModalBtn?.addEventListener("click", () => { if (editModal) editModal.hidden = true; });
+  cancelEditModalBtn?.addEventListener("click", () => { if (editModal) editModal.hidden = true; });
+
+  editStudentForm?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const studentId = editStudentId.value;
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+
+    const newName = editStudentName.value.trim();
+    const newEmail = editStudentEmail.value.trim();
+    const newPhone = editStudentPhone.value.trim();
+    const newStatus = editStudentStatus.value;
+
+    const checkedBoxes = editStudentClassesContainer.querySelectorAll('input[name="editStudentClass"]:checked');
+    const selectedClassIds = Array.from(checkedBoxes).map(cb => cb.value).filter(Boolean);
+
+    if (!newName || !newEmail) {
+      showMessage("Name and email are required.", "error");
       return;
     }
 
-    const actionText = {
-      active: "reactivate this student's account",
-      left: "mark this student as having left the class and disable account access",
-      terminated: "terminate this student's enrollment and disable account access"
-    }[newStatus];
-
-    const confirmed = window.confirm(
-      `Are you sure you want to ${actionText}?\n\n` +
-      "This will not delete the student's attendance, fee, or payment records."
-    );
-
-    if (!confirmed) {
-      renderStudents();
+    if (selectedClassIds.length === 0) {
+      showMessage("Select at least one assigned class.", "error");
       return;
     }
 
-    updatingStudentId = studentId;
-    hideMessage();
-    renderStudents();
+    const selectedClassNames = selectedClassIds.map(id => {
+      const found = classes.find(c => c.id === id);
+      return found ? (found.className || found.name || "") : "";
+    }).filter(Boolean);
 
     try {
       await updateDoc(doc(db, "users", studentId), {
+        fullName: newName,
+        email: newEmail,
+        phone: newPhone,
+        classIds: selectedClassIds,
+        classId: selectedClassIds[0] || "",
+        className: selectedClassNames.join(", "),
         enrollmentStatus: newStatus,
         isActive: newStatus === "active",
         statusUpdatedAt: serverTimestamp(),
         statusUpdatedBy: auth.currentUser.uid
       });
 
+      student.fullName = newName;
+      student.email = newEmail;
+      student.phone = newPhone;
+      student.classIds = selectedClassIds;
+      student.classId = selectedClassIds[0] || "";
+      student.className = selectedClassNames.join(", ");
       student.enrollmentStatus = newStatus;
       student.isActive = newStatus === "active";
 
-      showMessage(
-        `${getStudentName(student)} status updated to "${statusLabel(newStatus)}".`,
-        "success"
-      );
-    } catch (error) {
-      console.error("Failed to update student status:", error);
-
-      showMessage(
-        error.code === "permission-denied"
-          ? "Firestore denied this update. Check the users collection security rules."
-          : (error.message || "Could not update the student's status."),
-        "error"
-      );
-    } finally {
-      updatingStudentId = null;
+      if (editModal) editModal.hidden = true;
       renderStudents();
+      showMessage(`Successfully updated details for ${newName}.`, "success");
+    } catch (error) {
+      console.error("Failed to update student details:", error);
+      showMessage(error.message || "Could not update student details.", "error");
     }
-  }
+  });
 
   async function loadStudents() {
     studentsStatus.textContent = "Loading student records...";
@@ -536,35 +551,6 @@ function getAssignedClass(student) {
   }
 
   searchInput.addEventListener("input", renderStudents);
-
-  if (addButton && formSection) {
-    addButton.addEventListener("click", () => {
-      formSection.hidden = false;
-      addButton.disabled = true;
-      document.getElementById("student-name")?.focus();
-    });
-  }
-
-  if (cancelButton && formSection && form) {
-    cancelButton.addEventListener("click", () => {
-      form.reset();
-      formSection.hidden = true;
-      if (addButton) addButton.disabled = false;
-      hideMessage();
-    });
-  }
-
-  if (form) {
-    form.addEventListener("submit", event => {
-      event.preventDefault();
-
-      showMessage(
-        "This form does not create a Firebase login account yet. " +
-        "Student account creation must be connected through a secure backend.",
-        "info"
-      );
-    });
-  }
 
   onAuthStateChanged(auth, async user => {
     if (!user) {
@@ -828,20 +814,9 @@ function getAssignedClass(student) {
       .status-left .status-dot { background: #e9a323; }
       .status-terminated { background: #fff0f0; color: #c03939; }
       .status-terminated .status-dot { background: #d84b4b; }
-      .student-status-controls { display: flex; align-items: center; gap: 7px; }
-      .student-status-select {
-        max-width: 112px;
-        min-height: 35px;
-        padding: 6px;
-        border: 1px solid #dfe4ef;
-        border-radius: 8px;
-        background: white;
-        color: #424d64;
-        font-size: 11px;
-      }
       .student-update-button {
         min-height: 35px;
-        padding: 7px 11px;
+        padding: 7px 16px;
         border: 0;
         border-radius: 8px;
         background: #5c50e6;
@@ -855,15 +830,7 @@ function getAssignedClass(student) {
       .student-update-button:disabled { opacity: .6; cursor: wait; transform: none; }
       .students-empty { padding: 36px !important; text-align: center; color: #7d869a !important; }
       @media (max-width: 850px) {
-        .students-panel { padding: 17px; }
-        .students-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        .students-panel-header { align-items: flex-start; }
-        .students-toolbar { align-items: stretch; flex-direction: column; }
-        .students-toolbar input { width: 100%; box-sizing: border-box; }
-      }
-      @media (max-width: 420px) {
-        .students-summary { grid-template-columns: 1fr; }
-        .students-total { min-width: 64px; padding: 10px; }
+        .students-modal { max-width: 100%; margin: 10px; }
       }
     `;
 

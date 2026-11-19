@@ -248,5 +248,56 @@
   </div>
 
   <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+  <!-- EDIT STUDENT MODAL -->
+  <div id="edit-student-modal" class="dashboard-section" style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px;" hidden>
+    <div style="background: #fff; padding: 24px; border-radius: 16px; max-width: 520px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 12px 32px rgba(30,41,59,.16);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h3 id="edit-modal-title" style="margin: 0; font-size: 18px; color: #19233b;">Edit Student Details</h3>
+        <button type="button" id="close-edit-modal" class="secondary-button" style="background: transparent; border: none; font-size: 20px; cursor: pointer; color: #64748b;">&times;</button>
+      </div>
+
+      <form id="edit-student-form" class="form-grid">
+        <input type="hidden" id="edit-student-id">
+
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label for="edit-student-name">Full name *</label>
+          <input type="text" id="edit-student-name" required style="width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px;">
+        </div>
+
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label for="edit-student-email">Email address *</label>
+          <input type="email" id="edit-student-email" required style="width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px;">
+        </div>
+
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label for="edit-student-phone">Contact number</label>
+          <input type="tel" id="edit-student-phone" style="width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px;">
+        </div>
+
+       <!-- Replace the single class select with this multi-class container -->
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label>Assigned Classes *</label>
+          <div id="edit-student-classes-container" style="display: grid; gap: 8px; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; max-height: 160px; overflow-y: auto;">
+            <span style="color: #64748b; font-size: 13px;">Loading classes...</span>
+          </div>
+        </div>
+
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label for="edit-student-status">Enrollment Status *</label>
+          <select id="edit-student-status" required style="width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff;">
+            <option value="active">Active</option>
+            <option value="left">Left class</option>
+            <option value="terminated">Terminated</option>
+          </select>
+        </div>
+
+        <div class="form-actions full-width" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 1rem; grid-column: 1 / -1;">
+          <button type="button" id="cancel-edit-modal" style="min-height: 40px; padding: 8px 16px; border: 1px solid #cbd5e1; background: #f8fafc; border-radius: 8px; cursor: pointer; font-weight: 700;">Cancel</button>
+          <button type="submit" style="min-height: 40px; padding: 8px 18px; border: none; background: #5c50e6; color: #fff; border-radius: 8px; cursor: pointer; font-weight: 700;">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
 </body>
 </html>

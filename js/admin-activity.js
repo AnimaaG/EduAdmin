@@ -1,11 +1,9 @@
-
 import { auth, db } from "./firebase-config.js";
 
 import {
   doc,
   getDoc,
   getDocs,
-  addDoc,
   updateDoc,
   collection,
   query,
@@ -20,49 +18,12 @@ const REQUIRED_STUDENTS = 2;
 const REQUIRED_TEACHERS = 1;
 
 /**
- * Record an action performed by an active academy admin.
+ * Stubbed out to prevent writing to activityLogs and saving Firebase storage.
+ * Preserved so imports across other modules continue to work without errors.
  */
-export async function recordAcademyAdminActivity({
-  action,
-  title,
-  detail = "",
-  actionType = "general",
-  entityId = "",
-  entityType = ""
-}) {
-  const user = auth.currentUser;
-
-  if (!user) {
-    throw new Error("Admin is not signed in.");
-  }
-
-  const profileSnapshot = await getDoc(doc(db, "users", user.uid));
-
-  if (!profileSnapshot.exists()) {
-    throw new Error("Admin profile not found.");
-  }
-
-  const profile = profileSnapshot.data();
-
-  if (
-    profile.role !== "admin" ||
-    profile.isActive !== true ||
-    !profile.academyId
-  ) {
-    throw new Error("Active academy admin access is required.");
-  }
-
-  await addDoc(collection(db, "activityLogs"), {
-    academyId: profile.academyId,
-    userId: user.uid,
-    action,
-    title,
-    details: detail,
-    actionType,
-    entityId,
-    entityType,
-    createdAt: serverTimestamp()
-  });
+export async function recordAcademyAdminActivity() {
+  // No-op: Activity logs are disabled.
+  return Promise.resolve();
 }
 
 /**

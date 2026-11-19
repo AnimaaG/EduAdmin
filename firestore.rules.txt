@@ -131,47 +131,20 @@ match /syllabus/{syllabusId} {
       && resource.data.teacherId == request.auth.uid
     );
 
-  // Admin can create syllabus for any class in their academy.
+  // Admin and teachers can create syllabus within their academy.
   allow create: if
-    isAcademyAdmin(request.resource.data.academyId)
-
+    (isAcademyAdmin(request.resource.data.academyId) || isAcademyTeacher(request.resource.data.academyId))
     && request.resource.data.classId is string
     && syllabusClassExists(request.resource.data.classId)
-
-    && syllabusClassData(request.resource.data.classId).academyId
-      == request.resource.data.academyId
-
+    && syllabusClassData(request.resource.data.classId).academyId == request.resource.data.academyId
     && request.resource.data.className is string
-    && request.resource.data.teacherId is string
-    && request.resource.data.teacherName is string
-    && request.resource.data.subject is string
-    && request.resource.data.chapterTitle is string
-    && request.resource.data.topics is list
-    && request.resource.data.isCompleted == false;
-
-  // Teachers can create syllabus for their assigned classes.
-  allow create: if
-    isAcademyTeacher(request.resource.data.academyId)
-
-    && request.resource.data.teacherId == request.auth.uid
-
-    && request.resource.data.classId is string
-    && syllabusClassExists(request.resource.data.classId)
-
-    && syllabusClassData(request.resource.data.classId).academyId
-      == request.resource.data.academyId
-
-    && syllabusClassData(request.resource.data.classId).teacherId
-      == request.auth.uid
-
-    && syllabusClassData(request.resource.data.classId).subject
-      == request.resource.data.subject
-
-    && request.resource.data.className is string
-    && request.resource.data.teacherName is string
     && request.resource.data.subject is string
     && request.resource.data.chapterTitle is string
     && request.resource.data.topics is list;
+
+  // Admin and teachers can update syllabus within their academy.
+  allow update: if
+    isAcademyAdmin(resource.data.academyId) || isAcademyTeacher(resource.data.academyId);
 
   // Admin can edit syllabus content in their academy.
   allow update: if
@@ -344,16 +317,26 @@ match /syllabus/{syllabusId} {
         && request.resource.data.academyId == resource.data.academyId;
 
       // Allow an academy admin to update only a student's enrollment status.
+      // Allow an academy admin to update student profile details and enrollment status.
       allow update: if isAcademyAdmin(resource.data.academyId)
         && resource.data.role == "student"
         && request.resource.data.diff(resource.data)
           .affectedKeys()
           .hasOnly([
+            "fullName",
+            "email",
+            "phone",
+            "classId",
+            "className",
+            "classIds",
+            "subjects",
             "enrollmentStatus",
             "isActive",
             "statusUpdatedAt",
             "statusUpdatedBy"
           ])
+        && request.resource.data.fullName is string
+        && request.resource.data.email is string
         && request.resource.data.enrollmentStatus
           in ["active", "left", "terminated"]
         && request.resource.data.isActive
@@ -375,6 +358,19 @@ match /syllabus/{syllabusId} {
         && request.resource.data.role == resource.data.role
         && request.resource.data.academyId == resource.data.academyId
         && request.resource.data.isActive == resource.data.isActive;
+
+        // Allow an academy admin to update a teacher's active/inactive status.
+      allow update: if isAcademyAdmin(resource.data.academyId)
+        && resource.data.role == "teacher"
+        && request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            "isActive",
+            "statusUpdatedAt",
+            "statusUpdatedBy"
+          ])
+        && request.resource.data.statusUpdatedBy == request.auth.uid
+        && request.resource.data.statusUpdatedAt == request.time;
 
       allow delete: if false;
     }
@@ -449,35 +445,32 @@ match /syllabus/{syllabusId} {
 }
 
 
-    // Academy-scoped class records.
+// Academy-scoped class records.
     match /classes/{classId} {
 
-    // Admins and students can read classes in their academy.
-// Teachers can read only classes assigned to them.
-allow read: if isAcademyAdmin(resource.data.academyId)
-  || isAcademyStudent(resource.data.academyId)
-  || (
-    isAcademyTeacher(resource.data.academyId)
-    && resource.data.teacherId == request.auth.uid
-  );
+      // Allow active teachers in the same academy to read classes 
+      // (so client-side filtering by subject teacherId succeeds)
+      allow read: if resource.data.status == "active"
+        || isAcademyAdmin(resource.data.academyId)
+        || isAcademyStudent(resource.data.academyId)
+        || isAcademyTeacher(resource.data.academyId);
 
-      // An active admin can create a class only in their academy.
+      // An active admin can create a class in their academy.
       allow create: if isAdmin()
         && request.resource.data.academyId
           == get(userPath(request.auth.uid)).data.academyId
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.className is string
-        && request.resource.data.subject is string
-        && request.resource.data.status in ["active", "inactive"];
+        && request.resource.data.status in ["active", "inactive"]
+        && request.resource.data.subjects is list;
 
       // An active admin can edit classes belonging to their academy.
-      // The academy and original creator cannot be changed.
       allow update: if isAcademyAdmin(resource.data.academyId)
         && request.resource.data.academyId == resource.data.academyId
         && request.resource.data.createdBy == resource.data.createdBy
         && request.resource.data.className is string
-        && request.resource.data.subject is string
-        && request.resource.data.status in ["active", "inactive"];
+        && request.resource.data.status in ["active", "inactive"]
+        && request.resource.data.subjects is list;
 
       // An active admin can delete classes belonging to their academy.
       allow delete: if isAcademyAdmin(resource.data.academyId);
@@ -521,20 +514,15 @@ match /attendance/{attendanceId} {
       );
   }
 
-  // Admins can read academy attendance.
+
+// Admins and teachers can read attendance in their academy. 
   // Students can read only their own attendance.
-    // Admins can read attendance in their academy.
   allow read: if isAcademyAdmin(resource.data.academyId)
+    || isAcademyTeacher(resource.data.academyId)
     || (
       isAcademyStudent(resource.data.academyId)
       && resource.data.studentId == request.auth.uid
     );
-
-    // Teachers can read attendance only for their assigned classes.
-allow read: if isAcademyTeacher(resource.data.academyId)
-  && resource.data.teacherId == request.auth.uid
-  && classExists(resource.data.classId)
-  && classData(resource.data.classId).teacherId == request.auth.uid;
 
 
 // Teachers can create attendance only for their assigned classes.
@@ -924,14 +912,11 @@ allow get, list: if
         && announcementClassExists(request.resource.data.classId)
         && announcementClassData(request.resource.data.classId).academyId
           == request.resource.data.academyId
-        && announcementClassData(request.resource.data.classId).teacherId
-          == request.auth.uid
         && announcementClassData(request.resource.data.classId).status
           == "active"
         && announcementClassData(request.resource.data.classId).className
           == request.resource.data.className
-        && announcementClassData(request.resource.data.classId).subject
-          == request.resource.data.subject
+        && request.resource.data.subject is string
       )
     );
 
@@ -990,8 +975,6 @@ allow get, list: if
         && announcementClassExists(request.resource.data.classId)
         && announcementClassData(request.resource.data.classId).academyId
           == resource.data.academyId
-        && announcementClassData(request.resource.data.classId).teacherId
-          == request.auth.uid
         && announcementClassData(request.resource.data.classId).status
           == "active"
         && announcementClassData(request.resource.data.classId).className

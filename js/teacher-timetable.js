@@ -13,7 +13,6 @@ import {
   where
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 
-
 const weekTitle = document.getElementById("week-title");
 const weekSubtitle = document.getElementById("week-subtitle");
 const timetableStatus = document.getElementById("timetable-status");
@@ -165,8 +164,7 @@ async function loadTeacherProfile(user) {
 async function loadAssignedClasses() {
   const classesQuery = query(
     collection(db, "classes"),
-    where("academyId", "==", currentTeacher.academyId),
-    where("teacherId", "==", currentTeacher.uid)
+    where("academyId", "==", currentTeacher.academyId)
   );
 
   const snapshot = await getDocs(classesQuery);
@@ -174,18 +172,20 @@ async function loadAssignedClasses() {
   assignedClasses = snapshot.docs.map(document => ({
     id: document.id,
     ...document.data()
-  }));
+  })).filter(item => {
+    const subjects = Array.isArray(item.subjects) ? item.subjects : [];
+    return subjects.some(subj => subj.teacherId === currentTeacher.uid);
+  });
 }
 
 
 /* --------------------------------
-   GET WEEK SESSIONS
+   GET WEEK SESSIONS (CORRECTED)
 --------------------------------- */
 
 function getSessionsForWeek(dates) {
   const weekStart = dateToString(dates[0]);
   const weekEnd = dateToString(dates[6]);
-
   const sessionsByDate = {};
 
   dates.forEach(date => {
@@ -193,44 +193,31 @@ function getSessionsForWeek(dates) {
   });
 
   assignedClasses.forEach(classItem => {
-    const sessions = Array.isArray(classItem.sessions)
-      ? classItem.sessions
-      : [];
+    const subjects = Array.isArray(classItem.subjects) ? classItem.subjects : [];
+    const teacherSubjects = subjects.filter(subj => subj.teacherId === currentTeacher.uid);
 
-    sessions.forEach(session => {
-      if (!session || !session.date) return;
+    teacherSubjects.forEach(subj => {
+      const sessions = Array.isArray(subj.sessions) ? subj.sessions : [];
+      sessions.forEach(session => {
+        if (!session || !session.date) return;
+        if (session.date < weekStart || session.date > weekEnd) return;
 
-      if (
-        session.date < weekStart ||
-        session.date > weekEnd
-      ) {
-        return;
-      }
+        const sessionStatus = String(session.status || "").toLowerCase();
+        if (sessionStatus === "cancelled" || sessionStatus === "canceled") return;
 
-      const sessionStatus = String(session.status || "").toLowerCase();
-
-      if (
-        sessionStatus === "cancelled" ||
-        sessionStatus === "canceled"
-      ) {
-        return;
-      }
-
-      sessionsByDate[session.date].push({
-        classId: classItem.id,
-        className: classItem.className || "Untitled Class",
-        subject: classItem.subject || "",
-        startTime: session.startTime || "",
-        endTime: session.endTime || ""
+        sessionsByDate[session.date].push({
+          classId: classItem.id,
+          className: classItem.className || classItem.name || "Untitled Class",
+          subject: subj.subjectName || "",
+          startTime: session.startTime || "",
+          endTime: session.endTime || ""
+        });
       });
     });
   });
 
-  // Sort each day's sessions by start time.
   Object.keys(sessionsByDate).forEach(date => {
-    sessionsByDate[date].sort((a, b) =>
-      a.startTime.localeCompare(b.startTime)
-    );
+    sessionsByDate[date].sort((a, b) => a.startTime.localeCompare(b.startTime));
   });
 
   return sessionsByDate;

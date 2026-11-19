@@ -13,356 +13,482 @@
   <script src="../../js/admin-sidebar.js" defer></script>
   <script type="module" src="../../js/admin-classes.js"></script>
   <script type="module" src="../../js/account-menu.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
 
-<style>
-.class-student-selection {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  max-height: 300px;
-  overflow-y: auto;
-  margin-top: 12px;
-  padding: 12px;
-  border: 1px solid #e3e7f1;
-  border-radius: 12px;
-  background: #fafbff;
-}
+  <style>
+    .class-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .5rem;
+      margin: 1.25rem 0;
+      padding: .75rem;
+      background: var(--card-bg, #fff);
+      border: 1px solid var(--border-color, #e5e7eb);
+      border-radius: 14px;
+    }
 
-.class-student-option {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  min-width: 0;
-  padding: 12px;
-  border: 1px solid #e6e9f3;
-  border-radius: 10px;
-  background: #fff;
-  cursor: pointer;
-}
+    .class-tab {
+      border: 1px solid var(--border-color, #d1d5db);
+      border-radius: 9px;
+      padding: .7rem 1rem;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 600;
+    }
 
-.class-student-option:has(input:checked) {
-  border-color: #7770ed;
-  background: #f3f2ff;
-}
+    .class-tab[aria-selected="true"] {
+      background: var(--primary-color, #2563eb);
+      color: #fff;
+      border-color: var(--primary-color, #2563eb);
+    }
 
-.class-student-option input {
-  flex-shrink: 0;
-  width: 16px;
-  height: 16px;
-  accent-color: #5c50e6;
-}
+    .class-tab-panel[hidden] {
+      display: none !important;
+    }
 
-.class-student-option-details {
-  display: block;
-  min-width: 0;
-}
+    .timetable-table th, .timetable-table td {
+      border: 1px solid var(--border-color, #e5e7eb);
+      vertical-align: middle;
+      text-align: center;
+      padding: 10px;
+    }
 
-.class-student-option-details strong,
-.class-student-option-details small {
-  display: block;
-  overflow-wrap: anywhere;
-}
+    /* Schedule Analytics CSS */
+    .schedule-analytics {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr);
+      gap: 20px;
+      align-items: stretch;
+      margin-bottom: 1.5rem;
+    }
 
-.class-student-option-details strong {
-  color: #202b43;
-  font-size: 13px;
-}
+    .schedule-chart-card,
+    .schedule-data-card {
+      min-width: 0;
+      background: #fff;
+      padding: 20px;
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    }
 
-.class-student-option-details small {
-  margin-top: 4px;
-  color: #7c8599;
-  font-size: 11px;
-}
+    .schedule-chart-container {
+      position: relative;
+      width: 100%;
+      height: 240px;
+      margin-top: 12px;
+    }
 
-#class-student-search {
-  box-sizing: border-box;
-  width: 100%;
-  min-height: 42px;
-  padding: 10px 12px;
-  border: 1px solid #dfe4ef;
-  border-radius: 10px;
-}
+    .schedule-chart-container canvas {
+      width: 100%;
+      height: 100%;
+    }
 
-@media (max-width: 600px) {
-  .class-student-selection {
-    grid-template-columns: 1fr;
-  }
-}
-</style>
+    .schedule-data-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 0;
+      border-bottom: 1px solid #e8ebf1;
+    }
+
+    .schedule-data-row:last-child {
+      border-bottom: none;
+    }
+
+    .schedule-data-row strong {
+      font-size: 20px;
+    }
+
+    @media (max-width: 760px) {
+      .schedule-analytics {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .timeslot-error-notice {
+      padding: 10px 14px;
+      margin-top: 8px;
+      border: 1px solid #fecaca;
+      border-radius: 8px;
+      background: #fef2f2;
+      color: #b91c1c;
+      font-size: 12px;
+      line-height: 1.5;
+      font-weight: 500;
+    }
+
+    .edit-subject-card {
+      padding: 14px;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      background: #f9fafb;
+      display: grid;
+      gap: 10px;
+    }
+    /* Schedule Analytics CSS & Mobile Fixes */
+    .schedule-analytics {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr);
+      gap: 20px;
+      align-items: stretch;
+      margin-bottom: 1.5rem;
+    }
+
+    .schedule-chart-card,
+    .schedule-data-card {
+      min-width: 0;
+      background: #fff;
+      padding: 20px;
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    }
+
+    .schedule-chart-container {
+      position: relative;
+      width: 100%;
+      height: 240px;
+      margin-top: 12px;
+    }
+
+    .schedule-chart-container canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    .schedule-data-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 0;
+      border-bottom: 1px solid #e8ebf1;
+    }
+
+    .schedule-data-row:last-child {
+      border-bottom: none;
+    }
+
+    .schedule-data-row strong {
+      font-size: 20px;
+    }
+
+    /* Mobile Responsiveness Fixes */
+    @media (max-width: 760px) {
+      .schedule-analytics {
+        grid-template-columns: 1fr;
+      }
+
+      .schedule-chart-card {
+        padding: 15px; /* Reduce padding to maximize graph plotting area on mobile */
+      }
+
+      .schedule-chart-container {
+        height: 220px; /* Adjust height for mobile screens */
+      }
+
+      .schedule-chart-card h2 {
+        font-size: 18px; /* Slightly smaller heading to avoid wrapping issues */
+      }
+
+      .schedule-chart-card .stat-description {
+        font-size: 11px;
+        line-height: 1.4;
+      }
+    }
+  </style>
 </head>
 
 <body>
   <div class="dashboard-layout">
     <div id="admin-sidebar-mount"></div>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
     <main class="dashboard-main">
       <header class="dashboard-topbar">
-        <div class="topbar-left">
-          <button
-            type="button"
-            class="sidebar-toggle"
-            id="sidebar-toggle"
-            aria-label="Open navigation menu"
-            aria-controls="admin-sidebar"
-            aria-expanded="false"
-          >☰</button>
+        <button
+          type="button"
+          class="sidebar-toggle"
+          id="sidebar-toggle"
+          aria-label="Toggle navigation"
+          aria-controls="admin-sidebar"
+          aria-expanded="false"
+        >☰</button>
 
-          <div>
-            <h1>Classes</h1>
-            <p>Manage your academy's classes and schedules.</p>
-          </div>
+        <div>
+          <p class="eyebrow">ACADEMY MANAGEMENT</p>
+          <h1>Classes & Schedules</h1>
+          <p>Create classes, add subject-wise teachers, schedules, and manage records.</p>
         </div>
       </header>
 
-      <div class="dashboard-content">
-        <section class="page-heading">
-          <div>
-            <h1>Class management</h1>
-            <p>Create classes and assign teachers.</p>
-          </div>
+      <div
+        id="classes-message"
+        class="message info"
+        role="status"
+        hidden
+      ></div>
 
-          <button
-            type="button"
-            class="primary-button"
-            id="add-class-button"
-          >
-            + Add class
-          </button>
+      <div class="dashboard-content" style="padding-top: 20px;">
+        
+        <!-- SCHEDULE OVERVIEW & SUMMARY CARDS -->
+        <section class="dashboard-section">
+          <div class="schedule-analytics">
+            <article class="stat-card schedule-chart-card">
+              <h2>Schedule Overview</h2>
+              <p class="stat-description" style="color:#64748b; font-size:12px; margin-bottom:8px;">
+                Completed and pending schedules over time
+              </p>
+
+              <div class="schedule-chart-container">
+                <canvas
+                  id="schedule-status-chart"
+                  role="img"
+                  aria-label="Line graph of completed and pending schedules"
+                ></canvas>
+              </div>
+
+              <p id="schedule-chart-message" class="stat-description" style="color:#64748b; font-size:12px; margin-top:8px;">
+                Loading schedule data...
+              </p>
+            </article>
+
+            <article class="stat-card schedule-data-card" style="display:flex; flex-direction:column; justify-content:space-between;">
+              <h2>Schedule Summary</h2>
+
+              <div class="schedule-data-row">
+                <span>Total schedules</span>
+                <strong id="schedule-total-count">—</strong>
+              </div>
+
+              <div class="schedule-data-row">
+                <span>Completed</span>
+                <strong id="schedule-completed-count">—</strong>
+              </div>
+
+              <div class="schedule-data-row">
+                <span>Pending / Upcoming</span>
+                <strong id="schedule-pending-count">—</strong>
+              </div>
+
+              <div class="schedule-data-row">
+                <span>Cancelled</span>
+                <strong id="schedule-cancelled-count">—</strong>
+              </div>
+            </article>
+          </div>
         </section>
 
-        <div
-          id="classes-message"
-          class="message info"
-          role="status"
-          hidden
-        ></div>
+        <!-- NAVIGATION TABS -->
+        <nav class="class-tabs" role="tablist" aria-label="Class management sections">
+          <button class="class-tab" id="tab-add-class" type="button"
+            role="tab" aria-selected="true" aria-controls="panel-add-class"
+            data-class-tab="panel-add-class">Add Class</button>
 
-        <!-- Add/Edit class form -->
-        <section class="card" id="class-form-section" hidden>
-          <div class="section-title-row">
+          <button class="class-tab" id="tab-add-subject" type="button"
+            role="tab" aria-selected="false" aria-controls="panel-add-subject"
+            data-class-tab="panel-add-subject">Add Subject & Schedule</button>
+
+          <button class="class-tab" id="tab-timetable" type="button"
+            role="tab" aria-selected="false" aria-controls="panel-timetable"
+            data-class-tab="panel-timetable">Timetable</button>
+
+          <button class="class-tab" id="tab-management" type="button"
+            role="tab" aria-selected="false" aria-controls="panel-management"
+            data-class-tab="panel-management">Class Management</button>
+        </nav>
+
+        <!-- TAB 1: ADD CLASS -->
+        <section class="dashboard-section class-tab-panel"
+          id="panel-add-class" role="tabpanel" aria-labelledby="tab-add-class">
+
+          <div class="section-heading">
             <div>
-              <h2 id="class-form-title">Add class</h2>
-              <p>Enter the class details below.</p>
+              <h2>Add New Class</h2>
             </div>
           </div>
 
-          <form id="class-form" class="form-grid">
+          <form id="class-create-form" class="form-grid">
             <div class="form-group">
-              <label for="class-name">Class name *</label>
+              <label for="create-class-name">Class name *</label>
               <input
                 type="text"
-                id="class-name"
-                name="className"
-                placeholder="Enter class name"
+                id="create-class-name"
+                placeholder="Enter class name (e.g. Grade 10)"
                 maxlength="100"
                 required
               >
             </div>
 
             <div class="form-group">
-              <label for="class-subject">Subject *</label>
-              <input
-                type="text"
-                id="class-subject"
-                name="subject"
-                placeholder="Enter subject"
-                maxlength="100"
-                required
-              >
-            </div>
-
-            <div class="form-group">
-              <label for="class-teacher">Assigned teacher</label>
-              <select id="class-teacher" name="teacherId">
-                <option value="">No teacher selected</option>
-              </select>
-              <p class="form-help">
-                Select an active teacher from your academy, if applicable.
-              </p>
-            </div>
-
-        <div class="form-group full-width">
-          <label>Assign students</label>
-          <p class="form-help">
-            Select only the students enrolled in this class. A student can be assigned to multiple classes.
-          </p>
-
-          <input
-            type="search"
-            id="class-student-search"
-            placeholder="Search students by name, email, or phone..."
-            aria-label="Search students to assign"
-          >
-
-          <div
-            id="class-student-selection"
-            class="class-student-selection"
-            aria-live="polite"
-          >
-            <p class="form-help">Loading students...</p>
-          </div>
-
-          <p id="class-selected-student-count" class="form-help">
-            0 students selected
-          </p>
-        </div>
-
-
-            <div class="form-group full-width">
-              <label for="class-description">Description</label>
-              <textarea
-                id="class-description"
-                name="description"
-                rows="3"
-                maxlength="1000"
-                placeholder="Optional class details"
-              ></textarea>
-            </div>
-
-            <div class="form-group">
-              <label for="class-status">Status *</label>
-              <select id="class-status" name="status" required>
+              <label for="create-class-status">Status *</label>
+              <select id="create-class-status" required>
                 <option value="active">Active</option>
                 <option value="inactive">Inactive / Cancelled</option>
               </select>
             </div>
 
             <div class="form-group full-width">
-              <label>Class dates *</label>
-              <p class="form-help">
-                Click dates on the calendar to select multiple sessions.
-                Click a selected date again to remove it.
-              </p>
-
-              <div class="class-calendar">
-                <div class="class-calendar-header">
-                  <button
-                    type="button"
-                    id="calendar-previous-month"
-                    class="secondary-button"
-                    aria-label="Previous month"
-                  >‹</button>
-
-                  <h3 id="calendar-month-label" aria-live="polite"></h3>
-
-                  <button
-                    type="button"
-                    id="calendar-next-month"
-                    class="secondary-button"
-                    aria-label="Next month"
-                  >›</button>
-                </div>
-
-                <div class="class-calendar-weekdays" aria-hidden="true">
-                  <span>Sun</span>
-                  <span>Mon</span>
-                  <span>Tue</span>
-                  <span>Wed</span>
-                  <span>Thu</span>
-                  <span>Fri</span>
-                  <span>Sat</span>
-                </div>
-
-                <div
-                  id="class-calendar-days"
-                  class="class-calendar-days"
-                  role="group"
-                  aria-label="Select class dates"
-                ></div>
-              </div>
-
-              <div class="selected-session-heading">
-                <span id="class-selected-date-count">0 dates selected</span>
-              </div>
+              <label for="create-class-description">Description</label>
+              <textarea
+                id="create-class-description"
+                rows="3"
+                maxlength="1000"
+                placeholder="Optional class details"
+              ></textarea>
             </div>
 
-            <div class="form-group">
-              <label for="class-start-time">Start time *</label>
-              <input
-                type="time"
-                id="class-start-time"
-                name="startTime"
-                step="60"
-                required
-              >
-            </div>
-
-            <div class="form-group">
-              <label for="class-end-time">End time *</label>
-              <input
-                type="time"
-                id="class-end-time"
-                name="endTime"
-                step="60"
-                required
-              >
-            </div>
-
-            <div class="full-width" style="display:flex; gap:10px; flex-wrap:wrap;">
-              <button
-                type="submit"
-                class="primary-button"
-                id="save-class-button"
-              >
-                Save class
-              </button>
-
-              <button
-                type="button"
-                class="secondary-button"
-                id="cancel-class-button"
-              >
-                Cancel
-              </button>
+            <div class="form-actions full-width">
+              <button type="submit" class="primary-button">Create Class</button>
             </div>
           </form>
         </section>
 
-        
-<!-- Upcoming 7-day timetable -->
-<section class="dashboard-section weekly-timetable-section">
-  <div class="weekly-timetable-heading">
-    <div>
-      <h2>Upcoming 7-day timetable</h2>
-      <p>View each class's sessions from today through the next six days.</p>
-    </div>
-    <span class="weekly-timetable-label">7 days</span>
-  </div>
+        <!-- TAB 2: ADD SUBJECT & SCHEDULE -->
+        <section class="dashboard-section class-tab-panel"
+          id="panel-add-subject" role="tabpanel" aria-labelledby="tab-add-subject" hidden>
 
-  <div class="table-wrapper weekly-timetable-wrapper">
-    <table class="data-table weekly-timetable">
-      <thead id="weekly-timetable-head">
-        <tr>
-          <th>Class</th>
-          <th>Loading dates...</th>
-        </tr>
-      </thead>
-      <tbody id="weekly-timetable-body">
-        <tr>
-          <td colspan="8">Loading weekly timetable...</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-</section>
+          <div class="section-heading">
+            <div>
+              <h2>Add Subject & Schedule to Class</h2>
+              <p>Choose a class, define a subject, assign its unique teacher, and schedule its timing[cite: 30].</p>
+            </div>
+          </div>
 
+          <form id="subject-schedule-form" class="form-grid">
+            <div class="form-group">
+              <label for="target-class-select">Select Class *</label>
+              <select id="target-class-select" required>
+                <option value="">Choose a class...</option>
+              </select>
+            </div>
 
-        <!-- Search and filter -->
-        <section class="dashboard-section">
-          <div class="toolbar">
+            <div class="form-group">
+              <label for="subject-name-input">Subject Name *</label>
+              <input
+                type="text"
+                id="subject-name-input"
+                placeholder="e.g. Mathematics, Physics"
+                maxlength="100"
+                required
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="subject-teacher-select">Subject Teacher *</label>
+              <select id="subject-teacher-select" required>
+                <option value="">Select teacher for this subject...</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="subject-start-time">Start time *</label>
+              <input type="time" id="subject-start-time" required>
+            </div>
+
+            <div class="form-group">
+              <label for="subject-end-time">End time *</label>
+              <input type="time" id="subject-end-time" required>
+            </div>
+
+            <div class="form-group full-width">
+              <label>Subject Session Dates *</label>
+              <p class="form-help">Click dates on the calendar to assign sessions for this subject. Conflicting or booked timeslots are indicated below.</p>
+
+              <div class="class-calendar">
+                <div class="class-calendar-header">
+                  <button type="button" id="calendar-previous-month" class="secondary-button">‹</button>
+                  <h3 id="calendar-month-label" aria-live="polite"></h3>
+                  <button type="button" id="calendar-next-month" class="secondary-button">›</button>
+                </div>
+
+                <div class="class-calendar-weekdays" aria-hidden="true">
+                  <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+                </div>
+
+                <div id="class-calendar-days" class="class-calendar-days" role="group"></div>
+              </div>
+
+              <div class="selected-session-heading" style="margin-top: 10px;">
+                <span id="class-selected-date-count">0 dates selected</span>
+              </div>
+              <div id="booked-slots-notice" class="timeslot-error-notice" hidden></div>
+            </div>
+
+            <div class="form-actions full-width">
+              <button type="submit" class="primary-button">Save Subject & Schedule</button>
+            </div>
+          </form>
+        </section>
+
+        <!-- TAB 3: TIMETABLE -->
+        <section class="dashboard-section class-tab-panel"
+          id="panel-timetable" role="tabpanel" aria-labelledby="tab-timetable" hidden>
+
+          <div class="section-heading">
+            <div>
+              <h2>Academy Timetable</h2>
+              <p>Showing current week (Monday – Sunday) by default. Use the search filter to view a specific date.</p>
+            </div>
+          </div>
+
+          <div class="table-toolbar" style="margin-bottom: 1.5rem; display: flex; gap: 15px; flex-wrap: wrap;">
+            <div class="form-group" style="flex: 1; min-width: 200px;">
+              <label for="timetable-class-filter">Filter by class</label>
+              <select id="timetable-class-filter">
+                <option value="">All classes</option>
+              </select>
+            </div>
+
+            <div class="form-group" style="flex: 1; min-width: 200px;">
+              <label for="timetable-date-search">Search specific date</label>
+              <div style="display: flex; gap: 8px;">
+                <input type="date" id="timetable-date-search" style="flex: 1; padding: 8px; border: 1px solid #d1d5db; border-radius: 8px;">
+                <button type="button" id="clear-date-search" class="secondary-button">Reset Week</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="table-wrapper weekly-timetable-wrapper">
+            <table class="data-table timetable-table">
+              <thead>
+                <tr>
+                  <th>Day</th>
+                  <th>Date</th>
+                  <th>Class</th>
+                  <th>Subject</th>
+                  <th>Time Period</th>
+                </tr>
+              </thead>
+              <tbody id="class-timetable-body">
+                <tr><td colspan="5" style="text-align: center; color: #6b7280;">Loading timetable...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- TAB 4: CLASS MANAGEMENT -->
+        <section class="dashboard-section class-tab-panel"
+          id="panel-management" role="tabpanel" aria-labelledby="tab-management" hidden>
+
+          <div class="section-heading">
+            <div>
+              <h2>Class Management</h2>
+              <p>View, edit, or delete academy classes and their linked subjects[cite: 30].</p>
+            </div>
+          </div>
+
+          <div class="table-toolbar">
             <input
               type="search"
               id="class-search"
-              aria-label="Search classes"
               placeholder="Search classes..."
-              disabled
-            >
-
-            <select
-              id="class-status-filter"
-              aria-label="Filter by status"
-              disabled
-            >
+            />
+            <select id="class-status-filter">
               <option value="">All statuses</option>
               <option value="active">Active</option>
               <option value="inactive">Inactive / Cancelled</option>
@@ -373,34 +499,61 @@
             <table class="data-table">
               <thead>
                 <tr>
-                <th scope="col">Class name</th>
-                <th scope="col">Subject</th>
-                <th scope="col">Assigned teacher</th>
-                <th scope="col">Status</th>
-                <th scope="col">Actions</th>
-              </tr>
-              </thead>
-
-              <tbody id="classes-table-body">
-                <tr>
-                  <td colspan="6">
-                    <div class="empty-state">
-                      <h3>Loading classes</h3>
-                      <p>Class records will appear here.</p>
-                    </div>
-                  </td>
+                  <th scope="col">Class name</th>
+                  <th scope="col">Subjects & Teachers</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Actions</th>
                 </tr>
+              </thead>
+              <tbody id="classes-table-body">
+                <tr><td colspan="4">Loading classes...</td></tr>
               </tbody>
             </table>
           </div>
         </section>
-      </div>
 
-      <footer class="dashboard-footer">
-        <span>EduAdmin</span>
-        <span>Class management</span>
-      </footer>
+      </div>
     </main>
+  </div>
+
+  <!-- EDIT CLASS MODAL -->
+  <div id="edit-class-modal" class="dashboard-section" style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px;" hidden>
+    <div style="background: #fff; padding: 24px; border-radius: 14px; max-width: 720px; width: 100%; max-height: 90vh; overflow-y: auto;">
+      <div class="section-heading" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h3>Edit Class & Subjects</h3>
+        <button type="button" id="close-edit-modal" class="secondary-button" style="padding: 4px 10px;">&times;</button>
+      </div>
+      <form id="edit-class-form" class="form-grid">
+        <input type="hidden" id="edit-class-id">
+        <div class="form-group">
+          <label for="edit-class-name">Class name *</label>
+          <input type="text" id="edit-class-name" required>
+        </div>
+        <div class="form-group">
+          <label for="edit-class-status">Status *</label>
+          <select id="edit-class-status" required>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive / Cancelled</option>
+          </select>
+        </div>
+        <div class="form-group full-width">
+          <label for="edit-class-description">Description</label>
+          <textarea id="edit-class-description" rows="2"></textarea>
+        </div>
+        <div class="form-group full-width">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <label style="margin: 0;">Linked Subjects, Teachers, Times & Calendar Dates</label>
+            <button type="button" id="add-edit-subject-btn" class="secondary-button" style="font-size: 11px; padding: 4px 8px;">+ Add Subject</button>
+          </div>
+          <p class="form-help">Modify subject names, update teachers, edit time slots, or click calendar dates to select/modify session dates.</p>
+          <div id="edit-subjects-container" style="display: grid; gap: 14px; margin-top: 8px;"></div>
+        </div>
+        <div class="form-actions full-width" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 1rem;">
+          <button type="button" id="cancel-edit-modal" class="secondary-button">Cancel</button>
+          <button type="submit" class="primary-button">Save All Changes</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <div class="sidebar-overlay" id="sidebar-overlay"></div>

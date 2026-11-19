@@ -77,6 +77,12 @@
           >
         </div>
 
+        <div class="form-group" style="margin-top: -0.5rem; margin-bottom: 1rem;">
+          <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: normal; font-size: 0.9rem; cursor: pointer;">
+            <input type="checkbox" id="show-login-password"> Show password
+          </label>
+        </div>
+
         <div class="form-options">
           <a href="#" id="forgot-password-link">Forgot password?</a>
         </div>
@@ -96,5 +102,14 @@
   <footer class="main-footer">
     <p>&copy; 2026 EduAdmin. All rights reserved.</p>
   </footer>
+
+  <script>
+    document.getElementById("show-login-password")?.addEventListener("change", function () {
+      const passwordInput = document.getElementById("login-password");
+      if (passwordInput) {
+        passwordInput.type = this.checked ? "text" : "password";
+      }
+    });
+  </script>
 </body>
 </html>

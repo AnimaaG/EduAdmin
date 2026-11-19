@@ -569,12 +569,9 @@
                     Subject
                   </label>
 
-                  <input
-                    type="text"
-                    id="syllabus-subject"
-                    placeholder="Select a class first"
-                    readonly
-                  >
+                  <select id="syllabus-subject" required>
+                    <option value="">Select a class first</option>
+                  </select>
 
                 </div>
 
@@ -656,21 +653,23 @@
               </div>
 
 
-              <!-- CLASS FILTER -->
+<!-- FILTERS -->
 
-              <div class="syllabus-filter">
+              <div class="syllabus-filters" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
 
-                <label for="syllabus-filter-class">
-                  Class
-                </label>
+                <div class="syllabus-filter">
+                  <label for="syllabus-filter-class">Class</label>
+                  <select id="syllabus-filter-class">
+                    <option value="all">All assigned classes</option>
+                  </select>
+                </div>
 
-                <select id="syllabus-filter-class">
-
-                  <option value="all">
-                    All assigned classes
-                  </option>
-
-                </select>
+                <div class="syllabus-filter">
+                  <label for="syllabus-filter-subject">Subject</label>
+                  <select id="syllabus-filter-subject">
+                    <option value="all">All subjects</option>
+                  </select>
+                </div>
 
               </div>
 

@@ -35,7 +35,13 @@ import { onAuthStateChanged } from
 
   const assignmentForm = $("fee-assignment-form");
   const studentSelect = $("fee-student");
-  const groupSelect = $("fee-group-students");
+  
+  // const groupSelect = $("fee-group-students");
+  
+  const groupContainer = $("fee-group-students-container");
+  const useCommonCheckbox = $("fee-use-common-amount");
+  const commonAmountGroup = $("common-amount-group");
+  const commonAmountInput = $("fee-common-amount");
   const groupAmounts = $("group-student-amounts");
   const assignmentMode = $("fee-assignment-mode");
   const paymentPlan = $("fee-payment-plan");
@@ -246,12 +252,17 @@ import { onAuthStateChanged } from
 
     if (paymentPlan?.value !== "installments") return;
 
-    const mode = assignmentMode?.value || "individual";
-    const amount = mode === "individual"
-      ? Number($("fee-individual-amount")?.value)
-      : Number(
-          groupAmounts?.querySelector("[data-student-amount]")?.value
-        );
+const mode = assignmentMode?.value || "individual";
+    const useCommon = useCommonCheckbox?.checked || false;
+    
+    let amount = 0;
+    if (mode === "individual") {
+      amount = Number($("fee-individual-amount")?.value);
+    } else if (useCommon) {
+      amount = Number(commonAmountInput?.value);
+    } else {
+      amount = Number(groupAmounts?.querySelector("[data-student-amount]")?.value);
+    }
 
     if (!Number.isFinite(amount) || amount <= 0) {
       preview.textContent = "Enter a fee amount to preview its schedule.";
@@ -309,12 +320,15 @@ import { onAuthStateChanged } from
 
   // ---------------- ASSIGNMENT FORM ----------------
 
-  function renderGroupAmounts() {
-    if (!groupAmounts || !groupSelect) return;
+function renderGroupAmounts() {
+    if (!groupAmounts || !groupContainer) return;
 
-    const selectedIds = Array.from(groupSelect.selectedOptions)
-      .map((option) => option.value)
-      .filter(Boolean);
+    const useCommon = useCommonCheckbox?.checked || false;
+    if (commonAmountGroup) commonAmountGroup.hidden = !useCommon;
+    if (commonAmountInput) commonAmountInput.required = useCommon;
+
+    const checkedBoxes = groupContainer.querySelectorAll('input[name="groupStudentCheckbox"]:checked');
+    const selectedIds = Array.from(checkedBoxes).map((cb) => cb.value).filter(Boolean);
 
     const previous = new Map(
       Array.from(groupAmounts.querySelectorAll("[data-student-amount]"))
@@ -324,8 +338,13 @@ import { onAuthStateChanged } from
     groupAmounts.replaceChildren();
 
     if (!selectedIds.length) {
-      groupAmounts.textContent =
-        "Select students to enter their individual amounts.";
+      groupAmounts.textContent = "Select students to enter their individual amounts.";
+      renderSchedulePreview();
+      return;
+    }
+
+    // If common amount is enabled, we don't need individual inputs
+    if (useCommon) {
       renderSchedulePreview();
       return;
     }
@@ -392,7 +411,8 @@ import { onAuthStateChanged } from
     })).sort((a, b) => studentName(a).localeCompare(studentName(b)));
 
         setSelectOptions(studentSelect, students, "Choose a student");
-        setSelectOptions(groupSelect, students, "Choose students");
+        // setSelectOptions(groupSelect, students, "Choose students");
+        renderGroupStudentCheckboxes();
         setSelectOptions(
           $("fee-record-student-filter"),
           students,
@@ -400,6 +420,34 @@ import { onAuthStateChanged } from
         );
 
         renderGroupAmounts();
+  }
+
+  function renderGroupStudentCheckboxes() {
+    if (!groupContainer) return;
+
+    if (!students.length) {
+      groupContainer.innerHTML = '<span style="color: #64748b; font-size: 13px;">No active students available.</span>';
+      return;
+    }
+
+    groupContainer.replaceChildren();
+
+    students.forEach((student) => {
+      const wrapper = document.createElement("label");
+      wrapper.style.cssText = "display: flex; align-items: center; gap: 8px; font-size: 13px; color: #334155; cursor: pointer;";
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.name = "groupStudentCheckbox";
+      checkbox.value = student.id;
+      checkbox.addEventListener("change", renderGroupAmounts);
+
+      const textSpan = document.createElement("span");
+      textSpan.textContent = studentName(student);
+
+      wrapper.append(checkbox, textSpan);
+      groupContainer.append(wrapper);
+    });
   }
 
   function buildFeePayload(student, amount, feeType, description, dueDate, schedule) {
@@ -453,22 +501,36 @@ import { onAuthStateChanged } from
 
       assignments = [{ student, amount }];
     } else {
-      const selectedIds = Array.from(groupSelect.selectedOptions)
-        .map((option) => option.value)
-        .filter(Boolean);
+      const checkedBoxes = groupContainer.querySelectorAll('input[name="groupStudentCheckbox"]:checked');
+      const selectedIds = Array.from(checkedBoxes).map((cb) => cb.value).filter(Boolean);
 
       if (!selectedIds.length) {
         showMessage("Select at least one student.", "error");
         return;
       }
 
+      const useCommon = useCommonCheckbox?.checked || false;
+      const commonAmt = Number(commonAmountInput?.value);
+
+      if (useCommon && (!Number.isFinite(commonAmt) || commonAmt <= 0)) {
+        showMessage("Enter a valid common fee amount.", "error");
+        return;
+      }
+
       assignments = selectedIds.map((id) => {
         const student = students.find((item) => item.id === id);
-        const input = groupAmounts.querySelector(
-          `[data-student-amount="${CSS.escape(id)}"]`
-        );
+        let amount = 0;
 
-        return { student, amount: Number(input?.value) };
+        if (useCommon) {
+          amount = commonAmt;
+        } else {
+          const input = groupAmounts.querySelector(
+            `[data-student-amount="${CSS.escape(id)}"]`
+          );
+          amount = Number(input?.value);
+        }
+
+        return { student, amount };
       });
 
       if (assignments.some((item) =>
@@ -1119,13 +1181,15 @@ function renderTodaysDuePayments() {
 
   // ---------------- EVENTS AND AUTH ----------------
 
-  assignmentForm?.addEventListener("submit", assignFees);
+assignmentForm?.addEventListener("submit", assignFees);
   assignmentMode?.addEventListener("change", updateModeVisibility);
-  groupSelect?.addEventListener("change", renderGroupAmounts);
+  useCommonCheckbox?.addEventListener("change", renderGroupAmounts);
+  commonAmountInput?.addEventListener("input", renderSchedulePreview);
   paymentPlan?.addEventListener("change", updatePlanVisibility);
 
-  [
+[
     "fee-individual-amount",
+    "fee-common-amount", // <--- Add this here
     "fee-installment-count",
     "fee-installment-frequency",
     "fee-first-installment-date",

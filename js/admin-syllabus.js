@@ -1,4 +1,3 @@
-
 import { auth, db } from "./firebase-config.js";
 
 import {
@@ -24,7 +23,7 @@ import {
 ========================================================= */
 
 const classSelect = document.getElementById("syllabus-class");
-const subjectInput = document.getElementById("syllabus-subject");
+const subjectSelect = document.getElementById("syllabus-subject"); // Changed from subjectInput to subjectSelect
 const chapterTitleInput = document.getElementById("chapter-title");
 
 const syllabusForm = document.getElementById("syllabus-form");
@@ -70,36 +69,30 @@ function escapeHTML(value) {
   })[character]);
 }
 
-
 function showFormMessage(message, type = "info") {
   formMessage.textContent = message;
   formMessage.className = `syllabus-message ${type}`;
   formMessage.hidden = false;
 }
 
-
 function hideFormMessage() {
   formMessage.textContent = "";
   formMessage.hidden = true;
 }
-
 
 function showListMessage(message) {
   listMessage.textContent = message;
   listMessage.hidden = false;
 }
 
-
 function hideListMessage() {
   listMessage.textContent = "";
   listMessage.hidden = true;
 }
 
-
 function getClassById(classId) {
   return academyClasses.find(item => item.id === classId);
 }
-
 
 function normalizeChapterName(value) {
   return String(value || "")
@@ -108,7 +101,6 @@ function normalizeChapterName(value) {
     .toLowerCase();
 }
 
-
 function getChapterNamesFromTextarea() {
   return chapterTitleInput.value
     .split(/\r?\n/)
@@ -116,16 +108,19 @@ function getChapterNamesFromTextarea() {
     .filter(Boolean);
 }
 
-
 function setSubmitButtonMode(mode) {
   if (mode === "edit") {
     addChapterButton.textContent = "Update Chapter";
     addChapterButton.classList.add("edit-mode");
     formHeading.textContent = "Edit Syllabus Chapter";
+    classSelect.disabled = true;
+    subjectSelect.disabled = true;
   } else {
     addChapterButton.textContent = "Add Chapter(s)";
     addChapterButton.classList.remove("edit-mode");
     formHeading.textContent = "Add Syllabus Chapter";
+    classSelect.disabled = false;
+    subjectSelect.disabled = false;
   }
 }
 
@@ -135,7 +130,6 @@ function setSubmitButtonMode(mode) {
 ========================================================= */
 
 async function loadAdminProfile(user) {
-
   const profileSnapshot = await getDoc(
     doc(db, "users", user.uid)
   );
@@ -172,7 +166,6 @@ async function loadAdminProfile(user) {
 ========================================================= */
 
 async function loadAcademyClasses() {
-
   const classesQuery = query(
     collection(db, "classes"),
     where("academyId", "==", currentAdmin.academyId)
@@ -187,7 +180,6 @@ async function loadAcademyClasses() {
     }))
     .filter(item => {
       const status = String(item.status || "").toLowerCase();
-
       return !["inactive", "cancelled", "canceled"].includes(status);
     });
 
@@ -197,34 +189,65 @@ async function loadAcademyClasses() {
     )
   );
 
-  classSelect.innerHTML =
-    '<option value="">Select class</option>';
-
-  filterClass.innerHTML =
-    '<option value="all">All classes</option>';
+  classSelect.innerHTML = '<option value="">Select class</option>';
+  filterClass.innerHTML = '<option value="all">All classes</option>';
 
   academyClasses.forEach(classItem => {
-
-    const label =
-      `${classItem.className || "Class"}` +
-      `${classItem.subject ? ` — ${classItem.subject}` : ""}`;
+    const className = classItem.className || classItem.name || "Class";
 
     const option = document.createElement("option");
     option.value = classItem.id;
-    option.textContent = label;
-
+    option.textContent = className;
     classSelect.appendChild(option);
 
     const filterOption = document.createElement("option");
     filterOption.value = classItem.id;
-    filterOption.textContent = label;
-
+    filterOption.textContent = className;
     filterClass.appendChild(filterOption);
   });
 
   if (academyClasses.length === 0) {
-    classSelect.innerHTML =
-      '<option value="">No academy classes found</option>';
+    classSelect.innerHTML = '<option value="">No academy classes found</option>';
+  }
+}
+
+
+/* =========================================================
+   UPDATE SUBJECT DROPDOWN
+========================================================= */
+
+function updateSubjectDropdown(classId, selectedSubject = "") {
+  subjectSelect.innerHTML = '<option value="">Select subject</option>';
+
+  if (!classId) {
+    subjectSelect.innerHTML = '<option value="">Select a class first</option>';
+    return;
+  }
+
+  const selectedClass = getClassById(classId);
+  if (!selectedClass) return;
+
+  const subjects = Array.isArray(selectedClass.subjects) ? selectedClass.subjects : [];
+
+  subjects.forEach(subj => {
+    const subName = subj.subjectName || "";
+    if (!subName) return;
+
+    const option = document.createElement("option");
+    option.value = subName;
+    option.textContent = subName;
+    subjectSelect.appendChild(option);
+  });
+
+  if (subjects.length === 0 && selectedClass.subject) {
+    const option = document.createElement("option");
+    option.value = selectedClass.subject;
+    option.textContent = selectedClass.subject;
+    subjectSelect.appendChild(option);
+  }
+
+  if (selectedSubject) {
+    subjectSelect.value = selectedSubject;
   }
 }
 
@@ -234,10 +257,7 @@ async function loadAcademyClasses() {
 ========================================================= */
 
 classSelect.addEventListener("change", () => {
-
-  const selectedClass = getClassById(classSelect.value);
-
-  subjectInput.value = selectedClass?.subject || "";
+  updateSubjectDropdown(classSelect.value);
 
   if (editingChapterId) {
     clearChapterForm(false);
@@ -250,7 +270,6 @@ classSelect.addEventListener("change", () => {
 ========================================================= */
 
 async function loadSyllabus() {
-
   showListMessage("Loading academy syllabus...");
 
   const syllabusQuery = query(
@@ -279,7 +298,6 @@ async function loadSyllabus() {
 ========================================================= */
 
 function updateSubjectFilter() {
-
   const selectedClassId = filterClass.value || "all";
 
   const records = syllabusRecords.filter(record =>
@@ -297,15 +315,12 @@ function updateSubjectFilter() {
 
   const previousValue = filterSubject.value;
 
-  filterSubject.innerHTML =
-    '<option value="all">All subjects</option>';
+  filterSubject.innerHTML = '<option value="all">All subjects</option>';
 
   subjects.forEach(subject => {
-
     const option = document.createElement("option");
     option.value = subject;
     option.textContent = subject;
-
     filterSubject.appendChild(option);
   });
 
@@ -320,14 +335,12 @@ function updateSubjectFilter() {
 ========================================================= */
 
 function renderSyllabus() {
-
   updateSubjectFilter();
 
   const selectedClassId = filterClass.value || "all";
   const selectedSubject = filterSubject.value || "all";
 
   const filteredRecords = syllabusRecords.filter(record => {
-
     const matchesClass =
       selectedClassId === "all" ||
       record.classId === selectedClassId;
@@ -339,11 +352,7 @@ function renderSyllabus() {
     return matchesClass && matchesSubject;
   });
 
-
-  /* SUMMARY */
-
   const totalChapters = filteredRecords.length;
-
   const completedChapters = filteredRecords.filter(
     chapter => chapter.isCompleted === true
   ).length;
@@ -356,13 +365,9 @@ function renderSyllabus() {
   completedChaptersElement.textContent = completedChapters;
   overallProgressElement.textContent = `${completionPercentage}%`;
 
-
-  /* CHAPTER LIST */
-
   chaptersContainer.innerHTML = "";
 
   if (filteredRecords.length === 0) {
-
     hideListMessage();
 
     chaptersContainer.innerHTML = `
@@ -374,45 +379,32 @@ function renderSyllabus() {
         }
       </div>
     `;
-
     return;
   }
 
   hideListMessage();
 
   filteredRecords.forEach(chapter => {
-
     const chapterElement = document.createElement("article");
-
     chapterElement.className = "syllabus-chapter";
 
     const isCompleted = chapter.isCompleted === true;
 
     chapterElement.innerHTML = `
       <div class="syllabus-chapter-header">
-
         <div class="syllabus-chapter-title">
-
           <h3>${escapeHTML(chapter.chapterTitle)}</h3>
-
           <p>
             ${escapeHTML(chapter.className || "Class")}
-            ${chapter.subject
-              ? ` · ${escapeHTML(chapter.subject)}`
-              : ""}
-            ${chapter.teacherName
-              ? ` · Teacher: ${escapeHTML(chapter.teacherName)}`
-              : ""}
+            ${chapter.subject ? ` · ${escapeHTML(chapter.subject)}` : ""}
+            ${chapter.teacherName ? ` · Teacher: ${escapeHTML(chapter.teacherName)}` : ""}
           </p>
-
           <span class="syllabus-chapter-status ${isCompleted ? "completed" : ""}">
             ${isCompleted ? "Completed" : "Pending"}
           </span>
-
         </div>
 
         <div class="syllabus-chapter-actions">
-
           <button
             type="button"
             class="syllabus-edit-btn"
@@ -430,23 +422,17 @@ function renderSyllabus() {
           >
             Delete
           </button>
-
         </div>
-
       </div>
     `;
 
-    chapterElement
-      .querySelector('[data-action="edit"]')
-      .addEventListener("click", () => {
-        editChapter(chapter.id);
-      });
+    chapterElement.querySelector('[data-action="edit"]').addEventListener("click", () => {
+      editChapter(chapter.id);
+    });
 
-    chapterElement
-      .querySelector('[data-action="delete"]')
-      .addEventListener("click", () => {
-        deleteChapter(chapter.id);
-      });
+    chapterElement.querySelector('[data-action="delete"]').addEventListener("click", () => {
+      deleteChapter(chapter.id);
+    });
 
     chaptersContainer.appendChild(chapterElement);
   });
@@ -458,23 +444,17 @@ function renderSyllabus() {
 ========================================================= */
 
 filterClass.addEventListener("change", () => {
-
   filterSubject.value = "all";
-
   if (editingChapterId) {
     clearChapterForm(false);
   }
-
   renderSyllabus();
 });
 
-
 filterSubject.addEventListener("change", () => {
-
   if (editingChapterId) {
     clearChapterForm(false);
   }
-
   renderSyllabus();
 });
 
@@ -484,41 +464,31 @@ filterSubject.addEventListener("change", () => {
 ========================================================= */
 
 function clearChapterForm(showMessage = true) {
-
   const selectedClassId = classSelect.value;
+  const selectedSubject = subjectSelect.value;
 
   syllabusForm.reset();
-
   chapterTitleInput.value = "";
-
   editingChapterId = null;
 
+  classSelect.disabled = false;
+  subjectSelect.disabled = false;
+
   classSelect.value = selectedClassId;
-
-  const selectedClass = getClassById(selectedClassId);
-
-  subjectInput.value = selectedClass?.subject || "";
+  updateSubjectDropdown(selectedClassId, selectedSubject);
 
   setSubmitButtonMode("add");
-
   addChapterButton.disabled = false;
   clearChapterButton.disabled = false;
-
   hideFormMessage();
 
   if (showMessage) {
-    showFormMessage(
-      "Form cleared. You can add new syllabus chapters.",
-      "success"
-    );
+    showFormMessage("Form cleared. You can add new syllabus chapters.", "success");
   }
 }
 
-
 clearChapterButton.addEventListener("click", () => {
-
   if (isSaving) return;
-
   clearChapterForm(true);
 });
 
@@ -527,41 +497,23 @@ clearChapterButton.addEventListener("click", () => {
    VALIDATE CHAPTER NAMES
 ========================================================= */
 
-function validateChapterNames(
-  chapterNames,
-  classId,
-  excludedId = null
-) {
+function validateChapterNames(chapterNames, classId, subjectName, excludedId = null) {
+  if (chapterNames.length === 0) return "Enter at least one chapter name.";
 
-  if (chapterNames.length === 0) {
-    return "Enter at least one chapter name.";
-  }
-
-  const normalizedNames = chapterNames.map(
-    normalizeChapterName
-  );
-
+  const normalizedNames = chapterNames.map(normalizeChapterName);
   if (new Set(normalizedNames).size !== normalizedNames.length) {
     return "Duplicate chapter names were found in your entries.";
   }
 
   const existingNames = new Set(
     syllabusRecords
-      .filter(record =>
-        record.classId === classId &&
-        record.id !== excludedId
-      )
-      .map(record =>
-        normalizeChapterName(record.chapterTitle)
-      )
+      .filter(record => record.classId === classId && record.subject === subjectName && record.id !== excludedId)
+      .map(record => normalizeChapterName(record.chapterTitle))
   );
 
-  const duplicateNames = chapterNames.filter(name =>
-    existingNames.has(normalizeChapterName(name))
-  );
-
+  const duplicateNames = chapterNames.filter(name => existingNames.has(normalizeChapterName(name)));
   if (duplicateNames.length > 0) {
-    return `These chapters already exist for this class: ${duplicateNames.join(", ")}`;
+    return `These chapters already exist for this class and subject: ${duplicateNames.join(", ")}`;
   }
 
   return null;
@@ -573,82 +525,48 @@ function validateChapterNames(
 ========================================================= */
 
 syllabusForm.addEventListener("submit", async event => {
-
   event.preventDefault();
-
   if (!currentAdmin || isSaving) return;
 
   const classId = classSelect.value;
+  const subjectName = subjectSelect.value;
   const selectedClass = getClassById(classId);
 
   if (!selectedClass) {
-    showFormMessage(
-      "Please select a valid academy class.",
-      "error"
-    );
+    showFormMessage("Please select a valid academy class.", "error");
     return;
   }
 
-  if (!selectedClass.subject) {
-    showFormMessage(
-      "The selected class does not have a subject assigned.",
-      "error"
-    );
+  if (!subjectName) {
+    showFormMessage("Please select a subject for this class.", "error");
     return;
   }
 
   const chapterNames = getChapterNamesFromTextarea();
 
-
-  /* EDIT MODE */
-
   if (editingChapterId) {
-
     if (chapterNames.length !== 1) {
-      showFormMessage(
-        "Enter exactly one chapter name when editing.",
-        "error"
-      );
+      showFormMessage("Enter exactly one chapter name when editing.", "error");
       return;
     }
 
-    const validationError = validateChapterNames(
-      chapterNames,
-      classId,
-      editingChapterId
-    );
-
+    const validationError = validateChapterNames(chapterNames, classId, subjectName, editingChapterId);
     if (validationError) {
       showFormMessage(validationError, "error");
       return;
     }
 
-    await saveEditedChapter(
-      editingChapterId,
-      chapterNames[0]
-    );
-
+    await saveEditedChapter(editingChapterId, chapterNames[0], selectedClass, subjectName);
     return;
   }
 
-
-  /* ADD MODE */
-
-  const validationError = validateChapterNames(
-    chapterNames,
-    classId
-  );
-
+  const validationError = validateChapterNames(chapterNames, classId, subjectName);
   if (validationError) {
     showFormMessage(validationError, "error");
     return;
   }
 
-  await saveNewChapters(
-    chapterNames,
-    classId,
-    selectedClass
-  );
+  await saveNewChapters(chapterNames, classId, selectedClass, subjectName);
 });
 
 
@@ -656,104 +574,57 @@ syllabusForm.addEventListener("submit", async event => {
    SAVE NEW CHAPTERS
 ========================================================= */
 
-async function saveNewChapters(
-  chapterNames,
-  classId,
-  selectedClass
-) {
-
+async function saveNewChapters(chapterNames, classId, selectedClass, subjectName) {
   isSaving = true;
-
   addChapterButton.disabled = true;
   clearChapterButton.disabled = true;
-
   addChapterButton.textContent = "Saving...";
 
   let savedCount = 0;
 
   try {
-
     for (const chapterTitle of chapterNames) {
-
       const chapterData = {
-
         academyId: currentAdmin.academyId,
-
         classId,
-
-        className: selectedClass.className || "",
-
-        // Keep existing teacher ownership compatible.
-        // Teacher can see admin-created syllabus for the class
-        // if the class has an assigned teacher.
+        className: selectedClass.className || selectedClass.name || "",
         teacherId: selectedClass.teacherId || "",
-
         teacherName: selectedClass.teacherName || "",
-
-        subject: selectedClass.subject,
-
+        subject: subjectName,
         chapterTitle: chapterTitle.trim(),
-
         topics: [],
-
         isCompleted: false,
-
         createdAt: serverTimestamp(),
-
         updatedAt: serverTimestamp()
       };
 
-      const documentRef = await addDoc(
-        collection(db, "syllabus"),
-        chapterData
-      );
+      const documentRef = await addDoc(collection(db, "syllabus"), chapterData);
 
       syllabusRecords.unshift({
         id: documentRef.id,
         ...chapterData,
-        createdAt: {
-          seconds: Math.floor(Date.now() / 1000)
-        }
+        createdAt: { seconds: Math.floor(Date.now() / 1000) }
       });
 
       savedCount++;
     }
 
     clearChapterForm(false);
-
-    showFormMessage(
-      `${savedCount} chapter(s) added successfully.`,
-      "success"
-    );
-
+    showFormMessage(`${savedCount} chapter(s) added successfully.`, "success");
     renderSyllabus();
-
   } catch (error) {
-
     console.error("Add syllabus chapter failed:", error);
-
-    try {
-      await loadSyllabus();
-    } catch (refreshError) {
-      console.error("Could not refresh syllabus:", refreshError);
-    }
-
     showFormMessage(
       error.code === "permission-denied"
-        ? `Permission denied. ${savedCount} chapter(s) were saved before the error. Check Firestore syllabus rules.`
-        : `Could not save all chapters. ${savedCount} chapter(s) were saved before the error.`,
+        ? `Permission denied. ${savedCount} chapter(s) saved before error.`
+        : `Could not save chapters: ${error.message}`,
       "error"
     );
-
   } finally {
-
     isSaving = false;
-
     addChapterButton.disabled = false;
     clearChapterButton.disabled = false;
-
     setSubmitButtonMode("add");
-
     renderSyllabus();
   }
 }
@@ -764,54 +635,31 @@ async function saveNewChapters(
 ========================================================= */
 
 function editChapter(chapterId) {
-
   if (isSaving) return;
 
-  const chapter = syllabusRecords.find(
-    record => record.id === chapterId
-  );
-
+  const chapter = syllabusRecords.find(record => record.id === chapterId);
   if (!chapter) {
-    showFormMessage(
-      "Chapter not found. Please refresh the syllabus.",
-      "error"
-    );
+    showFormMessage("Chapter not found. Please refresh the syllabus.", "error");
     return;
   }
 
   const selectedClass = getClassById(chapter.classId);
-
   if (!selectedClass) {
-    showFormMessage(
-      "The class associated with this chapter was not found.",
-      "error"
-    );
+    showFormMessage("The class associated with this chapter was not found.", "error");
     return;
   }
 
   editingChapterId = chapterId;
 
   classSelect.value = chapter.classId;
-
-  subjectInput.value =
-    chapter.subject || selectedClass.subject || "";
-
+  updateSubjectDropdown(chapter.classId, chapter.subject);
   chapterTitleInput.value = chapter.chapterTitle || "";
 
   setSubmitButtonMode("edit");
-
   hideFormMessage();
+  showFormMessage("Editing chapter. Make your changes and click Update Chapter.", "info");
 
-  showFormMessage(
-    "Editing chapter. Make your changes and click Update Chapter.",
-    "info"
-  );
-
-  syllabusForm.scrollIntoView({
-    behavior: "smooth",
-    block: "center"
-  });
-
+  syllabusForm.scrollIntoView({ behavior: "smooth", block: "center" });
   chapterTitleInput.focus();
 }
 
@@ -820,80 +668,42 @@ function editChapter(chapterId) {
    UPDATE EXISTING CHAPTER
 ========================================================= */
 
-async function saveEditedChapter(
-  chapterId,
-  chapterTitle
-) {
-
+async function saveEditedChapter(chapterId, chapterTitle, selectedClass, subjectName) {
   isSaving = true;
-
   addChapterButton.disabled = true;
   clearChapterButton.disabled = true;
-
   addChapterButton.textContent = "Updating...";
 
   try {
-
-    const chapterRef = doc(
-      db,
-      "syllabus",
-      chapterId
-    );
-
-    await updateDoc(chapterRef, {
-
+    const chapterRef = doc(db, "syllabus", chapterId);
+    const updatedData = {
       chapterTitle: chapterTitle.trim(),
-
+      subject: subjectName,
       updatedAt: serverTimestamp()
+    };
 
-    });
+    await updateDoc(chapterRef, updatedData);
 
     syllabusRecords = syllabusRecords.map(record =>
-      record.id === chapterId
-        ? {
-            ...record,
-            chapterTitle: chapterTitle.trim()
-          }
-        : record
+      record.id === chapterId ? { ...record, ...updatedData } : record
     );
 
     clearChapterForm(false);
-
-    showFormMessage(
-      "Chapter updated successfully.",
-      "success"
-    );
-
+    showFormMessage("Chapter updated successfully.", "success");
     renderSyllabus();
-
   } catch (error) {
-
     console.error("Update syllabus chapter failed:", error);
-
     showFormMessage(
       error.code === "permission-denied"
         ? "Permission denied. Check your Firestore syllabus update rules."
-        : "Could not update this chapter. Please try again.",
+        : "Could not update this chapter.",
       "error"
     );
-
-    try {
-      await loadSyllabus();
-    } catch (refreshError) {
-      console.error("Could not refresh syllabus:", refreshError);
-    }
-
   } finally {
-
     isSaving = false;
-
     addChapterButton.disabled = false;
     clearChapterButton.disabled = false;
-
-    setSubmitButtonMode(
-      editingChapterId ? "edit" : "add"
-    );
-
+    setSubmitButtonMode("add");
     renderSyllabus();
   }
 }
@@ -904,73 +714,34 @@ async function saveEditedChapter(
 ========================================================= */
 
 async function deleteChapter(chapterId) {
-
   if (isSaving) return;
 
-  const chapter = syllabusRecords.find(
-    record => record.id === chapterId
-  );
-
+  const chapter = syllabusRecords.find(record => record.id === chapterId);
   if (!chapter) {
-    showFormMessage(
-      "Chapter not found. Please refresh the syllabus.",
-      "error"
-    );
+    showFormMessage("Chapter not found. Please refresh the syllabus.", "error");
     return;
   }
 
-  const confirmed = window.confirm(
-    `Are you sure you want to delete "${chapter.chapterTitle}"?\n\nThis action cannot be undone.`
-  );
-
-  if (!confirmed) return;
+  if (!window.confirm(`Are you sure you want to delete "${chapter.chapterTitle}"?`)) return;
 
   isSaving = true;
-
   renderSyllabus();
 
   try {
-
-    await deleteDoc(
-      doc(db, "syllabus", chapterId)
-    );
-
-    syllabusRecords = syllabusRecords.filter(
-      record => record.id !== chapterId
-    );
+    await deleteDoc(doc(db, "syllabus", chapterId));
+    syllabusRecords = syllabusRecords.filter(record => record.id !== chapterId);
 
     if (editingChapterId === chapterId) {
       clearChapterForm(false);
     }
 
-    showFormMessage(
-      "Chapter deleted successfully.",
-      "success"
-    );
-
+    showFormMessage("Chapter deleted successfully.", "success");
     renderSyllabus();
-
   } catch (error) {
-
     console.error("Delete syllabus chapter failed:", error);
-
-    showFormMessage(
-      error.code === "permission-denied"
-        ? "Permission denied. Check your Firestore syllabus delete rules."
-        : "Could not delete this chapter. Please try again.",
-      "error"
-    );
-
-    try {
-      await loadSyllabus();
-    } catch (refreshError) {
-      console.error("Could not refresh syllabus:", refreshError);
-    }
-
+    showFormMessage("Could not delete this chapter.", "error");
   } finally {
-
     isSaving = false;
-
     renderSyllabus();
   }
 }
@@ -981,37 +752,18 @@ async function deleteChapter(chapterId) {
 ========================================================= */
 
 onAuthStateChanged(auth, async user => {
-
   if (!user) {
-
     currentAdmin = null;
-
-    showListMessage(
-      "Please log in to access the academy syllabus."
-    );
-
+    showListMessage("Please log in to access the academy syllabus.");
     return;
   }
 
   try {
-
     await loadAdminProfile(user);
-
     await loadAcademyClasses();
-
     await loadSyllabus();
-
   } catch (error) {
-
-    console.error(
-      "Admin syllabus initialization failed:",
-      error
-    );
-
-    showListMessage(
-      error.code === "permission-denied"
-        ? "You do not have permission to load academy syllabus data. Check Firestore rules."
-        : error.message || "Could not load academy syllabus."
-    );
+    console.error("Admin syllabus initialization failed:", error);
+    showListMessage(error.message || "Could not load academy syllabus.");
   }
 });

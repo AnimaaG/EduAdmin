@@ -891,6 +891,88 @@
     min-height: 38px;
   }
 }
+/* =========================================================
+       Provisional Status Banner Styles
+       ========================================================= */
+    #provisional-status-banner {
+      margin-bottom: 23px;
+    }
+
+    .ui-provisional-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+      padding: 18px 22px;
+      border: 1px solid #fed7aa;
+      border-radius: 18px;
+      background: linear-gradient(110deg, #fff7ed 0%, #fffbf5 100%);
+      box-shadow: var(--ui-shadow);
+    }
+
+    .ui-provisional-content {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .ui-provisional-icon {
+      display: grid;
+      place-items: center;
+      flex: 0 0 42px;
+      width: 42px;
+      height: 42px;
+      border-radius: 13px;
+      background: #ffedd5;
+      color: #c2410c;
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .ui-provisional-title {
+      display: block;
+      margin-bottom: 3px;
+      color: #9a3412;
+      font-size: 14px;
+      font-weight: 750;
+      letter-spacing: -.02em;
+    }
+
+    .ui-provisional-desc {
+      margin: 0;
+      color: #c2410c;
+      font-size: 12px;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+
+    .ui-provisional-timer {
+      padding: 9px 15px;
+      border-radius: 12px;
+      background: #ffedd5;
+      color: #9a3412;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+      letter-spacing: -.01em;
+    }
+
+    @media (max-width: 760px) {
+      .ui-provisional-card {
+        align-items: flex-start;
+        flex-direction: column;
+        padding: 15px;
+      }
+
+      .ui-provisional-timer {
+        width: 100%;
+        text-align: center;
+        box-sizing: border-box;
+      }
+    }
 
   </style>
 </head>
@@ -910,6 +992,23 @@
             <p>Your academy at a glance.</p>
           </div>
         </div>
+
+ <!-- PROVISIONAL STATUS BANNER (48–72 HR RULE) -->
+        <section id="provisional-status-banner" class="ui-section" hidden>
+          <div class="ui-provisional-card">
+            <div class="ui-provisional-content">
+              <span class="ui-provisional-icon">⏳</span>
+              <div>
+                <strong id="provisional-title" class="ui-provisional-title">Account Eligibility Status</strong>
+                <p id="provisional-desc" class="ui-provisional-desc">Checking initial academy milestones...</p>
+              </div>
+            </div>
+            <div id="provisional-timer" class="ui-provisional-timer">
+              Time remaining: --
+            </div>
+          </div>
+        </section>
+
       </header>
 
       <div class="dashboard-content">
@@ -925,6 +1024,7 @@
             <div class="ui-academy-avatar" id="academy-avatar">A</div>
             <div class="ui-academy-copy">
               <strong id="academy-name">Your Academy</strong>
+              <small id="academy-code-display" style="color: var(--ui-purple); font-weight: 700; margin-top: 3px; display: block;">Academy ID: —</small>
               <small id="academy-details">Academy administrator</small>
             </div>
           </div>

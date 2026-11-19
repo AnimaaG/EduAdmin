@@ -285,17 +285,27 @@
             </div>
           </div>
 
+<!-- Replace lines ~543 to 557 in fees.html with this: -->
           <div id="group-fee-fields" hidden>
             <div class="form-group">
-              <label for="fee-group-students">Select students</label>
-              <select id="fee-group-students" multiple size="6"
-                aria-describedby="group-students-help"></select>
-              <small id="group-students-help">
-                Use Ctrl (Windows) or Command (Mac) to select multiple students.
-              </small>
+              <label>Select students</label>
+              <div id="fee-group-students-container" style="display: grid; gap: 8px; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; max-height: 180px; overflow-y: auto;">
+                <span style="color: #64748b; font-size: 13px;">Loading students...</span>
+              </div>
             </div>
 
-            <div id="group-student-amounts" class="form-grid"></div>
+            <div class="form-group" style="margin-top: 15px;">
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600;">
+                <input type="checkbox" id="fee-use-common-amount"> Apply a common fee amount to all selected students
+              </label>
+            </div>
+
+            <div id="common-amount-group" class="form-group" style="margin-top: 10px;" hidden>
+              <label for="fee-common-amount">Common fee amount (₹) *</label>
+              <input id="fee-common-amount" type="number" min="0.01" step="0.01" placeholder="e.g. 5000">
+            </div>
+
+            <div id="group-student-amounts" class="form-grid" style="margin-top: 15px;"></div>
           </div>
 
           <div class="form-actions">

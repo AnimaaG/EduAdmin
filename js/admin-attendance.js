@@ -98,49 +98,47 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   downloadButton.addEventListener("click", () => {
-  if (!downloadPanel) return;
+    if (!downloadPanel) return;
 
-  const open = downloadPanel.hidden;
-  downloadPanel.hidden = !open;
-  downloadButton.setAttribute("aria-expanded", String(open));
+    const open = downloadPanel.hidden;
+    downloadPanel.hidden = !open;
+    downloadButton.setAttribute("aria-expanded", String(open));
 
-  if (open) populateDownloadStudentSelect();
-});
+    if (open) populateDownloadStudentSelect();
+  });
 
-exportAttendanceButton?.addEventListener("click", async () => {
-  await exportSelectedReport();
+  exportAttendanceButton?.addEventListener("click", async () => {
+    await exportSelectedReport();
 
-  // Close the Download Attendance panel after export completes.
-  if (downloadPanel) {
-    downloadPanel.hidden = true;
-  }
+    if (downloadPanel) {
+      downloadPanel.hidden = true;
+    }
 
-  downloadButton?.setAttribute("aria-expanded", "false");
-});
+    downloadButton?.setAttribute("aria-expanded", "false");
+  });
 
-showMonthlyAttendanceButton?.addEventListener("click", async () => {
-  const studentId = individualStudentSelect?.value;
-  const month = individualMonth?.value;
+  showMonthlyAttendanceButton?.addEventListener("click", async () => {
+    const studentId = individualStudentSelect?.value;
+    const month = individualMonth?.value;
 
-  if (!studentId) {
-    showMessage("Select a student first.");
-    return;
-  }
+    if (!studentId) {
+      showMessage("Select a student first.");
+      return;
+    }
 
-  if (!month) {
-    showMessage("Select a month first.");
-    return;
-  }
+    if (!month) {
+      showMessage("Select a month first.");
+      return;
+    }
 
-  await loadIndividualMonthlyAttendance(studentId, month);
+    await loadIndividualMonthlyAttendance(studentId, month);
 
-    // Close the Search Individual Data panel after loading.
-  if (individualSearchPanel) {
-    individualSearchPanel.hidden = true;
-  }
+    if (individualSearchPanel) {
+      individualSearchPanel.hidden = true;
+    }
 
-  searchIndividualButton?.setAttribute("aria-expanded", "false");
-});
+    searchIndividualButton?.setAttribute("aria-expanded", "false");
+  });
 
   if (searchIndividualButton && individualSearchPanel) {
     searchIndividualButton.addEventListener("click", () => {
@@ -155,40 +153,40 @@ showMonthlyAttendanceButton?.addEventListener("click", async () => {
     });
   }
 
-individualStudentSearch?.addEventListener("input", () => {
-  const term = individualStudentSearch.value.trim().toLowerCase();
+  individualStudentSearch?.addEventListener("input", () => {
+    const term = individualStudentSearch.value.trim().toLowerCase();
 
-  const filteredStudents = studentDirectory.filter((student) =>
-    `${student.studentName} ${student.email}`.toLowerCase().includes(term)
-  );
+    const filteredStudents = studentDirectory.filter((student) =>
+      `${student.studentName} ${student.email}`.toLowerCase().includes(term)
+    );
 
-  const previousValue = individualStudentSelect?.value || "";
+    const previousValue = individualStudentSelect?.value || "";
 
-  if (individualStudentSelect) {
-    individualStudentSelect.innerHTML =
-      '<option value="">Select a student</option>';
+    if (individualStudentSelect) {
+      individualStudentSelect.innerHTML =
+        '<option value="">Select a student</option>';
 
-    filteredStudents.forEach((student) => {
-      const option = document.createElement("option");
-      option.value = student.studentId;
-      option.textContent =
-        `${student.studentName} (${student.email || "No email"})`;
+      filteredStudents.forEach((student) => {
+        const option = document.createElement("option");
+        option.value = student.studentId;
+        option.textContent =
+          `${student.studentName} (${student.email || "No email"})`;
 
-      individualStudentSelect.appendChild(option);
-    });
+        individualStudentSelect.appendChild(option);
+      });
 
-    if (filteredStudents.some((student) => student.studentId === previousValue)) {
-      individualStudentSelect.value = previousValue;
+      if (filteredStudents.some((student) => student.studentId === previousValue)) {
+        individualStudentSelect.value = previousValue;
+      }
     }
-  }
-});
+  });
 
-individualStudentSelect?.addEventListener("change", () => {
-  if (individualStudentDetails) {
-    individualStudentDetails.textContent =
-      "Choose a month and click Show Monthly Data to load the student's records.";
-  }
-});
+  individualStudentSelect?.addEventListener("change", () => {
+    if (individualStudentDetails) {
+      individualStudentDetails.textContent =
+        "Choose a month and click Show Monthly Data to load the student's records.";
+    }
+  });
 
   document.addEventListener("click", (event) => {
     if (
@@ -275,12 +273,14 @@ individualStudentSelect?.addEventListener("change", () => {
       const classes = classesSnapshot.docs
         .map((item) => ({ id: item.id, ...item.data() }))
         .filter((item) => item.status === "active");
-          classScheduleCache = classes;
+      
+      classScheduleCache = classes;
+      
       const students = studentsSnapshot.docs
         .map((item) => ({ id: item.id, ...item.data() }))
         .sort((a, b) => getStudentName(a).localeCompare(getStudentName(b)));
 
-        studentDirectory = students.map((student) => ({
+      studentDirectory = students.map((student) => ({
         studentId: student.id,
         studentName: getStudentName(student),
         email: student.email || ""
@@ -294,20 +294,21 @@ individualStudentSelect?.addEventListener("change", () => {
       );
 
       if (!scheduledClasses.length) {
-      renderWeeklySchedule(classes, selectedDate);
-
-      sessionDetails.textContent =
-        `No schedule for Today !  ${formatDate(selectedDate)}. Check this week's classes schedule below.`;
-
-      return;
-    }
+        renderWeeklySchedule(classes, selectedDate);
+        sessionDetails.textContent =
+          `No schedule for Today ! ${formatDate(selectedDate)}. Check this week's classes schedule below.`;
+        return;
+      }
 
       const results = [];
 
       for (const classItem of scheduledClasses) {
-        results.push(
-          await getClassAttendance(classItem, students, selectedDate)
-        );
+        const classResults = await getClassAttendance(classItem, students, selectedDate);
+        if (Array.isArray(classResults)) {
+          results.push(...classResults);
+        } else {
+          results.push(classResults);
+        }
       }
 
       attendanceRows = results.flatMap((item) =>
@@ -352,17 +353,39 @@ individualStudentSelect?.addEventListener("change", () => {
   }
 
   function hasClassOnDate(classItem, selectedDate) {
-    if (!Array.isArray(classItem.sessions)) return false;
-
-    return classItem.sessions.some((session) => {
-      if (!session || session.date !== selectedDate) return false;
-
-      const status = String(session.status || "").toLowerCase();
-      return status !== "cancelled" && status !== "canceled";
+    const subjects = Array.isArray(classItem.subjects) ? classItem.subjects : [];
+    return subjects.some((subj) => {
+      const sessions = Array.isArray(subj.sessions) ? subj.sessions : [];
+      return sessions.some((session) => {
+        if (!session || session.date !== selectedDate) return false;
+        const status = String(session.status || "").toLowerCase();
+        return status !== "cancelled" && status !== "canceled";
+      });
     });
   }
 
   async function getClassAttendance(classItem, students, selectedDate) {
+    const assignedStudents = students.filter(student => {
+      const studentClassIds = new Set();
+      if (student.classId) studentClassIds.add(String(student.classId));
+      if (student.assignedClassId) studentClassIds.add(String(student.assignedClassId));
+      if (Array.isArray(student.classIds)) {
+        student.classIds.forEach(id => studentClassIds.add(String(id)));
+      }
+      
+      const classIdStr = String(classItem.id);
+      const classNameStr = String(classItem.className || classItem.name || "").trim().toLowerCase();
+      const studentClassName = String(student.className || student.class || "").trim().toLowerCase();
+
+      return (
+        studentClassIds.has(classIdStr) ||
+        (Array.isArray(classItem.studentIds) && classItem.studentIds.includes(student.id)) ||
+        (studentClassName && studentClassName === classNameStr)
+      );
+    });
+
+    const targetStudents = assignedStudents.length > 0 ? assignedStudents : students;
+
     const attendanceQuery = query(
       collection(db, "attendance"),
       where("academyId", "==", academyId),
@@ -371,103 +394,115 @@ individualStudentSelect?.addEventListener("change", () => {
     );
 
     const existingSnapshot = await getDocs(attendanceQuery);
-    const recordsByStudent = new Map();
+    const recordsByStudentAndSubject = new Map();
 
     existingSnapshot.docs.forEach((item) => {
       const record = item.data();
-
       if (record.studentId) {
-        recordsByStudent.set(record.studentId, {
+        const key = `${record.studentId}_${record.subject || classItem.subject || ""}`;
+        recordsByStudentAndSubject.set(key, {
           ...record,
           documentId: item.id
         });
       }
     });
 
-    const missingStudents = students.filter(
-      (student) => !recordsByStudent.has(student.id)
-    );
-
-    for (let start = 0; start < missingStudents.length; start += 400) {
-      const batch = writeBatch(db);
-      const chunk = missingStudents.slice(start, start + 400);
-
-      chunk.forEach((student) => {
-        const attendanceId = `${classItem.id}_${selectedDate}_${student.id}`;
-        const attendanceRef = doc(db, "attendance", attendanceId);
-
-        batch.set(attendanceRef, {
-          academyId,
-          classId: classItem.id,
-          className: classItem.name || classItem.className || "Class",
-          subject: classItem.subject || "",
-          teacherId: classItem.teacherId || "",
-          teacherName: classItem.teacherName || "",
-          date: selectedDate,
-          studentId: student.id,
-          studentName: getStudentName(student),
-          status: "absent",
-          markedBy: auth.currentUser.uid,
-          updatedAt: serverTimestamp()
-        });
-
-        recordsByStudent.set(student.id, {
-          studentId: student.id,
-          studentName: getStudentName(student),
-          status: "absent"
-        });
+    // Find all sessions/subjects for this class on this selected date
+    const daySessions = [];
+    const subjects = Array.isArray(classItem.subjects) ? classItem.subjects : [];
+    subjects.forEach((subj) => {
+      (subj.sessions || []).forEach((session) => {
+        if (session && session.date === selectedDate) {
+          const status = String(session.status || "").toLowerCase();
+          if (status !== "cancelled" && status !== "canceled") {
+            daySessions.push({ ...session, subject: subj.subjectName });
+          }
+        }
       });
-
-      await batch.commit();
-    }
-
-    if (missingStudents.length) {
-      try {
-        await recordAcademyAdminActivity({
-          action: "attendance_saved",
-          title: "Missing attendance marked absent",
-          details: `${classItem.className || classItem.name || "Class"} · ${selectedDate} · ${missingStudents.length} absent record(s) created`,
-          actionType: "attendance",
-          entityId: classItem.id,
-          entityType: "class"
-        });
-      } catch (error) {
-        console.error("Could not record attendance activity:", error);
-      }
-    }
-
-    const daySessions = (Array.isArray(classItem.sessions) ? classItem.sessions : [])
-      .filter((session) => session && session.date === selectedDate);
-
-    const defaultSession = daySessions[0] || {};
-
-    const records = students.map((student) => {
-      const existing = recordsByStudent.get(student.id);
-      const loginDetails = extractLoginDetails(existing || {}, student);
-
-      return {
-        studentId: student.id,
-        studentName: existing?.studentName || getStudentName(student),
-        email: student.email || existing?.email || "",
-        classStartTime: existing?.startTime || defaultSession.startTime || "",
-        checkInAt: existing?.checkInAt || existing?.checkedInAt || null,
-        classEndTime: existing?.endTime || defaultSession.endTime || "",
-        checkOutAt: existing?.checkOutAt || existing?.checkedOutAt || null,
-        loginDetails,
-        status: normalizeStatus(existing?.status || "absent")
-      };
     });
 
-    return {
-      classId: classItem.id,
-      className: classItem.name || classItem.className || "Class",
-      subject: classItem.subject || "",
-      classStartTime: defaultSession.startTime || "",
-      classEndTime: defaultSession.endTime || "",
-      records
-    };
+    // If no explicit sessions found under subjects but class has subject/time info
+    if (daySessions.length === 0) {
+      daySessions.push({
+        subject: classItem.subject || "General",
+        startTime: classItem.startTime || "09:00",
+        endTime: classItem.endTime || "10:00"
+      });
+    }
+
+    const classResults = [];
+
+    for (const session of daySessions) {
+      const subjectName = session.subject || "General";
+      const missingStudents = targetStudents.filter(
+        (student) => !recordsByStudentAndSubject.has(`${student.id}_${subjectName}`)
+      );
+
+      for (let start = 0; start < missingStudents.length; start += 400) {
+        const batch = writeBatch(db);
+        const chunk = missingStudents.slice(start, start + 400);
+
+        chunk.forEach((student) => {
+          const attendanceId = `${classItem.id}_${selectedDate}_${student.id}_${subjectName.replace(/\s+/g, '_')}`;
+          const attendanceRef = doc(db, "attendance", attendanceId);
+
+          batch.set(attendanceRef, {
+            academyId,
+            classId: classItem.id,
+            className: classItem.className || classItem.name || "Class",
+            subject: subjectName,
+            teacherId: classItem.teacherId || "",
+            teacherName: classItem.teacherName || "",
+            date: selectedDate,
+            studentId: student.id,
+            studentName: getStudentName(student),
+            status: "absent",
+            markedBy: auth.currentUser.uid,
+            updatedAt: serverTimestamp()
+          });
+
+          recordsByStudentAndSubject.set(`${student.id}_${subjectName}`, {
+            studentId: student.id,
+            studentName: getStudentName(student),
+            status: "absent",
+            subject: subjectName
+          });
+        });
+
+        await batch.commit();
+      }
+
+      const records = targetStudents.map((student) => {
+        const existing = recordsByStudentAndSubject.get(`${student.id}_${subjectName}`);
+        const loginDetails = extractLoginDetails(existing || {}, student);
+
+        return {
+          studentId: student.id,
+          studentName: existing?.studentName || getStudentName(student),
+          email: student.email || existing?.email || "",
+          classStartTime: existing?.startTime || session.startTime || "",
+          checkInAt: existing?.checkInAt || existing?.checkedInAt || null,
+          classEndTime: existing?.endTime || session.endTime || "",
+          checkOutAt: existing?.checkOutAt || existing?.checkedOutAt || null,
+          loginDetails,
+          status: normalizeStatus(existing?.status || "absent")
+        };
+      });
+
+      classResults.push({
+        classId: classItem.id,
+        className: classItem.className || classItem.name || "Class",
+        subject: subjectName,
+        classStartTime: session.startTime || "",
+        classEndTime: session.endTime || "",
+        records
+      });
+    }
+
+    return classResults;
   }
-    function renderAttendance(classResults, selectedDate) {
+
+  function renderAttendance(classResults, selectedDate) {
     currentView = "attendance";
 
     if (!classResults.length) {
@@ -489,7 +524,7 @@ individualStudentSelect?.addEventListener("change", () => {
     });
 
     sessionDetails.textContent =
-      `${classResults.length} class(es) · ${totals.students} student record(s)`;
+      `${classResults.length} class/subject section(s) · ${totals.students} total record(s)`;
 
     classesContainer.innerHTML = classResults.map((classItem) => {
       const present = countStatus(classItem.records, "present");
@@ -565,39 +600,39 @@ individualStudentSelect?.addEventListener("change", () => {
     );
   }
 
-function populateIndividualStudentSelect() {
-  updateStudentDropdown(individualStudentSelect);
-}
-
-function populateDownloadStudentSelect() {
-  updateStudentDropdown(downloadStudentSelect);
-}
-
-function updateStudentDropdown(selectElement) {
-  if (!selectElement) return;
-
-  const previousValue = selectElement.value;
-
-  selectElement.innerHTML = '<option value="">Select a student</option>';
-
-  [...studentDirectory]
-    .sort((a, b) => a.studentName.localeCompare(b.studentName))
-    .forEach((student) => {
-      const option = document.createElement("option");
-      option.value = student.studentId;
-      option.textContent =
-        `${student.studentName} (${student.email || "No email"})`;
-
-      selectElement.appendChild(option);
-    });
-
-  if (
-    previousValue &&
-    studentDirectory.some((student) => student.studentId === previousValue)
-  ) {
-    selectElement.value = previousValue;
+  function populateIndividualStudentSelect() {
+    updateStudentDropdown(individualStudentSelect);
   }
-}
+
+  function populateDownloadStudentSelect() {
+    updateStudentDropdown(downloadStudentSelect);
+  }
+
+  function updateStudentDropdown(selectElement) {
+    if (!selectElement) return;
+
+    const previousValue = selectElement.value;
+
+    selectElement.innerHTML = '<option value="">Select a student</option>';
+
+    [...studentDirectory]
+      .sort((a, b) => a.studentName.localeCompare(b.studentName))
+      .forEach((student) => {
+        const option = document.createElement("option");
+        option.value = student.studentId;
+        option.textContent =
+          `${student.studentName} (${student.email || "No email"})`;
+
+        selectElement.appendChild(option);
+      });
+
+    if (
+      previousValue &&
+      studentDirectory.some((student) => student.studentId === previousValue)
+    ) {
+      selectElement.value = previousValue;
+    }
+  }
 
   function filterAttendanceTable(searchTerm = "", studentId = "") {
     document.querySelectorAll(
@@ -623,53 +658,6 @@ function updateStudentDropdown(selectElement) {
     });
   }
 
-  function showIndividualStudentDetails(record) {
-    if (!individualStudentDetails) return;
-
-    const login = record.loginDetails || {};
-    const history = Array.isArray(login.loginHistory)
-      ? login.loginHistory
-      : Array.isArray(login.sessions) ? login.sessions : [];
-
-    const fields = [
-      ["Student", record.studentName],
-      ["Email", record.email || "—"],
-      ["Class", record.className || "—"],
-      ["Class start time", record.classStartTime || "—"],
-      ["Check-in time", formatTimestamp(record.checkInAt)],
-      ["Class end time", record.classEndTime || "—"],
-      ["Check-out time", formatTimestamp(record.checkOutAt)],
-      ["Class duration", record.classDuration || calculateClassDuration(
-        record.classStartTime, record.classEndTime
-      )],
-      ["Student login time", formatTimestamp(record.loginAt)],
-      ["Student logout time", formatTimestamp(record.logoutAt)],
-      ["Login duration", calculateRecordedLoginDuration(login)]
-    ];
-
-    const fieldsHTML = fields.map(([label, value]) =>
-      `<p><strong>${escapeHTML(label)}:</strong> ${escapeHTML(value)}</p>`
-    ).join("");
-
-    const historyHTML = history.length
-      ? `<h4>Login history</h4>${history.map((entry, index) => `
-          <p>
-            <strong>Session ${index + 1}</strong><br>
-            Login: ${escapeHTML(formatTimestamp(firstValue(entry, [
-              "loginAt", "loggedInAt", "startedAt", "startTime"
-            ])))}<br>
-            Logout: ${escapeHTML(formatTimestamp(firstValue(entry, [
-              "logoutAt", "loggedOutAt", "endedAt", "endTime"
-            ])))}<br>
-            Duration: ${escapeHTML(calculateRecordedLoginDuration(entry))}
-          </p>
-        `).join("")}`
-      : "<p><strong>Login history:</strong> Not recorded in available data.</p>";
-
-    individualStudentDetails.innerHTML =
-      `<h4>Individual Student Details</h4>${fieldsHTML}${historyHTML}`;
-  }
-
   function renderWeeklySchedule(classes, selectedDate) {
     currentView = "week";
     attendanceRows = [];
@@ -684,20 +672,29 @@ function updateStudentDropdown(selectElement) {
 
     const weekClasses = classes
       .filter((item) => item.status === "active")
-      .map((classItem) => ({
-        classItem,
-        sessions: (classItem.sessions || []).filter((session) => {
-          if (!session || !weekDates.includes(session.date)) return false;
-          const status = String(session.status || "").toLowerCase();
-          return status !== "cancelled" && status !== "canceled";
-        })
-      }))
+      .map((classItem) => {
+        const subjects = Array.isArray(classItem.subjects) ? classItem.subjects : [];
+        const sessions = [];
+        subjects.forEach((subj) => {
+          (subj.sessions || []).forEach((session) => {
+            if (!session || !weekDates.includes(session.date)) return;
+            const status = String(session.status || "").toLowerCase();
+            if (status !== "cancelled" && status !== "canceled") {
+              sessions.push({
+                ...session,
+                subject: subj.subjectName
+              });
+            }
+          });
+        });
+        return { classItem, sessions };
+      })
       .filter((item) => item.sessions.length);
 
     pageDate.textContent = `${formatDate(weekDates[0])} – ${formatDate(weekDates[6])}`;
     selectedDateLabel.textContent = "Weekly class schedule";
     sessionDetails.textContent =
-    `No schedule for Today !${formatDate(selectedDate)}. Check this week's classes schedule below.`;
+      `No schedule for Today ! ${formatDate(selectedDate)}. Check this week's classes schedule below.`;
 
     if (!weekClasses.length) {
       classesContainer.innerHTML = `
@@ -735,7 +732,7 @@ function updateStudentDropdown(selectElement) {
                   <tr>
                     <td>${escapeHTML(formatDate(session.date))}</td>
                     <td>${escapeHTML(classItem.name || classItem.className || "Class")}</td>
-                    <td>${escapeHTML(classItem.subject || "—")}</td>
+                    <td>${escapeHTML(session.subject || "—")}</td>
                     <td>${escapeHTML(session.startTime || "—")}</td>
                     <td>${escapeHTML(session.endTime || "—")}</td>
                   </tr>
@@ -748,406 +745,362 @@ function updateStudentDropdown(selectElement) {
     `;
   }
 
-  function downloadAttendanceCSV() {
-    if (currentView !== "attendance" || attendanceRows.length === 0) {
-      showMessage("There is no attendance data to download.");
-      return;
+  async function loadIndividualMonthlyAttendance(studentId, month) {
+    if (!academyId) return;
+
+    const [year, monthNumber] = month.split("-").map(Number);
+    const startDate = `${month}-01`;
+    const endDate = getLocalDateString(
+      new Date(year, monthNumber, 0)
+    );
+
+    if (individualStudentDetails) {
+      individualStudentDetails.textContent = "Loading monthly records...";
     }
 
-    const headers = [
-      "Date", "Class", "Subject", "Student Name", "Student ID", "Email",
-      "Class Start Time", "Check-in Time", "Class End Time", "Check-out Time",
-      "Class Duration", "Student Login Time", "Login Duration", "Status"
-    ];
+    try {
+      const rows = await fetchAttendanceRecords(
+        startDate,
+        endDate,
+        studentId
+      );
 
-    const lines = [
-      headers,
-      ...attendanceRows.map((row) => [
-        row.date,
-        row.className,
-        row.subject,
-        row.studentName,
-        row.studentId,
-        row.email,
-        row.classStartTime,
-        formatTimestamp(row.checkInAt),
-        row.classEndTime,
-        formatTimestamp(row.checkOutAt),
-        row.classDuration,
-        formatTimestamp(row.loginAt),
-        row.loginDuration,
-        capitalize(row.status)
-      ])
-    ];
+      const student = studentDirectory.find(
+        (item) => item.studentId === studentId
+      );
 
-    const csv = "\uFEFF" + lines
-      .map((line) => line.map(csvEscape).join(","))
-      .join("\r\n");
+      const studentName = student?.studentName || "Student";
+      const studentEmail = student?.email || "";
 
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
+      attendanceRows = rows.map((record) =>
+        normalizeAttendanceRecord(record, studentDirectory)
+      );
 
-    link.href = url;
-    link.download = `attendance-${dateInput.value || today}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+      currentView = "monthly";
 
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
+      pageDate.textContent = `${formatDate(startDate)} – ${formatDate(endDate)}`;
+      selectedDateLabel.textContent = `${studentName} — Monthly Attendance`;
+      sessionDetails.textContent =
+        `${studentEmail ? `${studentEmail} · ` : ""}${rows.length} attendance record(s) found`;
 
-  async function loadIndividualMonthlyAttendance(studentId, month) {
-  if (!academyId) return;
+      if (!rows.length) {
+        classesContainer.innerHTML = `
+          <div class="attendance-empty-state">
+            <h3>No records found</h3>
+            <p>No attendance records were found for ${escapeHTML(studentName)} in ${escapeHTML(month)}.</p>
+          </div>
+        `;
 
-  const [year, monthNumber] = month.split("-").map(Number);
-  const startDate = `${month}-01`;
-  const endDate = getLocalDateString(
-    new Date(year, monthNumber, 0)
-  );
+        if (individualStudentDetails) {
+          individualStudentDetails.textContent =
+            "No attendance records were found for this student and month.";
+        }
 
-  if (individualStudentDetails) {
-    individualStudentDetails.textContent = "Loading monthly records...";
-  }
+        return;
+      }
 
-  try {
-    const rows = await fetchAttendanceRecords(
-      startDate,
-      endDate,
-      studentId
-    );
-
-    const student = studentDirectory.find(
-      (item) => item.studentId === studentId
-    );
-
-    const studentName = student?.studentName || "Student";
-    const studentEmail = student?.email || "";
-
-    attendanceRows = rows.map((record) =>
-      normalizeAttendanceRecord(record, studentDirectory)
-    );
-
-    currentView = "monthly";
-
-    pageDate.textContent = `${formatDate(startDate)} – ${formatDate(endDate)}`;
-    selectedDateLabel.textContent = `${studentName} — Monthly Attendance`;
-    sessionDetails.textContent =
-      `${studentEmail ? `${studentEmail} · ` : ""}${rows.length} attendance record(s) found`;
-
-    if (!rows.length) {
       classesContainer.innerHTML = `
-        <div class="attendance-empty-state">
-          <h3>No records found</h3>
-          <p>No attendance records were found for ${escapeHTML(studentName)} in ${escapeHTML(month)}.</p>
-        </div>
+        <section class="attendance-class-section">
+          <div class="attendance-monthly-heading">
+            <h3>${escapeHTML(studentName)} — ${escapeHTML(month)}</h3>
+            <p>Daily attendance and recorded login/logout details</p>
+          </div>
+
+          <div class="attendance-table-wrapper">
+            <table class="attendance-monthly-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Class</th>
+                  <th>Class Start</th>
+                  <th>Check-in</th>
+                  <th>Class End</th>
+                  <th>Check-out</th>
+                  <th>Login</th>
+                  <th>Logout</th>
+                  <th>Login Duration</th>
+                  <th>Attendance</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${attendanceRows
+                  .sort((a, b) =>
+                    String(a.date).localeCompare(String(b.date))
+                  )
+                  .map((row) => `
+                    <tr>
+                      <td>${escapeHTML(row.date ? formatDate(row.date) : "—")}</td>
+                      <td>${escapeHTML(row.className || "—")}</td>
+                      <td>${escapeHTML(row.classStartTime || "—")}</td>
+                      <td>${escapeHTML(formatTimestamp(row.checkInAt))}</td>
+                      <td>${escapeHTML(row.classEndTime || "—")}</td>
+                      <td>${escapeHTML(formatTimestamp(row.checkOutAt))}</td>
+                      <td>${escapeHTML(formatTimestamp(row.loginAt))}</td>
+                      <td>${escapeHTML(formatTimestamp(row.logoutAt))}</td>
+                      <td>${escapeHTML(row.loginDuration || "Not tracked")}</td>
+                      <td>${escapeHTML(capitalize(row.status || "unknown"))}</td>
+                    </tr>
+                  `).join("")}
+              </tbody>
+            </table>
+          </div>
+        </section>
       `;
 
       if (individualStudentDetails) {
         individualStudentDetails.textContent =
-          "No attendance records were found for this student and month.";
+          `${rows.length} record(s) loaded for ${studentName}, ${month}.`;
+      }
+    } catch (error) {
+      console.error("Unable to load monthly student attendance:", error);
+
+      if (individualStudentDetails) {
+        individualStudentDetails.textContent =
+          getErrorMessage(error);
+      }
+    }
+  }
+
+  async function fetchAttendanceRecords(startDate, endDate, studentId = "") {
+    const constraints = [
+      where("academyId", "==", academyId),
+      where("date", ">=", startDate),
+      where("date", "<=", endDate)
+    ];
+
+    const snapshot = await getDocs(
+      query(collection(db, "attendance"), ...constraints)
+    );
+
+    return snapshot.docs
+      .map((item) => ({
+        id: item.id,
+        ...item.data()
+      }))
+      .filter((record) => !studentId || record.studentId === studentId)
+      .sort((a, b) => {
+        const dateCompare = String(a.date || "").localeCompare(String(b.date || ""));
+        if (dateCompare !== 0) return dateCompare;
+
+        return String(a.studentName || "").localeCompare(
+          String(b.studentName || "")
+        );
+      });
+  }
+
+  function getClassSessionTime(classId, date, field) {
+    const classItem = classScheduleCache.find(
+      (item) => item.id === classId
+    );
+
+    const subjects = Array.isArray(classItem?.subjects) ? classItem.subjects : [];
+    for (const subj of subjects) {
+      const session = (subj.sessions || []).find(
+        (item) => item.date === date
+      );
+      if (session && session[field]) {
+        return session[field];
+      }
+    }
+    return "";
+  }
+
+  function normalizeAttendanceRecord(record, directory = studentDirectory) {
+    const student = directory.find(
+      (item) => item.studentId === record.studentId
+    );
+
+    const loginDetails = extractLoginDetails(record, student || {});
+    const loginAt = firstValue(record, [
+      "loginAt", "loggedInAt", "lastLoginAt", "sessionStartedAt"
+    ]) || firstValue(loginDetails, [
+      "loginAt", "loggedInAt", "lastLoginAt", "sessionStartedAt"
+    ]);
+
+    const logoutAt = firstValue(record, [
+      "logoutAt", "loggedOutAt", "sessionEndedAt"
+    ]) || firstValue(loginDetails, [
+      "logoutAt", "loggedOutAt", "sessionEndedAt"
+    ]);
+
+    return {
+      ...record,
+      studentName: record.studentName || student?.studentName || "Unknown student",
+      email: record.email || student?.email || "",
+      className: record.className || record.class || "—",
+      classStartTime:
+        record.startTime ||
+        record.classStartTime ||
+        getClassSessionTime(record.classId, record.date, "startTime"),
+
+      classEndTime:
+        record.endTime ||
+        record.classEndTime ||
+        getClassSessionTime(record.classId, record.date, "endTime"),
+      checkInAt: record.checkInAt || record.checkedInAt || null,
+      checkOutAt: record.checkOutAt || record.checkedOutAt || null,
+      loginAt,
+      logoutAt,
+      loginDuration: calculateRecordedLoginDuration({
+        ...record,
+        ...loginDetails,
+        loginAt,
+        logoutAt
+      }),
+      status: normalizeStatus(record.status || "unknown")
+    };
+  }
+
+  async function exportSelectedReport() {
+    if (!academyId) {
+      showMessage("Administrator profile is not ready yet.");
+      return;
+    }
+
+    const reportType = downloadReportType?.value || "all-month";
+    const selectedStudentId = downloadStudentSelect?.value || "";
+    const selectedMonth = downloadMonth?.value || "";
+    let startDate = "";
+    let endDate = "";
+    let studentId = "";
+
+    if (reportType === "all-month") {
+      if (!selectedMonth) {
+        showMessage("Select a month for the report.");
+        return;
       }
 
-      return;
+      startDate = `${selectedMonth}-01`;
+
+      const [year, monthNumber] = selectedMonth.split("-").map(Number);
+      endDate = getLocalDateString(new Date(year, monthNumber, 0));
     }
 
-    classesContainer.innerHTML = `
-      <section class="attendance-class-section">
-        <div class="attendance-monthly-heading">
-          <h3>${escapeHTML(studentName)} — ${escapeHTML(month)}</h3>
-          <p>Daily attendance and recorded login/logout details</p>
-        </div>
+    if (reportType === "student-month") {
+      if (!selectedStudentId || !selectedMonth) {
+        showMessage("Select both a student and a month.");
+        return;
+      }
 
-        <div class="attendance-table-wrapper">
-          <table class="attendance-monthly-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Class</th>
-                <th>Class Start</th>
-                <th>Check-in</th>
-                <th>Class End</th>
-                <th>Check-out</th>
-                <th>Login</th>
-                <th>Logout</th>
-                <th>Login Duration</th>
-                <th>Attendance</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${attendanceRows
-                .sort((a, b) =>
-                  String(a.date).localeCompare(String(b.date))
-                )
-                .map((row) => `
-                  <tr>
-                    <td>${escapeHTML(row.date ? formatDate(row.date) : "—")}</td>
-                    <td>${escapeHTML(row.className || "—")}</td>
-                    <td>${escapeHTML(row.classStartTime || "—")}</td>
-                    <td>${escapeHTML(formatTimestamp(row.checkInAt))}</td>
-                    <td>${escapeHTML(row.classEndTime || "—")}</td>
-                    <td>${escapeHTML(formatTimestamp(row.checkOutAt))}</td>
-                    <td>${escapeHTML(formatTimestamp(row.loginAt))}</td>
-                    <td>${escapeHTML(formatTimestamp(row.logoutAt))}</td>
-                    <td>${escapeHTML(row.loginDuration || "Not tracked")}</td>
-                    <td>${escapeHTML(capitalize(row.status || "unknown"))}</td>
-                  </tr>
-                `).join("")}
-            </tbody>
-          </table>
-        </div>
-      </section>
-    `;
+      studentId = selectedStudentId;
+      startDate = `${selectedMonth}-01`;
 
-    if (individualStudentDetails) {
-      individualStudentDetails.textContent =
-        `${rows.length} record(s) loaded for ${studentName}, ${month}.`;
+      const [year, monthNumber] = selectedMonth.split("-").map(Number);
+      endDate = getLocalDateString(new Date(year, monthNumber, 0));
     }
-  } catch (error) {
-    console.error("Unable to load monthly student attendance:", error);
 
-    if (individualStudentDetails) {
-      individualStudentDetails.textContent =
-        getErrorMessage(error);
+    if (reportType === "all-range") {
+      startDate = downloadStartDate?.value || "";
+      endDate = downloadEndDate?.value || "";
+
+      if (!startDate || !endDate || startDate > endDate) {
+        showMessage("Choose a valid start date and end date.");
+        return;
+      }
     }
-  }
-}
 
-async function fetchAttendanceRecords(startDate, endDate, studentId = "") {
-  const constraints = [
-    where("academyId", "==", academyId),
-    where("date", ">=", startDate),
-    where("date", "<=", endDate)
-  ];
+    if (reportType === "student-current-month") {
+      if (!selectedStudentId) {
+        showMessage("Select a student.");
+        return;
+      }
 
-  const snapshot = await getDocs(
-    query(collection(db, "attendance"), ...constraints)
-  );
+      studentId = selectedStudentId;
 
-  return snapshot.docs
-    .map((item) => ({
-      id: item.id,
-      ...item.data()
-    }))
-    .filter((record) => !studentId || record.studentId === studentId)
-    .sort((a, b) => {
-      const dateCompare = String(a.date || "").localeCompare(String(b.date || ""));
-      if (dateCompare !== 0) return dateCompare;
+      const currentMonth = getLocalDateString(new Date()).slice(0, 7);
+      startDate = `${currentMonth}-01`;
 
-      return String(a.studentName || "").localeCompare(
-        String(b.studentName || "")
+      const [year, monthNumber] = currentMonth.split("-").map(Number);
+      endDate = getLocalDateString(new Date(year, monthNumber, 0));
+    }
+
+    exportAttendanceButton.disabled = true;
+    exportAttendanceButton.textContent = "Preparing CSV...";
+
+    try {
+      const records = await fetchAttendanceRecords(
+        startDate,
+        endDate,
+        studentId
       );
-    });
-}
 
-function getClassSessionTime(classId, date, field) {
-  const classItem = classScheduleCache.find(
-    (item) => item.id === classId
-  );
+      if (!records.length) {
+        showMessage("No attendance records were found for those filters.");
+        return;
+      }
 
-  const session = classItem?.sessions?.find(
-    (item) => item.date === date
-  );
+      const rows = records.map((record) =>
+        normalizeAttendanceRecord(record, studentDirectory)
+      );
 
-  return session?.[field] || "";
-}
+      const headers = [
+        "Date",
+        "Student Name",
+        "Student ID",
+        "Email",
+        "Class",
+        "Class Start Time",
+        "Check-in Time",
+        "Class End Time",
+        "Check-out Time",
+        "Student Login Time",
+        "Student Logout Time",
+        "Login Duration",
+        "Attendance"
+      ];
 
-function normalizeAttendanceRecord(record, directory = studentDirectory) {
-  const student = directory.find(
-    (item) => item.studentId === record.studentId
-  );
+      const csvRows = [
+        headers,
+        ...rows.map((row) => [
+          row.date || "",
+          row.studentName,
+          row.studentId || "",
+          row.email,
+          row.className,
+          row.classStartTime,
+          formatTimestamp(row.checkInAt),
+          row.classEndTime,
+          formatTimestamp(row.checkOutAt),
+          formatTimestamp(row.loginAt),
+          formatTimestamp(row.logoutAt),
+          row.loginDuration,
+          capitalize(row.status)
+        ])
+      ];
 
-  const loginDetails = extractLoginDetails(record, student || {});
-  const loginAt = firstValue(record, [
-    "loginAt", "loggedInAt", "lastLoginAt", "sessionStartedAt"
-  ]) || firstValue(loginDetails, [
-    "loginAt", "loggedInAt", "lastLoginAt", "sessionStartedAt"
-  ]);
+      const csv = "\uFEFF" + csvRows
+        .map((row) => row.map(csvEscape).join(","))
+        .join("\r\n");
 
-  const logoutAt = firstValue(record, [
-    "logoutAt", "loggedOutAt", "sessionEndedAt"
-  ]) || firstValue(loginDetails, [
-    "logoutAt", "loggedOutAt", "sessionEndedAt"
-  ]);
+      const blob = new Blob([csv], {
+        type: "text/csv;charset=utf-8;"
+      });
 
-  return {
-    ...record,
-    studentName: record.studentName || student?.studentName || "Unknown student",
-    email: record.email || student?.email || "",
-    className: record.className || record.class || "—",
-    classStartTime:
-    record.startTime ||
-    record.classStartTime ||
-    getClassSessionTime(record.classId, record.date, "startTime"),
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
 
-  classEndTime:
-    record.endTime ||
-    record.classEndTime ||
-    getClassSessionTime(record.classId, record.date, "endTime"),
-    checkInAt: record.checkInAt || record.checkedInAt || null,
-    checkOutAt: record.checkOutAt || record.checkedOutAt || null,
-    loginAt,
-    logoutAt,
-    loginDuration: calculateRecordedLoginDuration({
-      ...record,
-      ...loginDetails,
-      loginAt,
-      logoutAt
-    }),
-    status: normalizeStatus(record.status || "unknown")
-  };
-}
+      link.href = url;
+      link.download =
+        `attendance-${reportType}-${startDate}-to-${endDate}.csv`;
 
-async function exportSelectedReport() {
-  if (!academyId) {
-    showMessage("Administrator profile is not ready yet.");
-    return;
-  }
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
 
-  const reportType = downloadReportType?.value || "all-month";
-  const selectedStudentId = downloadStudentSelect?.value || "";
-  const selectedMonth = downloadMonth?.value || "";
-  let startDate = "";
-  let endDate = "";
-  let studentId = "";
-
-  if (reportType === "all-month") {
-    if (!selectedMonth) {
-      showMessage("Select a month for the report.");
-      return;
-    }
-
-    startDate = `${selectedMonth}-01`;
-
-    const [year, monthNumber] = selectedMonth.split("-").map(Number);
-    endDate = getLocalDateString(new Date(year, monthNumber, 0));
-  }
-
-  if (reportType === "student-month") {
-    if (!selectedStudentId || !selectedMonth) {
-      showMessage("Select both a student and a month.");
-      return;
-    }
-
-    studentId = selectedStudentId;
-    startDate = `${selectedMonth}-01`;
-
-    const [year, monthNumber] = selectedMonth.split("-").map(Number);
-    endDate = getLocalDateString(new Date(year, monthNumber, 0));
-  }
-
-  if (reportType === "all-range") {
-    startDate = downloadStartDate?.value || "";
-    endDate = downloadEndDate?.value || "";
-
-    if (!startDate || !endDate || startDate > endDate) {
-      showMessage("Choose a valid start date and end date.");
-      return;
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      console.error("Attendance export failed:", error);
+      showMessage(getErrorMessage(error));
+    } finally {
+      exportAttendanceButton.disabled = false;
+      exportAttendanceButton.textContent = "Download CSV";
     }
   }
 
-  if (reportType === "student-current-month") {
-    if (!selectedStudentId) {
-      showMessage("Select a student.");
-      return;
-    }
-
-    studentId = selectedStudentId;
-
-    const currentMonth = getLocalDateString(new Date()).slice(0, 7);
-    startDate = `${currentMonth}-01`;
-
-    const [year, monthNumber] = currentMonth.split("-").map(Number);
-    endDate = getLocalDateString(new Date(year, monthNumber, 0));
+  function setLoadingState(isLoading) {
+    changeDateButton.disabled = isLoading;
+    downloadButton.disabled = isLoading;
   }
-
-  exportAttendanceButton.disabled = true;
-  exportAttendanceButton.textContent = "Preparing CSV...";
-
-  try {
-    const records = await fetchAttendanceRecords(
-      startDate,
-      endDate,
-      studentId
-    );
-
-    if (!records.length) {
-      showMessage("No attendance records were found for those filters.");
-      return;
-    }
-
-    const rows = records.map((record) =>
-      normalizeAttendanceRecord(record, studentDirectory)
-    );
-
-    const headers = [
-      "Date",
-      "Student Name",
-      "Student ID",
-      "Email",
-      "Class",
-      "Class Start Time",
-      "Check-in Time",
-      "Class End Time",
-      "Check-out Time",
-      "Student Login Time",
-      "Student Logout Time",
-      "Login Duration",
-      "Attendance"
-    ];
-
-    const csvRows = [
-      headers,
-      ...rows.map((row) => [
-        row.date || "",
-        row.studentName,
-        row.studentId || "",
-        row.email,
-        row.className,
-        row.classStartTime,
-        formatTimestamp(row.checkInAt),
-        row.classEndTime,
-        formatTimestamp(row.checkOutAt),
-        formatTimestamp(row.loginAt),
-        formatTimestamp(row.logoutAt),
-        row.loginDuration,
-        capitalize(row.status)
-      ])
-    ];
-
-    const csv = "\uFEFF" + csvRows
-      .map((row) => row.map(csvEscape).join(","))
-      .join("\r\n");
-
-    const blob = new Blob([csv], {
-      type: "text/csv;charset=utf-8;"
-    });
-
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-
-    link.href = url;
-    link.download =
-      `attendance-${reportType}-${startDate}-to-${endDate}.csv`;
-
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  } catch (error) {
-    console.error("Attendance export failed:", error);
-    showMessage(getErrorMessage(error));
-  } finally {
-    exportAttendanceButton.disabled = false;
-    exportAttendanceButton.textContent = "Download CSV";
-  }
-}
-
-function setLoadingState(isLoading) {
-  changeDateButton.disabled = isLoading;
-  downloadButton.disabled = isLoading;
-}
 
   function showMessage(message) {
     sessionDetails.textContent = message;
@@ -1177,16 +1130,6 @@ function setLoadingState(isLoading) {
     }
 
     return "other";
-  }
-
-  function statusClass(status) {
-    return {
-      present: "attendance-status-present",
-      absent: "attendance-status-absent",
-      late: "attendance-status-late",
-      excused: "attendance-status-excused",
-      other: "attendance-status-other"
-    }[normalizeStatus(status)];
   }
 
   function countStatus(records, status) {

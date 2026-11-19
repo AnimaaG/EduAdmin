@@ -1,4 +1,3 @@
-
 import { auth, db } from "./firebase-config.js";
 
 import {
@@ -28,6 +27,7 @@ const statusFilter = $("class-status-filter");
 
 let currentTeacher = null;
 let teacherClasses = [];
+let academyStudents = []; // <-- Added to store academy students for proper counting
 
 function escapeHTML(value) {
   return String(value ?? "").replace(/[&<>"']/g, character => ({
@@ -62,69 +62,74 @@ function isActiveClass(classItem) {
 }
 
 function getClassSessions(classItem) {
-  return Array.isArray(classItem.sessions)
-    ? classItem.sessions
-    : [];
+  const subjects = Array.isArray(classItem.subjects) ? classItem.subjects : [];
+  const teacherSubjects = subjects.filter(subj => subj.teacherId === currentTeacher.uid);
+  const result = [];
+  teacherSubjects.forEach(subj => {
+    const sessions = Array.isArray(subj.sessions) ? subj.sessions : [];
+    sessions.forEach(s => result.push(s));
+  });
+  return result;
 }
 
 function localDateString(date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
-
   return `${year}-${month}-${day}`;
 }
 
 function formatDate(dateString) {
   if (!dateString) return "Date not set";
-
   const date = new Date(`${dateString}T00:00:00`);
-
   if (Number.isNaN(date.getTime())) return dateString;
-
-  return date.toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric"
-  });
+  return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
 function formatTime(value) {
   if (!value) return "Time not set";
-
   const parts = String(value).split(":");
-
   if (parts.length < 2) return value;
-
   let hours = Number(parts[0]);
   const minutes = parts[1];
-
   if (!Number.isFinite(hours)) return value;
-
   const suffix = hours >= 12 ? "PM" : "AM";
   hours = hours % 12 || 12;
-
   return `${hours}:${minutes} ${suffix}`;
 }
 
+// Updated robust student counting function matching attendance logic
+function getAssignedStudents(classItem) {
+  const classId = String(classItem.id);
+  const className = String(classItem.className || classItem.name || "").trim().toLowerCase();
+
+  return academyStudents.filter(student => {
+    const studentClassIds = [
+      student.classId,
+      student.assignedClassId,
+      ...(Array.isArray(student.classIds) ? student.classIds : []),
+      ...(Array.isArray(student.assignedClassIds) ? student.assignedClassIds : [])
+    ].filter(Boolean).map(String);
+
+    const studentClassName = String(student.className || student.class || "").trim().toLowerCase();
+    const classStudentIds = Array.isArray(classItem.studentIds) ? classItem.studentIds.map(String) : [];
+
+    return (
+      studentClassIds.includes(classId) ||
+      classStudentIds.includes(String(student.id)) ||
+      (studentClassName && className && studentClassName === className)
+    );
+  });
+}
+
 function getStudentCount(classItem) {
-  return Array.isArray(classItem.studentIds)
-    ? classItem.studentIds.length
-    : 0;
+  return getAssignedStudents(classItem).length;
 }
 
 function getUpcomingSessions(classItem) {
   const today = localDateString(new Date());
-
   return getClassSessions(classItem)
-    .filter(session =>
-      session &&
-      session.date &&
-      session.date >= today &&
-      !["cancelled", "canceled"].includes(
-        String(session.status || "").toLowerCase()
-      )
-    )
+    .filter(session => session && session.date && session.date >= today && !["cancelled", "canceled"].includes(String(session.status || "").toLowerCase()))
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(0, 3);
 }
@@ -132,144 +137,69 @@ function getUpcomingSessions(classItem) {
 function renderSession(session) {
   return `
     <div class="session-item">
-      <span class="session-date">
-        ${escapeHTML(formatDate(session.date))}
-      </span>
-
-      <span class="session-time">
-        ${escapeHTML(formatTime(session.startTime))}
-        –
-        ${escapeHTML(formatTime(session.endTime))}
-      </span>
+      <span class="session-date">${escapeHTML(formatDate(session.date))}</span>
+      <span class="session-time">${escapeHTML(formatTime(session.startTime))} – ${escapeHTML(formatTime(session.endTime))}</span>
     </div>
   `;
 }
 
 function renderClassCard(classItem) {
   const className = getClassName(classItem);
-  const subject = classItem.subject || "Subject not specified";
+  const teacherSubjects = (classItem.subjects || []).filter(s => s.teacherId === currentTeacher.uid);
+  const subjectNames = teacherSubjects.map(s => s.subjectName).join(", ") || "Subject not specified";
   const description = classItem.description || "No class description available.";
-
   const status = getClassStatus(classItem);
   const active = isActiveClass(classItem);
-
   const sessions = getUpcomingSessions(classItem);
   const studentCount = getStudentCount(classItem);
-
   const firstLetter = className.trim().charAt(0).toUpperCase() || "C";
 
   return `
     <article class="class-card">
-
       <div class="class-card-top">
-
-        <div class="class-card-icon">
-          ${escapeHTML(firstLetter)}
-        </div>
-
-        <span class="class-status ${active ? "" : "inactive"}">
-          ${escapeHTML(status)}
-        </span>
-
+        <div class="class-card-icon">${escapeHTML(firstLetter)}</div>
+        <span class="class-status ${active ? "" : "inactive"}">${escapeHTML(status)}</span>
       </div>
-
       <h3>${escapeHTML(className)}</h3>
-
-      <p class="class-subject">
-        ${escapeHTML(subject)}
-      </p>
-
-      <p class="class-description">
-        ${escapeHTML(description)}
-      </p>
-
+      <p class="class-subject">${escapeHTML(subjectNames)}</p>
+      <p class="class-description">${escapeHTML(description)}</p>
       <div class="class-info-grid">
-
-        <div class="class-info-item">
-          <span>Assigned Students</span>
-          <strong>${studentCount}</strong>
-        </div>
-
-        <div class="class-info-item">
-          <span>Scheduled Sessions</span>
-          <strong>${getClassSessions(classItem).length}</strong>
-        </div>
-
-        <div class="class-info-item">
-          <span>Class Status</span>
-          <strong>${active ? "Active" : "Inactive"}</strong>
-        </div>
-
-        <div class="class-info-item">
-          <span>Created</span>
-          <strong>${escapeHTML(
-            formatCreatedDate(classItem.createdAt)
-          )}</strong>
-        </div>
-
+        <div class="class-info-item"><span>Assigned Students</span><strong>${studentCount}</strong></div>
+        <div class="class-info-item"><span>Scheduled Sessions</span><strong>${getClassSessions(classItem).length}</strong></div>
+        <div class="class-info-item"><span>Class Status</span><strong>${active ? "Active" : "Inactive"}</strong></div>
+        <div class="class-info-item"><span>Created</span><strong>${escapeHTML(formatCreatedDate(classItem.createdAt))}</strong></div>
       </div>
-
-      <div class="sessions-heading">
-        <strong>Upcoming Sessions</strong>
-        <span style="font-size:11px;color:#94a3b8;">
-          ${sessions.length} shown
-        </span>
-      </div>
-
-      <div class="session-list">
-        ${
-          sessions.length
-            ? sessions.map(renderSession).join("")
-            : `<div class="no-sessions">No upcoming sessions scheduled.</div>`
-        }
-      </div>
-
+      <div class="sessions-heading"><strong>Upcoming Sessions</strong><span style="font-size:11px;color:#94a3b8;">${sessions.length} shown</span></div>
+      <div class="session-list">${sessions.length ? sessions.map(renderSession).join("") : `<div class="no-sessions">No upcoming sessions scheduled.</div>`}</div>
       <div class="class-card-footer">
-        <span class="student-count">
-          ${studentCount} assigned student(s)
-        </span>
-
-        <span class="class-id">
-          ID: ${escapeHTML(classItem.id)}
-        </span>
+        <span class="student-count">${studentCount} assigned student(s)</span>
+        <span class="class-id">ID: ${escapeHTML(classItem.id)}</span>
       </div>
-
     </article>
   `;
 }
 
 function formatCreatedDate(value) {
   if (!value) return "—";
-
   let date = null;
-
-  if (typeof value.toDate === "function") {
-    date = value.toDate();
-  } else if (value instanceof Date) {
-    date = value;
-  } else if (typeof value === "string") {
-    date = new Date(value);
-  }
-
+  if (typeof value.toDate === "function") date = value.toDate();
+  else if (value instanceof Date) date = value;
+  else if (typeof value === "string") date = new Date(value);
   if (!date || Number.isNaN(date.getTime())) return "—";
-
-  return date.toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric"
-  });
+  return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
 function updateSummary() {
   const activeClasses = teacherClasses.filter(isActiveClass);
-
   totalClassesElement.textContent = teacherClasses.length;
   activeClassesElement.textContent = activeClasses.length;
-
-  totalStudentsElement.textContent = teacherClasses.reduce(
-    (total, classItem) => total + getStudentCount(classItem),
-    0
-  );
+  
+  // Calculate total unique assigned students across all teacher classes
+  const uniqueStudentIds = new Set();
+  teacherClasses.forEach(classItem => {
+    getAssignedStudents(classItem).forEach(student => uniqueStudentIds.add(student.id));
+  });
+  totalStudentsElement.textContent = uniqueStudentIds.size;
 }
 
 function renderClasses() {
@@ -278,18 +208,12 @@ function renderClasses() {
 
   const filteredClasses = teacherClasses.filter(classItem => {
     const name = getClassName(classItem).toLowerCase();
-    const subject = String(classItem.subject || "").toLowerCase();
+    const subjects = (classItem.subjects || []).filter(s => s.teacherId === currentTeacher.uid);
+    const subjectStr = subjects.map(s => s.subjectName).join(" ").toLowerCase();
     const description = String(classItem.description || "").toLowerCase();
 
-    const matchesSearch =
-      name.includes(searchTerm) ||
-      subject.includes(searchTerm) ||
-      description.includes(searchTerm);
-
-    const matchesStatus =
-      selectedStatus === "all" ||
-      getClassStatus(classItem) === selectedStatus;
-
+    const matchesSearch = name.includes(searchTerm) || subjectStr.includes(searchTerm) || description.includes(searchTerm);
+    const matchesStatus = selectedStatus === "all" || getClassStatus(classItem) === selectedStatus;
     return matchesSearch && matchesStatus;
   });
 
@@ -297,59 +221,55 @@ function renderClasses() {
     classesGrid.innerHTML = `
       <div class="classes-empty">
         <h3>No classes found</h3>
-        <p>
-          ${
-            teacherClasses.length
-              ? "Try changing your search or filter."
-              : "No classes have been assigned to your account yet."
-          }
-        </p>
+        <p>${teacherClasses.length ? "Try changing your search or filter." : "No classes have been assigned to your account yet."}</p>
       </div>
     `;
-
     return;
   }
 
-  classesGrid.innerHTML = filteredClasses
-    .map(renderClassCard)
-    .join("");
+  classesGrid.innerHTML = filteredClasses.map(renderClassCard).join("");
 }
 
 async function loadTeacherClasses(user) {
-  const profileSnapshot = await getDoc(
-    doc(db, "users", user.uid)
-  );
-
-  if (!profileSnapshot.exists()) {
-    throw new Error("Teacher profile not found.");
-  }
+  const profileSnapshot = await getDoc(doc(db, "users", user.uid));
+  if (!profileSnapshot.exists()) throw new Error("Teacher profile not found.");
 
   const profile = profileSnapshot.data();
-
-  if (
-    profile.role !== "teacher" ||
-    profile.isActive !== true ||
-    !profile.academyId
-  ) {
+  if (profile.role !== "teacher" || profile.isActive !== true || !profile.academyId) {
     throw new Error("Your teacher account is inactive or not configured.");
   }
 
-  currentTeacher = {
-    ...profile,
-    uid: user.uid
-  };
+  currentTeacher = { ...profile, uid: user.uid };
 
   const classesQuery = query(
     collection(db, "classes"),
-    where("academyId", "==", currentTeacher.academyId),
-    where("teacherId", "==", currentTeacher.uid)
+    where("academyId", "==", currentTeacher.academyId)
   );
 
-  const snapshot = await getDocs(classesQuery);
+  // Fetch academy students so we can count them accurately
+  const studentsQuery = query(
+    collection(db, "users"),
+    where("academyId", "==", currentTeacher.academyId),
+    where("role", "==", "student"),
+    where("isActive", "==", true)
+  );
 
-  teacherClasses = snapshot.docs.map(item => ({
-    id: item.id,
-    ...item.data()
+  const [classSnapshot, studentSnapshot] = await Promise.all([
+    getDocs(classesQuery),
+    getDocs(studentsQuery)
+  ]);
+
+  teacherClasses = classSnapshot.docs.map(document => ({
+    id: document.id,
+    ...document.data()
+  })).filter(item => {
+    const subjects = Array.isArray(item.subjects) ? item.subjects : [];
+    return subjects.some(subj => subj.teacherId === currentTeacher.uid);
+  });
+
+  academyStudents = studentSnapshot.docs.map(snapshot => ({
+    id: snapshot.id,
+    ...snapshot.data()
   }));
 
   updateSummary();
@@ -357,6 +277,7 @@ async function loadTeacherClasses(user) {
 }
 
 searchInput.addEventListener("input", renderClasses);
+statusFilter.statusFilter?.addEventListener("change", renderClasses);
 statusFilter.addEventListener("change", renderClasses);
 
 onAuthStateChanged(auth, async user => {
@@ -365,30 +286,19 @@ onAuthStateChanged(auth, async user => {
     return;
   }
 
-  classesGrid.innerHTML = `
-    <div class="classes-empty">
-      Loading your assigned classes...
-    </div>
-  `;
+  classesGrid.innerHTML = `<div class="classes-empty">Loading your assigned classes...</div>`;
 
   try {
     await loadTeacherClasses(user);
     clearMessage();
-
   } catch (error) {
     console.error("Teacher classes loading error:", error);
-
     classesGrid.innerHTML = `
       <div class="classes-empty">
         <h3>Unable to load classes</h3>
         <p>Please try again or contact your administrator.</p>
       </div>
     `;
-
-    showMessage(
-      error.code === "permission-denied"
-        ? "Firestore denied access. Check the teacher class read security rule."
-        : error.message || "Unable to load your classes."
-    );
+    showMessage(error.code === "permission-denied" ? "Firestore denied access. Check rules." : error.message || "Unable to load your classes.");
   }
 });

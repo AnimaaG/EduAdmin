@@ -79,11 +79,6 @@
             <span>Study materials</span>
           </a>
 
-          <a href="schedules.html" data-nav-path="schedules.html">
-            <span class="nav-icon" aria-hidden="true">◷</span>
-            <span>Schedules</span>
-          </a>
-
           <a href="fees.html" data-nav-path="fees.html">
             <span class="nav-icon" aria-hidden="true">₹</span>
             <span>Fees</span>

@@ -100,7 +100,7 @@ function node(tag, className, value) {
   return element;
 }
 
-function renderAcademy(academy, profile) {
+function renderAcademy(academy, profile, academyId) {
   const name =
     academy?.academyName ||
     academy?.name ||
@@ -108,12 +108,19 @@ function renderAcademy(academy, profile) {
     profile.academyName ||
     "Your Academy";
 
+  // Get the academy code or fallback to the academy ID document reference
+  const academyCode = academy?.code || academyId || profile.academyId || "—";
+
   text("academy-name", name);
   text("academy-avatar", name.trim().charAt(0).toUpperCase() || "A");
   text(
     "academy-details",
     academy?.city || academy?.address || "Academy administrator"
   );
+  
+  // Display the Academy ID code
+  text("academy-code-display", `Academy ID: ${academyCode}`);
+
   text("welcome-title", `Welcome to ${name}`);
 
   if (academy?.slogan || academy?.tagline) {
@@ -179,7 +186,7 @@ function renderAttendanceChart(present, absent, unmarked) {
   attendanceChart?.destroy();
 
   attendanceChart = new Chart(canvas, {
-        type: "doughnut",
+    type: "doughnut",
     data: {
       labels: ["Present", "Absent", "Unmarked"],
       datasets: [{
@@ -272,7 +279,6 @@ function renderActivity(records) {
   });
 }
 
-
 function renderAdminAnnouncements(announcements) {
   const container = document.getElementById("admin-announcements-list");
   const message = document.getElementById("announcements-message");
@@ -320,8 +326,7 @@ function renderAdminAnnouncements(announcements) {
 }
 
 // ============================================
-// CLASS CALENDAR
-// Uses existing classes collection and sessions
+// CLASS CALENDAR & SCHEDULES (UPDATED FOR NESTED SUBJECT SESSIONS)
 // ============================================
 
 let calendarClasses = [];
@@ -344,30 +349,25 @@ function getCalendarSessions(classes) {
   const byDate = new Map();
 
   classes.forEach((classItem) => {
-    const sessions = Array.isArray(classItem.sessions)
-      ? classItem.sessions
-      : [];
+    const subjects = Array.isArray(classItem.subjects) ? classItem.subjects : [];
 
-    sessions.forEach((session) => {
-      if (!session.date) return;
+    subjects.forEach((subj) => {
+      const sessions = Array.isArray(subj.sessions) ? subj.sessions : [];
 
-      if (!byDate.has(session.date)) {
-        byDate.set(session.date, []);
-      }
+      sessions.forEach((session) => {
+        if (!session.date) return;
 
-      byDate.get(session.date).push({
-        className:
-          classItem.className ||
-          classItem.name ||
-          "Class",
+        if (!byDate.has(session.date)) {
+          byDate.set(session.date, []);
+        }
 
-        subject: classItem.subject || "",
-
-        teacher: classItem.teacherName || "",
-
-        startTime: session.startTime || "",
-
-        endTime: session.endTime || ""
+        byDate.get(session.date).push({
+          className: classItem.className || classItem.name || "Class",
+          subject: subj.subjectName || "",
+          teacher: subj.teacherName || "",
+          startTime: session.startTime || "",
+          endTime: session.endTime || ""
+        });
       });
     });
   });
@@ -406,7 +406,7 @@ function renderCalendarSelectedDay(byDate) {
     : "No classes scheduled on this date.";
 
   list.replaceChildren();
-    if (!sessions.length) {
+  if (!sessions.length) {
     list.append(
       node("div", "ui-empty", "No classes scheduled for this date.")
     );
@@ -457,15 +457,8 @@ function renderClassCalendar(classes) {
   const month = calendarDisplayedMonth.getMonth();
 
   const firstDay = new Date(year, month, 1);
-
-  // Convert Sunday-first JavaScript numbering to Monday-first.
   const offset = (firstDay.getDay() + 6) % 7;
-
-  const daysInMonth = new Date(
-    year,
-    month + 1,
-    0
-  ).getDate();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
 
   const byDate = getCalendarSessions(classes);
 
@@ -486,7 +479,6 @@ function renderClassCalendar(classes) {
 
   for (let day = 1; day <= daysInMonth; day++) {
     const dateKey = calendarDateKey(year, month, day);
-
     const hasClasses = (byDate.get(dateKey) || []).length > 0;
 
     const button = node(
@@ -496,7 +488,6 @@ function renderClassCalendar(classes) {
     );
 
     button.type = "button";
-
     button.setAttribute(
       "aria-label",
       `${dateKey}${hasClasses ? ", classes scheduled" : ", no classes scheduled"}`
@@ -578,35 +569,37 @@ function renderSchedules(classes) {
   const sessions = [];
 
   classes.forEach((classItem) => {
-    const classSessions = Array.isArray(classItem.sessions)
-      ? classItem.sessions
-      : [];
+    const subjects = Array.isArray(classItem.subjects) ? classItem.subjects : [];
 
-    classSessions.forEach((session) => {
-      if (session.date !== today) return;
+    subjects.forEach((subj) => {
+      const classSessions = Array.isArray(subj.sessions) ? subj.sessions : [];
 
-      sessions.push({
-        className: classItem.className || classItem.name || "Class",
-        subject: classItem.subject || "",
-        teacher: classItem.teacherName || "",
-        startTime: session.startTime || "",
-        endTime: session.endTime || ""
+      classSessions.forEach((session) => {
+        if (session.date !== today) return;
+
+        sessions.push({
+          className: classItem.className || classItem.name || "Class",
+          subject: subj.subjectName || "",
+          teacher: subj.teacherName || "",
+          startTime: session.startTime || "",
+          endTime: session.endTime || ""
+        });
       });
     });
   });
 
   sessions.sort((a, b) => a.startTime.localeCompare(b.startTime));
 
-if (!sessions.length) {
-  const message = node(
-    "div",
-    "ui-empty",
-    "Day off — no classes are scheduled for today."
-  );
+  if (!sessions.length) {
+    const message = node(
+      "div",
+      "ui-empty",
+      "Day off — no classes are scheduled for today."
+    );
 
-  list.append(message);
-  return;
-}
+    list.append(message);
+    return;
+  }
 
   sessions.forEach((session) => {
     const row = node("div", "ui-schedule-row");
@@ -645,6 +638,7 @@ function isPresent(record) {
 function isAbsent(record) {
   return statusOf(record) === "absent";
 }
+
 function renderClassAttendance(classes, attendance, students) {
   const list = $("class-attendance-list");
   if (!list) return;
@@ -669,8 +663,6 @@ function renderClassAttendance(classes, attendance, students) {
     const absent = classRecords.filter(isAbsent).length;
     const marked = uniqueStudentIds.size;
 
-    // The full active student count is not necessarily the class roster.
-    // Use marked records as the known class population unless a roster count exists.
     const knownClassTotal = Number(classItem.studentCount) ||
       Number(classItem.totalStudents) ||
       marked;
@@ -688,9 +680,15 @@ function renderClassAttendance(classes, attendance, students) {
     );
 
     const copy = node("div", "ui-class-copy");
+    
+    // Extract comma-separated subjects for display
+    const subjectsSummary = Array.isArray(classItem.subjects) 
+      ? classItem.subjects.map(s => s.subjectName).filter(Boolean).join(", ")
+      : (classItem.subject || "Class attendance");
+
     copy.append(
       node("strong", "", classItem.className || classItem.name || "Class"),
-      node("small", "", classItem.subject || "Class attendance")
+      node("small", "", subjectsSummary)
     );
 
     const count = node("span", "ui-class-count", `${total} students`);
@@ -763,32 +761,34 @@ function startDashboard(profile) {
   stopListeners();
   setupClassCalendar();
   const academyId = profile.academyId;
+
   // Latest 5 teacher announcements
-unsubscribeFunctions.push(onSnapshot(
-  query(
-    collection(db, "notifications"),
-    where("academyId", "==", academyId),
-    where("recipientRole", "==", "student"),
-    where("type", "==", "announcement"),
-    orderBy("createdAt", "desc"),
-    limit(5)
-  ),
-  (snapshot) => {
-    renderAdminAnnouncements(
-      snapshot.docs.map((item) => ({
-        id: item.id,
-        ...item.data()
-      }))
-    );
-  },
-  (error) => {
-    console.error("Announcements error:", error);
-    const container = $("admin-announcements-list");
-    if (container) {
-      container.textContent = "Unable to load teacher announcements.";
+  unsubscribeFunctions.push(onSnapshot(
+    query(
+      collection(db, "notifications"),
+      where("academyId", "==", academyId),
+      where("recipientRole", "==", "student"),
+      where("type", "==", "announcement"),
+      orderBy("createdAt", "desc"),
+      limit(5)
+    ),
+    (snapshot) => {
+      renderAdminAnnouncements(
+        snapshot.docs.map((item) => ({
+          id: item.id,
+          ...item.data()
+        }))
+      );
+    },
+    (error) => {
+      console.error("Announcements error:", error);
+      const container = $("admin-announcements-list");
+      if (container) {
+        container.textContent = "Unable to load teacher announcements.";
+      }
     }
-  }
-));
+  ));
+
   const users = collection(db, "users");
   const classesCollection = collection(db, "classes");
   const feesCollection = collection(db, "fees");
@@ -813,17 +813,17 @@ unsubscribeFunctions.push(onSnapshot(
     text("teachers-status", "Active teachers");
     text("students-status", "Active students");
 
-        renderPeopleChart(classes.length, teachers, students);
-        renderClassCalendar(classes);
-        renderSchedules(classes);
-        renderClassAttendance(classes, attendance, students);
+    renderPeopleChart(classes.length, teachers, students);
+    renderClassCalendar(classes);
+    renderSchedules(classes);
+    renderClassAttendance(classes, attendance, students);
+    renderProvisionalBanner(profile, teachers, students);
   };
 
   const refreshAttendance = () => {
     const present = attendance.filter(isPresent).length;
     const absent = attendance.filter(isAbsent).length;
 
-    // Count unique students who have an attendance record today.
     const markedStudents = new Set(
       attendance.map((record) => record.studentId).filter(Boolean)
     ).size;
@@ -891,7 +891,8 @@ unsubscribeFunctions.push(onSnapshot(
       showMessage("schedule-message", "Schedules could not be loaded.");
     }
   ));
-    unsubscribeFunctions.push(onSnapshot(
+
+  unsubscribeFunctions.push(onSnapshot(
     query(feesCollection, where("academyId", "==", academyId)),
     (snapshot) => {
       fees = snapshot.docs.map((item) => item.data());
@@ -933,7 +934,6 @@ unsubscribeFunctions.push(onSnapshot(
     }
   ));
 
-  // Keep the latest activity from both the activity log and payment records.
   let activityLogRecords = [];
   let paymentActivityRecords = [];
 
@@ -952,7 +952,6 @@ unsubscribeFunctions.push(onSnapshot(
     renderActivity(records.slice(0, 5));
   }
 
-  // Existing activity records: students, teachers, classes, attendance and fees.
   unsubscribeFunctions.push(onSnapshot(
     query(
       collection(db, "activityLogs"),
@@ -1006,7 +1005,7 @@ unsubscribeFunctions.push(onSnapshot(
       );
     }
   ));
-    // Show payment submissions and their current approval/rejection status.
+
   unsubscribeFunctions.push(onSnapshot(
     query(
       collection(db, "paymentSubmissions"),
@@ -1067,13 +1066,61 @@ unsubscribeFunctions.push(onSnapshot(
   unsubscribeFunctions.push(onSnapshot(
     doc(db, "academies", academyId),
     (snapshot) => {
-      renderAcademy(snapshot.exists() ? snapshot.data() : {}, profile);
+      renderAcademy(snapshot.exists() ? snapshot.data() : {}, profile, academyId);
     },
     (error) => {
       console.warn("Academy profile unavailable:", error);
-      renderAcademy({}, profile);
+      renderAcademy({}, profile, academyId);
     }
   ));
+}
+function renderProvisionalBanner(profile, teachersCount, studentsCount) {
+  const banner = $("provisional-status-banner");
+  if (!banner) return;
+
+  // If the admin already completed onboarding, hide the banner
+  if (profile.provisionalAdmin !== true || profile.activityCompleted === true) {
+    banner.hidden = true;
+    return;
+  }
+
+  banner.hidden = false;
+  const titleEl = $("provisional-title");
+  const descEl = $("provisional-desc");
+  const timerEl = $("provisional-timer");
+
+  const startTime = getDate(profile.provisionalStartedAt) || getDate(profile.createdAt) || new Date();
+  const limitHours = 72; // max window
+  const deadline = new Date(startTime.getTime() + limitHours * 60 * 60 * 1000);
+  const now = new Date();
+  const diffMs = deadline.getTime() - now.getTime();
+
+  if (diffMs <= 0) {
+    titleEl.textContent = "Provisional Window Expired";
+    descEl.textContent = "You needed at least 1 approved teacher and 2 approved students within the initial window.";
+    timerEl.textContent = "Status: Restricted";
+    timerEl.style.background = "#fee2e2";
+    timerEl.style.color = "#991b1b";
+    return;
+  }
+
+  const hoursLeft = Math.floor(diffMs / (1000 * 60 * 60));
+  const minsLeft = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+  const hasTeacher = teachersCount >= 1;
+  const hasStudents = studentsCount >= 2;
+
+  if (hasTeacher && hasStudents) {
+    titleEl.textContent = "Account Fully Eligible & Verified ✓";
+    descEl.textContent = `Milestones met! You have ${teachersCount} teacher(s) and ${studentsCount} student(s).`;
+    timerEl.textContent = "Status: Eligible";
+    timerEl.style.background = "#dcfce7";
+    timerEl.style.color = "#166534";
+  } else {
+    titleEl.textContent = "Academy Onboarding in Progress";
+    descEl.textContent = `Requirement: 1 teacher (Current: ${teachersCount}/1) & 2 students (Current: ${studentsCount}/2).`;
+    timerEl.textContent = `Time left: ${hoursLeft}h ${minsLeft}m`;
+  }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -1102,8 +1149,6 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       startDashboard(profile);
-
-      
     } catch (error) {
       console.error("Dashboard initialization failed:", error);
 
@@ -1118,6 +1163,5 @@ document.addEventListener("DOMContentLoaded", () => {
       showMessage("attendance-message", "Attendance data could not be loaded.");
       showMessage("activity-message", "Activity data could not be loaded.");
     }
-    
   });
 });

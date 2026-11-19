@@ -6,7 +6,9 @@ import {
   getDoc,
   getDocs,
   query,
-  where
+  where,
+  updateDoc,
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 
 import {
@@ -24,7 +26,10 @@ document.addEventListener("DOMContentLoaded", () => {
     return;
   }
 
+  let academyId = "";
   let teachers = [];
+  let classes = [];
+  let updatingTeacherId = null;
 
   injectTeacherStyles();
 
@@ -35,7 +40,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function hideMessage() {
-    message.textContent = "";
     message.hidden = true;
   }
 
@@ -47,6 +51,27 @@ document.addEventListener("DOMContentLoaded", () => {
       '"': "&quot;",
       "'": "&#39;"
     })[character]);
+  }
+
+  function getTeacherAssignments(teacherId) {
+    const classNames = new Set();
+    const subjectNames = new Set();
+
+    classes.forEach(cls => {
+      const subjects = Array.isArray(cls.subjects) ? cls.subjects : [];
+      subjects.forEach(subj => {
+        if (subj.teacherId === teacherId) {
+          const cName = cls.className || cls.name;
+          if (cName) classNames.add(cName);
+          if (subj.subjectName) subjectNames.add(subj.subjectName);
+        }
+      });
+    });
+
+    return {
+      classes: classNames.size > 0 ? [...classNames] : [],
+      subjects: subjectNames.size > 0 ? [...subjectNames] : []
+    };
   }
 
   function renderTeachers() {
@@ -73,11 +98,11 @@ document.addEventListener("DOMContentLoaded", () => {
     if (filtered.length === 0) {
       tableBody.innerHTML = `
         <tr>
-          <td colspan="5" class="teachers-empty">
-            <h3>${term ? "No matching teachers" : "No active teachers found"}</h3>
+          <td colspan="7" class="teachers-empty">
+            <h3>${term ? "No matching teachers" : "No teachers found"}</h3>
             <p>${term
               ? "Try another name, email, phone number, or subject."
-              : "No active teacher accounts were found for this academy."}</p>
+              : "No teacher accounts were found for this academy."}</p>
           </td>
         </tr>
       `;
@@ -93,6 +118,19 @@ document.addEventListener("DOMContentLoaded", () => {
         .join("")
         .toUpperCase();
 
+      const isActive = teacher.isActive !== false;
+      const assignments = getTeacherAssignments(teacher.id);
+
+      const classesHtml = assignments.classes.length > 0
+        ? assignments.classes.map(c => `<span class="teacher-chip class-chip">${escapeHTML(c)}</span>`).join(" ")
+        : '<span style="color:#94a3b8; font-style:italic;">None assigned</span>';
+
+      const subjectsHtml = assignments.subjects.length > 0
+        ? assignments.subjects.map(s => `<span class="teacher-chip subject-chip">${escapeHTML(s)}</span>`).join(" ")
+        : (teacher.subject || teacher.specialization ? `<span class="teacher-chip subject-chip">${escapeHTML(teacher.subject || teacher.specialization)}</span>` : '<span style="color:#94a3b8; font-style:italic;">None assigned</span>');
+
+      const disabled = updatingTeacherId === teacher.id;
+
       return `
         <tr>
           <td>
@@ -106,39 +144,97 @@ document.addEventListener("DOMContentLoaded", () => {
           </td>
           <td>${escapeHTML(teacher.email || "—")}</td>
           <td>${escapeHTML(teacher.phone || teacher.contactNumber || "—")}</td>
+          <td>${classesHtml}</td>
+          <td>${subjectsHtml}</td>
           <td>
-            <span class="teacher-subject-chip">
-              ${escapeHTML(teacher.subject || teacher.specialization || "General")}
+            <span class="teacher-status-badge status-${isActive ? "active" : "inactive"}">
+              <span class="status-dot"></span>
+              ${isActive ? "Active" : "Inactive"}
             </span>
           </td>
           <td>
-            <span class="teacher-status-badge status-active">
-              <span class="status-dot"></span>
-              Active
-            </span>
+            <button
+              type="button"
+              class="secondary-button teacher-status-toggle"
+              data-teacher-id="${escapeHTML(teacher.id)}"
+              data-new-status="${isActive ? "false" : "true"}"
+              ${disabled ? "disabled" : ""}
+            >
+              ${disabled ? "Updating..." : (isActive ? "Mark Inactive" : "Mark Active")}
+            </button>
           </td>
         </tr>
       `;
     }).join("");
+
+    tableBody.querySelectorAll(".teacher-status-toggle").forEach(button => {
+      button.addEventListener("click", () => {
+        const tId = button.dataset.teacherId;
+        const targetActive = button.dataset.newStatus === "true";
+        updateTeacherStatus(tId, targetActive);
+      });
+    });
   }
 
-  async function loadTeachers(academyId) {
+  async function updateTeacherStatus(teacherId, targetActive) {
+    if (updatingTeacherId) return;
+
+    const teacher = teachers.find(t => t.id === teacherId);
+    if (!teacher) return;
+
+    const actionText = targetActive ? "activate this teacher" : "mark this teacher as inactive (they will be hidden from subject assignment dropdowns)";
+    if (!window.confirm(`Are you sure you want to ${actionText}?`)) {
+      return;
+    }
+
+    updatingTeacherId = teacherId;
+    hideMessage();
+    renderTeachers();
+
+    try {
+      await updateDoc(doc(db, "users", teacherId), {
+        isActive: targetActive,
+        statusUpdatedAt: serverTimestamp(),
+        statusUpdatedBy: auth.currentUser.uid
+      });
+
+      teacher.isActive = targetActive;
+      showMessage(`Successfully updated status for ${teacher.fullName || teacher.name || "teacher"}.`, "success");
+    } catch (error) {
+      console.error("Failed to update teacher status:", error);
+      showMessage(error.code === "permission-denied" ? "Firestore denied this update. Check security rules." : error.message, "error");
+    } finally {
+      updatingTeacherId = null;
+      renderTeachers();
+    }
+  }
+
+  async function loadData(currentAcademyId) {
+    academyId = currentAcademyId;
     tableBody.innerHTML = `
-      <tr><td colspan="5" class="teachers-empty">Loading teacher records...</td></tr>
+      <tr><td colspan="7" class="teachers-empty">Loading teacher records...</td></tr>
     `;
 
-    const teachersQuery = query(
-      collection(db, "users"),
-      where("academyId", "==", academyId),
-      where("role", "==", "teacher"),
-      where("isActive", "==", true)
-    );
+    const [teacherSnapshot, classSnapshot] = await Promise.all([
+      getDocs(query(
+        collection(db, "users"),
+        where("academyId", "==", academyId),
+        where("role", "==", "teacher")
+      )),
+      getDocs(query(
+        collection(db, "classes"),
+        where("academyId", "==", academyId)
+      ))
+    ]);
 
-    const snapshot = await getDocs(teachersQuery);
-
-    teachers = snapshot.docs.map(teacherDoc => ({
+    teachers = teacherSnapshot.docs.map(teacherDoc => ({
       id: teacherDoc.id,
       ...teacherDoc.data()
+    }));
+
+    classes = classSnapshot.docs.map(classDoc => ({
+      id: classDoc.id,
+      ...classDoc.data()
     }));
 
     renderTeachers();
@@ -178,13 +274,13 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      await loadTeachers(profile.academyId);
+      await loadData(profile.academyId);
     } catch (error) {
       console.error("Could not load teacher records:", error);
 
       tableBody.innerHTML = `
         <tr>
-          <td colspan="5" class="teachers-empty">
+          <td colspan="7" class="teachers-empty">
             Teacher records could not be loaded due to permission errors.
           </td>
         </tr>
@@ -278,13 +374,17 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       .teachers-table {
         width: 100%;
-        min-width: 800px;
-        border-collapse: separate;
-        border-spacing: 0;
+        min-width: 1000px;
+        border-collapse: collapse;
         text-align: left;
       }
+      .teachers-table th,
+      .teachers-table td {
+        border: 1px solid #e9edf5;
+        vertical-align: middle;
+        padding: 14px 16px;
+      }
       .teachers-table th {
-        padding: 14px 15px;
         background: #f7f8fc;
         color: #707a91;
         font-size: 10px;
@@ -292,16 +392,11 @@ document.addEventListener("DOMContentLoaded", () => {
         letter-spacing: .65px;
         text-transform: uppercase;
         white-space: nowrap;
-        border-bottom: 1px solid #e9edf5;
       }
       .teachers-table td {
-        padding: 15px;
-        border-bottom: 1px solid #eff1f6;
         color: #414c63;
         font-size: 12px;
-        vertical-align: middle;
       }
-      .teachers-table tbody tr:last-child td { border-bottom: 0; }
       .teachers-table tbody tr:hover { background: #fbfbff; }
       .teacher-identity {
         display: flex;
@@ -336,16 +431,25 @@ document.addEventListener("DOMContentLoaded", () => {
         color: #8790a3;
         font-size: 11px;
       }
-      .teacher-subject-chip {
+      .teacher-chip {
         display: inline-block;
-        max-width: 170px;
-        padding: 6px 9px;
+        padding: 4px 8px;
+        border-radius: 6px;
+        line-height: 1.4;
+        font-size: 11px;
+        white-space: nowrap;
+        margin: 2px 2px 2px 0;
+      }
+      .class-chip {
+        border: 1px solid #e0f2fe;
+        background: #f0f9ff;
+        color: #0369a1;
+        font-weight: 600;
+      }
+      .subject-chip {
         border: 1px solid #e5e4ff;
-        border-radius: 8px;
         background: #f5f4ff;
         color: #5144c9;
-        line-height: 1.5;
-        overflow-wrap: anywhere;
       }
       .teacher-status-badge {
         display: inline-flex;
@@ -360,6 +464,8 @@ document.addEventListener("DOMContentLoaded", () => {
       .status-dot { width: 7px; height: 7px; border-radius: 50%; }
       .status-active { background: #e9f9f0; color: #16834b; }
       .status-active .status-dot { background: #20a45e; }
+      .status-inactive { background: #fee2e2; color: #991b1b; }
+      .status-inactive .status-dot { background: #dc2626; }
       .teachers-empty { padding: 40px !important; text-align: center; color: #7d869a !important; }
       .teachers-empty h3 { margin: 0 0 6px; color: #202b43; font-size: 16px; }
       .teachers-empty p { margin: 0; color: #7d869a; font-size: 13px; }

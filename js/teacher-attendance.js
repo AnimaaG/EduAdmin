@@ -1,4 +1,3 @@
-
 import { auth, db } from "./firebase-config.js";
 
 import {
@@ -100,7 +99,6 @@ function getStudentName(student) {
 function getStudentEmail(student) {
   return student.email || student.emailAddress || "—";
 }
-
 
 function getTimestampDate(value) {
   if (!value) return null;
@@ -210,31 +208,48 @@ function getStudentLoginTime(record, student) {
   return null;
 }
 
-
 function isStudentAssigned(student, classItem) {
   const classId = classItem.id;
+  const className = String(classItem.className || classItem.name || "").trim().toLowerCase();
 
-  const assignedIds = [
+  const studentClassIds = [
     student.classId,
     student.assignedClassId,
     ...(Array.isArray(student.classIds) ? student.classIds : []),
-    ...(Array.isArray(student.assignedClassIds)
-      ? student.assignedClassIds
-      : [])
-  ].filter(Boolean);
+    ...(Array.isArray(student.assignedClassIds) ? student.assignedClassIds : [])
+  ].filter(Boolean).map(String);
 
-  const classStudentIds = Array.isArray(classItem.studentIds)
-    ? classItem.studentIds
-    : [];
+  const studentClassName = String(student.className || student.class || "").trim().toLowerCase();
+  const classStudentIds = Array.isArray(classItem.studentIds) ? classItem.studentIds.map(String) : [];
 
-  return assignedIds.includes(classId)
-    || classStudentIds.includes(student.id);
+  // Match strictly by ID or class name
+  return (
+    studentClassIds.includes(String(classId)) ||
+    classStudentIds.includes(String(student.id)) ||
+    (studentClassName && className && studentClassName === className)
+  );
 }
 
 function getClassSessions(classItem) {
-  return Array.isArray(classItem.sessions)
-    ? classItem.sessions
-    : [];
+  const subjects = Array.isArray(classItem.subjects) ? classItem.subjects : [];
+  const teacherSubjects = subjects.filter(subj => subj.teacherId === currentTeacher.uid);
+  const result = [];
+  
+  teacherSubjects.forEach(subj => {
+    const sessions = Array.isArray(subj.sessions) ? subj.sessions : [];
+    sessions.forEach(s => result.push({ 
+      ...s, 
+      subject: subj.subjectName || classItem.subject || "General" 
+    }));
+  });
+
+  return result;
+}
+
+function getSessionsForDate(classItem, dateString) {
+  return getClassSessions(classItem).filter(session =>
+    session.date === dateString
+  );
 }
 
 function isClassScheduledOnDate(classItem, dateString) {
@@ -252,50 +267,26 @@ function isClassScheduledOnDate(classItem, dateString) {
   );
 }
 
-function getSessionsForDate(classItem, dateString) {
-  return getClassSessions(classItem).filter(session =>
-    session.date === dateString
-  );
-}
-
 function getAssignedStudents(classItem) {
-  return academyStudents.filter(student =>
-    isStudentAssigned(student, classItem)
-  );
+  // Only return students explicitly assigned to this class (no loose fallbacks)
+  return academyStudents.filter(student => isStudentAssigned(student, classItem));
 }
 
 async function loadTeacherData() {
   const user = auth.currentUser;
+  if (!user) throw new Error("Please sign in again.");
 
-  if (!user) {
-    throw new Error("Please sign in again.");
-  }
+  const profileSnapshot = await getDoc(doc(db, "users", user.uid));
+  if (!profileSnapshot.exists()) throw new Error("Teacher profile not found.");
 
-  const profileSnapshot = await getDoc(
-    doc(db, "users", user.uid)
-  );
-
-  if (!profileSnapshot.exists()) {
-    throw new Error("Teacher profile not found.");
-  }
-
-  currentTeacher = {
-    ...profileSnapshot.data(),
-    uid: user.uid
-  };
-
-  if (
-    currentTeacher.role !== "teacher"
-    || currentTeacher.isActive !== true
-    || !currentTeacher.academyId
-  ) {
+  currentTeacher = { ...profileSnapshot.data(), uid: user.uid };
+  if (currentTeacher.role !== "teacher" || currentTeacher.isActive !== true || !currentTeacher.academyId) {
     throw new Error("Teacher account is inactive or not configured.");
   }
 
   const classesQuery = query(
     collection(db, "classes"),
-    where("academyId", "==", currentTeacher.academyId),
-    where("teacherId", "==", currentTeacher.uid)
+    where("academyId", "==", currentTeacher.academyId)
   );
 
   const studentsQuery = query(
@@ -313,15 +304,18 @@ async function loadTeacherData() {
   teacherClasses = classSnapshot.docs.map(snapshot => ({
     id: snapshot.id,
     ...snapshot.data()
-  }));
+  })).filter(item => {
+    if (item.teacherId === currentTeacher.uid) return true;
+    const subjects = Array.isArray(item.subjects) ? item.subjects : [];
+    return subjects.some(subj => subj.teacherId === currentTeacher.uid);
+  });
 
   academyStudents = studentSnapshot.docs.map(snapshot => ({
     id: snapshot.id,
     ...snapshot.data()
   }));
 
-  summaryElement.textContent =
-    `${teacherClasses.length} assigned class(es) · ${academyStudents.length} active student(s)`;
+  summaryElement.textContent = `${teacherClasses.length} assigned class(es) · ${academyStudents.length} active student(s)`;
 }
 
 function renderCalendar() {
@@ -500,96 +494,70 @@ function drawAttendanceChart(counts) {
   });
 }
 
-
 function renderClassTable(result, dateString) {
-  const { classItem, students, attendanceRecords } = result;
-
-  const sessions = getClassSessions(classItem)
-    .map((session, index) => ({
-      ...session,
-      sessionIndex: index
-    }))
-    .filter(session => session.date === dateString);
+  const { classItem, students, attendanceRecords, sessionSubject, sessionStartTime, sessionEndTime } = result;
 
   const rows = [];
 
   students.forEach(student => {
-    sessions.forEach(session => {
+    let record = attendanceRecords.find(item =>
+      item.studentId === student.id &&
+      (!item.subject || item.subject === sessionSubject)
+    );
 
-      // Match the student's attendance to the correct session.
-      let record = attendanceRecords.find(item =>
-        item.studentId === student.id &&
-        Number(item.sessionIndex) === session.sessionIndex
-      );
+    const startTime = record?.startTime || sessionStartTime || "";
+    const endTime = record?.endTime || sessionEndTime || "";
 
-      // Support older attendance records without sessionIndex
-      // only when there is a single session on this date.
-      if (!record && sessions.length === 1) {
-        record = attendanceRecords.find(item =>
-          item.studentId === student.id &&
-          item.sessionIndex === undefined
-        );
-      }
+    const checkInTime =
+      record?.checkInAt || record?.checkedInAt || null;
 
-      const startTime = record?.startTime || session.startTime || "";
-      const endTime = record?.endTime || session.endTime || "";
+    const checkOutTime =
+      record?.checkOutAt || record?.checkedOutAt || null;
 
-      const checkInTime =
-        record?.checkInAt || record?.checkedInAt || null;
+    const loginTime = getStudentLoginTime(record, student);
 
-      const checkOutTime =
-        record?.checkOutAt || record?.checkedOutAt || null;
+    rows.push(`
+      <tr data-student-id="${escapeHTML(student.id)}">
 
-      const loginTime = getStudentLoginTime(record, student);
+        <td>
+          <strong>${escapeHTML(getStudentName(student))}</strong>
+        </td>
 
-      rows.push(`
-        <tr data-student-id="${escapeHTML(student.id)}">
+        <td>
+          ${escapeHTML(getStudentEmail(student))}
+        </td>
 
-          <td>
-            <strong>${escapeHTML(getStudentName(student))}</strong>
-          </td>
+        <td class="time-value">
+          ${escapeHTML(formatClassTime(startTime))}
+        </td>
 
-          <td>
-            ${escapeHTML(getStudentEmail(student))}
-          </td>
+        <td class="${checkInTime ? "checkin-value" : "time-missing"}">
+          ${escapeHTML(formatTimestamp(checkInTime))}
+        </td>
 
-          <td class="time-value">
-            ${escapeHTML(formatClassTime(startTime))}
-          </td>
+        <td class="time-value">
+          ${escapeHTML(formatClassTime(endTime))}
+        </td>
 
-          <td class="${checkInTime ? "checkin-value" : "time-missing"}">
-            ${escapeHTML(formatTimestamp(checkInTime))}
-          </td>
+        <td class="${checkOutTime ? "checkout-value" : "time-missing"}">
+          ${escapeHTML(formatTimestamp(checkOutTime))}
+        </td>
 
-          <td class="time-value">
-            ${escapeHTML(formatClassTime(endTime))}
-          </td>
+        <td>
+          <span class="duration-value">
+            ${escapeHTML(calculateClassDuration(startTime, endTime))}
+          </span>
+        </td>
 
-          <td class="${checkOutTime ? "checkout-value" : "time-missing"}">
-            ${escapeHTML(formatTimestamp(checkOutTime))}
-          </td>
+        <td class="${loginTime ? "login-value" : "time-missing"}">
+          ${escapeHTML(formatTimestamp(loginTime))}
+        </td>
 
-          <td>
-            <span class="duration-value">
-              ${escapeHTML(calculateClassDuration(startTime, endTime))}
-            </span>
-          </td>
-
-          <td class="${loginTime ? "login-value" : "time-missing"}">
-            ${escapeHTML(formatTimestamp(loginTime))}
-          </td>
-
-        </tr>
-      `);
-    });
+      </tr>
+    `);
   });
 
-  const sessionText = sessions.map(session => {
-    const start = formatClassTime(session.startTime);
-    const end = formatClassTime(session.endTime);
-
-    return `${start} – ${end}`;
-  }).join(", ");
+  const sessionText = `${formatClassTime(sessionStartTime)} – ${formatClassTime(sessionEndTime)}`;
 
   return `
     <section class="attendance-class-card">
@@ -597,12 +565,9 @@ function renderClassTable(result, dateString) {
       <div class="class-heading">
 
         <div>
-          <h3>${escapeHTML(
-            classItem.className || classItem.name || "Class"
-          )}</h3>
-
+          <h3>${escapeHTML(classItem.className || classItem.name || "Class")}</h3>
           <p>
-            ${escapeHTML(classItem.subject || "Subject not specified")}
+            ${escapeHTML(sessionSubject)}
             ${sessionText ? " · " + escapeHTML(sessionText) : ""}
           </p>
         </div>
@@ -652,7 +617,6 @@ function renderClassTable(result, dateString) {
   `;
 }
 
-
 async function loadSelectedDateAttendance() {
   clearMessage();
 
@@ -692,16 +656,20 @@ async function loadSelectedDateAttendance() {
     `<div class="empty-state">Loading attendance...</div>`;
 
   try {
-    const classResults = await Promise.all(
-      scheduledClasses.map(async classItem => {
-        const students = getAssignedStudents(classItem);
+    const classResults = [];
+
+    for (const classItem of scheduledClasses) {
+      const students = getAssignedStudents(classItem);
+      const sessions = getSessionsForDate(classItem, dateString);
+
+      for (const session of sessions) {
+        const sessionSubject = session.subject || classItem.subject || "General";
 
         const attendanceQuery = query(
           collection(db, "attendance"),
           where("academyId", "==", currentTeacher.academyId),
           where("classId", "==", classItem.id),
-          where("date", "==", dateString),
-          where("teacherId", "==", currentTeacher.uid)
+          where("date", "==", dateString)
         );
 
         const attendanceSnapshot = await getDocs(attendanceQuery);
@@ -709,15 +677,18 @@ async function loadSelectedDateAttendance() {
         const attendanceRecords = attendanceSnapshot.docs.map(snapshot => ({
           id: snapshot.id,
           ...snapshot.data()
-        }));
+        })).filter(rec => !rec.subject || rec.subject === sessionSubject);
 
-        return {
+        classResults.push({
           classItem,
           students,
-          attendanceRecords
-        };
-      })
-    );
+          attendanceRecords,
+          sessionSubject,
+          sessionStartTime: session.startTime,
+          sessionEndTime: session.endTime
+        });
+      }
+    }
 
     const counts = calculateCounts(classResults);
 
@@ -727,127 +698,18 @@ async function loadSelectedDateAttendance() {
       renderClassTable(result, dateString)
     ).join("");
 
-    attachSaveEvents();
+} catch (error) {
+  console.error("Attendance loading error:", error);
 
-  } catch (error) {
-    console.error("Attendance loading error:", error);
+  showMessage(
+    error.code === "permission-denied"
+      ? "Firestore permission denied. Check the security rules."
+      : "Attendance loading failed: " + error.message,
+    "error"
+  );
 
-    classesContainer.innerHTML = `
-      <div class="attendance-class-card empty-state">
-        Unable to load attendance records.
-      </div>
-    `;
-
-    showMessage(
-      "Firestore denied access. Check the teacher, student and attendance security rules."
-    );
-  }
+  console.error("Error details:", error.message);
 }
-
-function attachSaveEvents() {
-  document.querySelectorAll(".save-attendance").forEach(button => {
-    button.addEventListener("click", async () => {
-      const classId = button.dataset.classId;
-      const studentId = button.dataset.studentId;
-
-      const row = button.closest("tr");
-      const status = row.querySelector(".attendance-status").value;
-
-      if (!STATUS_OPTIONS.includes(status)) {
-        showMessage("Select a valid attendance status.");
-        return;
-      }
-
-      const classItem = teacherClasses.find(item =>
-        item.id === classId
-      );
-
-      if (
-        !classItem
-        || classItem.teacherId !== currentTeacher.uid
-      ) {
-        showMessage("You are not assigned to this class.");
-        return;
-      }
-
-      const student = academyStudents.find(item =>
-        item.id === studentId
-      );
-
-      if (!student || !isStudentAssigned(student, classItem)) {
-        showMessage("This student is not assigned to this class.");
-        return;
-      }
-
-      const dateString = localDateString(selectedDate);
-
-      if (!isClassScheduledOnDate(classItem, dateString)) {
-        showMessage("This class is not scheduled on the selected date.");
-        return;
-      }
-
-      button.disabled = true;
-      button.textContent = "Saving...";
-
-      try {
-        const attendanceId =
-          `${classId}_${dateString}_${studentId}`;
-
-        const attendanceRef = doc(
-          db,
-          "attendance",
-          attendanceId
-        );
-
-        const existingSnapshot = await getDoc(attendanceRef);
-
-        const attendanceData = {
-          academyId: currentTeacher.academyId,
-          classId,
-          className: classItem.className || "",
-          subject: classItem.subject || "",
-          teacherId: currentTeacher.uid,
-          teacherName:
-            currentTeacher.fullName
-            || currentTeacher.name
-            || "",
-          date: dateString,
-          studentId,
-          studentName: getStudentName(student),
-          status,
-          markedBy: currentTeacher.uid,
-          updatedAt: serverTimestamp()
-        };
-
-        if (!existingSnapshot.exists()) {
-          attendanceData.createdAt = serverTimestamp();
-        }
-
-        await setDoc(
-          attendanceRef,
-          attendanceData,
-          { merge: true }
-        );
-
-        showMessage(
-          `Attendance saved for ${getStudentName(student)}.`,
-          "success"
-        );
-
-        await loadSelectedDateAttendance();
-
-      } catch (error) {
-        console.error("Attendance save error:", error);
-
-        showMessage(
-          "Unable to save attendance. Check Firestore attendance create/update rules."
-        );
-
-        button.disabled = false;
-        button.textContent = "Save";
-      }
-    });
-  });
 }
 
 function setupChartResize() {
@@ -858,9 +720,6 @@ function setupChartResize() {
   if (!chartContainer) return;
 
   resizeObserver = new ResizeObserver(() => {
-    const dateString = localDateString(selectedDate);
-
-    // Re-render the chart using the last displayed counts.
     if (lastChartCounts) {
       drawAttendanceChart(lastChartCounts);
     }

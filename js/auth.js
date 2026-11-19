@@ -1,4 +1,3 @@
-
 import { auth, db } from "./firebase-config.js";
 import { evaluateProvisionalAdmin } from "./admin-activity.js";
 
@@ -25,6 +24,8 @@ import {
 
 const HOUR = 60 * 60 * 1000;
 const PROVISIONAL_LIMIT = 48 * HOUR;
+
+let academyClassesCache = [];
 
 function showMessage(id, message, type = "info") {
   const element = document.getElementById(id);
@@ -78,7 +79,6 @@ async function loadAcademyOptions() {
     if (result.empty) {
       select.innerHTML = '<option value="">No active academies available</option>';
     }
-  
   } catch (error) {
     console.error("Academy list failed:", error);
     select.innerHTML = '<option value="">Could not load academies</option>';
@@ -89,7 +89,83 @@ async function loadAcademyOptions() {
       "error"
     );
   }
+}
 
+async function loadClassesForAcademy(academyId) {
+  const classSelect = document.getElementById("register-class-select");
+  const subjectsContainer = document.getElementById("register-subjects-container");
+  if (!classSelect) return;
+
+  classSelect.innerHTML = '<option value="">Loading classes...</option>';
+  if (subjectsContainer) {
+    subjectsContainer.innerHTML = '<span style="color: #64748b; font-size: 13px;">Choose a class first to load available subjects.</span>';
+  }
+
+  if (!academyId) {
+    classSelect.innerHTML = '<option value="">Choose an academy first...</option>';
+    academyClassesCache = [];
+    return;
+  }
+
+  try {
+    const snapshot = await getDocs(
+      query(collection(db, "classes"), where("academyId", "==", academyId), where("status", "==", "active"))
+    );
+
+    academyClassesCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    classSelect.innerHTML = '<option value="">Choose a class</option>';
+    academyClassesCache.forEach(c => {
+      const opt = document.createElement("option");
+      opt.value = c.id;
+      opt.textContent = c.className || "Class";
+      classSelect.appendChild(opt);
+    });
+
+    if (academyClassesCache.length === 0) {
+      classSelect.innerHTML = '<option value="">No active classes found for this academy</option>';
+    }
+  } catch (error) {
+    console.error("Failed to load classes:", error);
+    classSelect.innerHTML = '<option value="">Could not load classes</option>';
+  }
+}
+
+function handleClassSelectionChange() {
+  const classSelect = document.getElementById("register-class-select");
+  const subjectsContainer = document.getElementById("register-subjects-container");
+  if (!classSelect || !subjectsContainer) return;
+
+  const classId = classSelect.value;
+  if (!classId) {
+    subjectsContainer.innerHTML = '<span style="color: #64748b; font-size: 13px;">Choose a class first to load available subjects.</span>';
+    return;
+  }
+
+  const selectedClass = academyClassesCache.find(c => c.id === classId);
+  const subjects = Array.isArray(selectedClass?.subjects) ? selectedClass.subjects : [];
+
+  if (subjects.length === 0) {
+    subjectsContainer.innerHTML = '<span style="color: #b91c1c; font-size: 13px;">No subjects configured for this class yet.</span>';
+    return;
+  }
+
+  subjectsContainer.replaceChildren();
+  subjects.forEach((subj, idx) => {
+    const wrapper = document.createElement("label");
+    wrapper.style.cssText = "display: flex; align-items: center; gap: 8px; font-size: 13px; color: #334155; cursor: pointer;";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.name = "registrationSubject";
+    checkbox.value = subj.subjectName || "";
+
+    const textSpan = document.createElement("span");
+    textSpan.textContent = `${subj.subjectName} ${subj.teacherName ? `(Teacher: ${subj.teacherName})` : ""}`;
+
+    wrapper.append(checkbox, textSpan);
+    subjectsContainer.append(wrapper);
+  });
 }
 
 async function handleLogin(event) {
@@ -107,21 +183,10 @@ async function handleLogin(event) {
 
   if (button) button.disabled = true;
 
-    try {
-      const credential = await signInWithEmailAndPassword(auth, email, password);
-      const userRef = doc(db, "users", credential.user.uid);
-      let profileSnapshot;
-
   try {
-    profileSnapshot = await getDoc(userRef);
-  } catch (error) {
-    console.error("LOGIN STEP 1 FAILED: reading users profile", {
-      code: error.code,
-      message: error.message,
-      uid: credential.user.uid
-    });
-    throw error;
-  }
+    const credential = await signInWithEmailAndPassword(auth, email, password);
+    const userRef = doc(db, "users", credential.user.uid);
+    let profileSnapshot = await getDoc(userRef);
 
     if (!profileSnapshot.exists()) {
       await signOut(auth);
@@ -141,32 +206,14 @@ async function handleLogin(event) {
       return;
     }
 
-if (profile.provisionalAdmin === true) {
-  let evaluation;
-
-  try {
-    evaluation = await evaluateProvisionalAdmin(credential.user.uid);
-  } catch (error) {
-    console.error("LOGIN STEP 2 FAILED: provisional admin evaluation", {
-      code: error.code,
-      message: error.message,
-      uid: credential.user.uid
-    });
-    throw error;
-  }
-
-  if (!evaluation.allowed) {
-    await signOut(auth);
-
-    showMessage(
-      "login-message",
-      evaluation.reason || "Your provisional admin access has been restricted.",
-      "error"
-    );
-
-    return;
-  }
-}
+    if (profile.provisionalAdmin === true) {
+      const evaluation = await evaluateProvisionalAdmin(credential.user.uid);
+      if (!evaluation.allowed) {
+        await signOut(auth);
+        showMessage("login-message", evaluation.reason || "Your provisional admin access has been restricted.", "error");
+        return;
+      }
+    }
 
     const destinations = {
       admin: "admin/dashboard.html",
@@ -175,7 +222,6 @@ if (profile.provisionalAdmin === true) {
     };
 
     const destination = destinations[profile.role];
-
     if (!destination) {
       await signOut(auth);
       showMessage("login-message", "Unsupported account type.", "error");
@@ -201,13 +247,10 @@ async function handleRegistration(event) {
   const email = document.getElementById("register-email").value.trim();
   const phone = document.getElementById("register-phone").value.trim();
   const password = document.getElementById("register-password").value;
-  const confirmPassword =
-    document.getElementById("register-confirm-password").value;
-  const registrationType =
-    document.getElementById("academy-registration-type").value;
+  const confirmPassword = document.getElementById("register-confirm-password").value;
+  const registrationType = document.getElementById("academy-registration-type").value;
 
-  if (!fullName || !role || !email || !password || !confirmPassword ||
-      !registrationType) {
+  if (!fullName || !role || !email || !password || !confirmPassword || !registrationType) {
     showMessage("register-message", "Complete all required fields.", "error");
     return;
   }
@@ -215,9 +258,7 @@ async function handleRegistration(event) {
   if (password.length < 8 || password !== confirmPassword) {
     showMessage(
       "register-message",
-      password !== confirmPassword
-        ? "Passwords do not match."
-        : "Password must contain at least 8 characters.",
+      password !== confirmPassword ? "Passwords do not match." : "Password must contain at least 8 characters.",
       "error"
     );
     return;
@@ -231,17 +272,16 @@ async function handleRegistration(event) {
   const isNewAcademy = registrationType === "new";
 
   if (isNewAcademy && role !== "admin") {
-    showMessage(
-      "register-message",
-      "Only an admin can register a new academy.",
-      "error"
-    );
+    showMessage("register-message", "Only an admin can register a new academy.", "error");
     return;
   }
 
   let academyId = "";
   let academyName = "";
   let academyAddress = "";
+  let classId = "";
+  let className = "";
+  let selectedSubjects = [];
 
   if (isNewAcademy) {
     academyName = document.getElementById("register-academy-name").value.trim();
@@ -258,37 +298,47 @@ async function handleRegistration(event) {
       showMessage("register-message", "Choose an existing academy.", "error");
       return;
     }
+
+    if (role === "student") {
+      const classSelect = document.getElementById("register-class-select");
+      classId = classSelect?.value || "";
+
+      if (!classId) {
+        showMessage("register-message", "Select a class for registration.", "error");
+        return;
+      }
+
+      const foundClass = academyClassesCache.find(c => c.id === classId);
+      className = foundClass?.className || "";
+
+      const checkedBoxes = document.querySelectorAll('input[name="registrationSubject"]:checked');
+      selectedSubjects = Array.from(checkedBoxes).map(cb => cb.value).filter(Boolean);
+
+      if (selectedSubjects.length === 0) {
+        showMessage("register-message", "Select at least one subject for registration.", "error");
+        return;
+      }
+    }
   }
 
   if (button) button.disabled = true;
 
-  let credential;
-
   try {
-    // For an existing academy, verify that the selected academy exists.
     if (!isNewAcademy) {
       const academySnapshot = await getDoc(doc(db, "academies", academyId));
-
-      if (!academySnapshot.exists() ||
-          academySnapshot.data().status !== "active") {
+      if (!academySnapshot.exists() || academySnapshot.data().status !== "active") {
         throw new Error("The selected academy is unavailable.");
       }
-
       academyName = academySnapshot.data().name || "";
     }
 
-    credential = await createUserWithEmailAndPassword(auth, email, password);
-
+    const credential = await createUserWithEmailAndPassword(auth, email, password);
     const uid = credential.user.uid;
     const userRef = doc(db, "users", uid);
     const batch = writeBatch(db);
 
     if (isNewAcademy) {
       const now = Date.now();
-      const provisionalUntil = Timestamp.fromMillis(now + PROVISIONAL_LIMIT);
-
-      // New academy ID is the owner admin's UID.
-      // Rules must allow this only as an atomic owner-created academy.
       academyId = uid;
 
       batch.set(doc(db, "academies", academyId), {
@@ -311,15 +361,12 @@ async function handleRegistration(event) {
         registrationStatus: "approved",
         provisionalAdmin: true,
         provisionalStartedAt: Timestamp.fromMillis(now),
-        provisionalAdminUntil: Timestamp.fromMillis(
-          now + 72 * HOUR
-        ),
+        provisionalAdminUntil: Timestamp.fromMillis(now + 72 * HOUR),
         activityCompleted: false,
         createdAt: serverTimestamp()
       });
     } else {
-      // Existing academy: create a request tied to that academy.
-      batch.set(userRef, {
+      const userPayload = {
         fullName,
         email,
         phone,
@@ -330,9 +377,17 @@ async function handleRegistration(event) {
         academyCode: academyId,
         registrationStatus: "pending",
         createdAt: serverTimestamp()
-      });
+      };
 
-      batch.set(doc(db, "registrationRequests", uid), {
+      if (role === "student") {
+        userPayload.classId = classId;
+        userPayload.className = className;
+        userPayload.subjects = selectedSubjects;
+      }
+
+      batch.set(userRef, userPayload);
+
+      const requestPayload = {
         uid,
         fullName,
         email,
@@ -341,7 +396,15 @@ async function handleRegistration(event) {
         academyId,
         status: "pending",
         createdAt: serverTimestamp()
-      });
+      };
+
+      if (role === "student") {
+        requestPayload.classId = classId;
+        requestPayload.className = className;
+        requestPayload.subjects = selectedSubjects;
+      }
+
+      batch.set(doc(db, "registrationRequests", uid), requestPayload);
     }
 
     await batch.commit();
@@ -357,17 +420,9 @@ async function handleRegistration(event) {
     );
   } catch (error) {
     console.error("Registration failed:", error);
-
-    // If Auth creation succeeded but Firestore setup failed, do not
-    // silently leave the new user signed in.
     if (auth.currentUser) {
-      try {
-        await signOut(auth);
-      } catch (signOutError) {
-        console.error("Sign-out failed:", signOutError);
-      }
+      try { await signOut(auth); } catch (signOutError) { console.error("Sign-out failed:", signOutError); }
     }
-
     showMessage("register-message", friendlyError(error), "error");
   } finally {
     if (button) button.disabled = false;
@@ -378,11 +433,23 @@ document.addEventListener("DOMContentLoaded", () => {
   const loginForm = document.getElementById("login-form");
   const registerForm = document.getElementById("register-form");
   const forgotLink = document.getElementById("forgot-password-link");
+  const academySelect = document.getElementById("register-academy-code");
+  const classSelect = document.getElementById("register-class-select");
 
   if (loginForm) loginForm.addEventListener("submit", handleLogin);
   if (registerForm) registerForm.addEventListener("submit", handleRegistration);
 
-if (forgotLink) {
+  if (academySelect) {
+    academySelect.addEventListener("change", (e) => {
+      loadClassesForAcademy(e.target.value);
+    });
+  }
+
+  if (classSelect) {
+    classSelect.addEventListener("change", handleClassSelectionChange);
+  }
+
+  if (forgotLink) {
     forgotLink.addEventListener("click", async (event) => {
       event.preventDefault();
       const emailField = document.getElementById("login-email");
@@ -395,11 +462,8 @@ if (forgotLink) {
       }
 
       try {
-        // Clear previous messages and show loading feedback
         showMessage("login-message", "Sending password reset email...", "info");
-
         await sendPasswordResetEmail(auth, email);
-
         showMessage(
           "login-message",
           "Password reset email sent! Check your inbox (and spam folder) for instructions.",

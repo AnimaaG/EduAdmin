@@ -14,6 +14,166 @@
   <script type="module" src="../../js/admin-teachers.js"></script>
   <script type="module" src="../../js/account-menu.js"></script>
   <script type="module" src="../../js/admin-registration-requests.js"></script>
+  <style>
+    /* =========================================================
+       Structured Tabular Grid Styling (Timetable Style)
+       ========================================================= */
+
+    .teachers-table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--border-color, #e5e7eb);
+      border-radius: 12px;
+      background: #fff;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+
+    .teachers-table {
+      width: 100%;
+      min-width: 950px;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    .teachers-table th, 
+    .teachers-table td {
+      border: 1px solid var(--border-color, #e5e7eb);
+      vertical-align: middle;
+      padding: 12px 16px;
+    }
+
+    .teachers-table th {
+      background: #f8fafc;
+      color: #475569;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .teachers-table td {
+      color: #334155;
+      font-size: 13px;
+    }
+
+    .teachers-table tbody tr:hover {
+      background: #f8fafc;
+    }
+
+    /* Teacher Identity Column */
+    .teacher-identity {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .teacher-avatar {
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .teacher-identity-text strong {
+      display: block;
+      color: #0f172a;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .teacher-identity-text span {
+      display: block;
+      color: #64748b;
+      font-size: 11px;
+    }
+
+    /* Chips for Classes & Subjects */
+    .teacher-chip {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 500;
+      line-height: 1.4;
+      margin: 2px 2px 2px 0;
+    }
+
+    .class-chip {
+      border: 1px solid #bae6fd;
+      background: #f0f9ff;
+      color: #0369a1;
+      font-weight: 600;
+    }
+
+    .subject-chip {
+      border: 1px solid #e2e8f0;
+      background: #f8fafc;
+      color: #475569;
+    }
+
+    /* Status Badges */
+    .teacher-status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+
+    .status-active {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .status-active .status-dot {
+      background: #22c55e;
+    }
+
+    .status-inactive {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .status-inactive .status-dot {
+      background: #ef4444;
+    }
+
+    /* Empty State */
+    .teachers-empty {
+      padding: 40px !important;
+      text-align: center;
+      color: #64748b !important;
+    }
+
+    .teachers-empty h3 {
+      margin: 0 0 4px;
+      color: #0f172a;
+      font-size: 15px;
+    }
+
+    .teachers-empty p {
+      margin: 0;
+      color: #64748b;
+      font-size: 12px;
+    }
+</style>
 </head>
 
 <body>
@@ -75,23 +235,25 @@
               >
             </div>
 
-            <div class="teachers-table-wrap">
+<div class="teachers-table-wrap">
               <table class="teachers-table">
                 <thead>
                   <tr>
                     <th scope="col">Teacher</th>
                     <th scope="col">Email</th>
                     <th scope="col">Phone</th>
-                    <th scope="col">Subject</th>
+                    <th scope="col">Classes</th>
+                    <th scope="col">Subjects</th>
                     <th scope="col">Status</th>
+                    <th scope="col">Actions</th>
                   </tr>
                 </thead>
                 <tbody id="teachers-table-body">
                   <tr>
-                    <td colspan="5">
+                    <td colspan="6">
                       <div class="empty-state">
                         <h3>Loading teacher records...</h3>
-                        <p>Please wait while we retrieve active teachers.</p>
+                        <p>Please wait while we retrieve teachers.</p>
                       </div>
                     </td>
                   </tr>
