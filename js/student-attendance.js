@@ -23,10 +23,9 @@ const sessionName = $("attendance-session-name");
 const sessionTime = $("attendance-session-time");
 const statusText = $("attendance-today-status");
 const statusDetail = $("attendance-today-detail");
-const checkInTime = $("attendance-checkin-time");
-const checkOutTime = $("attendance-checkout-time");
-const checkInButton = $("attendance-checkin-button");
-const checkOutButton = $("attendance-checkout-button");
+const punchTimeEl = $("attendance-punch-time");
+const markedByEl = $("attendance-marked-by");
+const markButton = $("attendance-checkin-button");
 const historyBody = $("attendance-history-body");
 const historyStartDate = $("history-start-date");
 const historyEndDate = $("history-end-date");
@@ -38,11 +37,10 @@ const last10DaysButton = $("last-10-days-button");
 
 let student = null;
 let profile = null;
-let sessions = [];
-let records = [];
-let selectedSession = null;
+let assignedClasses = [];
+let todayRecords = [];
+let selectedClass = null;
 let busy = false;
-let classScheduleCache = [];
 
 function localDateString(date = new Date()) {
   const year = date.getFullYear();
@@ -61,60 +59,64 @@ function escapeHTML(value) {
   })[char]);
 }
 
-function formatTimestamp(value) {
-  if (!value) return "—";
-
-  const date = typeof value.toDate === "function"
-    ? value.toDate()
-    : new Date(value);
-
-  return Number.isNaN(date.getTime())
-    ? "—"
-    : date.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit"
-      });
-}
-
-function formatDuration(start, end) {
-  if (!start || !end) return "Not tracked";
-
-  const toDate = value =>
-    typeof value?.toDate === "function" ? value.toDate() : new Date(value);
-
-  const startDate = toDate(start);
-  const endDate = toDate(end);
-
-  if (
-    Number.isNaN(startDate.getTime()) ||
-    Number.isNaN(endDate.getTime()) ||
-    endDate < startDate
-  ) {
-    return "Not tracked";
+function toDateObj(value) {
+  if (!value) return null;
+  if (typeof value.toDate === "function") return value.toDate();
+  if (value instanceof Date) return value;
+  if (typeof value === "object" && Number.isFinite(value.seconds)) {
+    return new Date(value.seconds * 1000);
   }
-
-  const totalMinutes = Math.floor((endDate - startDate) / 60000);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-
-  return hours ? `${hours} hr ${minutes} min` : `${minutes} min`;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function formatScheduledDuration(startTime, endTime) {
-  if (!startTime || !endTime) return "Not set";
+function formatPunchTime(value) {
+  const date = toDateObj(value);
+  if (!date) return "—";
+  return date.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  });
+}
 
-  const toMinutes = value => {
-    const [hours, minutes] = value.split(":").map(Number);
-    return hours * 60 + minutes;
-  };
+function formatHistoryDate(value) {
+  if (!value) return "—";
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric"
+  });
+}
 
-  let duration = toMinutes(endTime) - toMinutes(startTime);
-  if (duration < 0) duration += 24 * 60;
+function capitalize(str) {
+  const s = String(str || "");
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : "—";
+}
 
-  const hours = Math.floor(duration / 60);
-  const minutes = duration % 60;
+function formatEditHistory(record) {
+  if (!record) return "—";
+  const edits = Array.isArray(record.editHistory) ? record.editHistory : [];
+  if (!edits.length) {
+    return `Original: ${escapeHTML(capitalize(record.status || "present"))} (${escapeHTML(formatPunchTime(record.punchedAt || record.createdAt))})`;
+  }
+  const firstEdit = edits[0];
+  const latestEdit = edits[edits.length - 1];
+  const origStatus = firstEdit.previousStatus || record.originalStatus || "present";
+  const origTime = formatPunchTime(firstEdit.editedAt || record.createdAt);
+  const updStatus = latestEdit.newStatus || record.status || "present";
+  const updTime = formatPunchTime(latestEdit.editedAt || record.updatedAt);
 
-  return hours ? `${hours} hr ${minutes} min` : `${minutes} min`;
+  return `Original: <strong>${escapeHTML(capitalize(origStatus))}</strong> (${escapeHTML(origTime)}) → Updated: <strong>${escapeHTML(capitalize(updStatus))}</strong> (${escapeHTML(updTime)})`;
+}
+
+function getMarkedByLabel(record) {
+  if (!record) return "—";
+  if (record.markedByRole === "teacher" || (record.teacherId && record.markedBy === record.teacherId)) {
+    return `Teacher (${record.teacherName || "Teacher"})`;
+  }
+  return "Self (Student)";
 }
 
 function showMessage(message, type = "info") {
@@ -128,92 +130,129 @@ function hideMessage() {
   messageBox.hidden = true;
 }
 
-function sessionKey(item) {
-  return `${item.classId}_${item.date}_${item.sessionIndex}_${student.uid}`;
+function classDocId(classId, dateStr) {
+  return `${classId}_${dateStr}_${student.uid}`;
 }
 
-function recordForSession(item) {
-  return records.find(record => record.id === sessionKey(item)) || null;
+function recordForClassDate(classId, dateStr) {
+  return todayRecords.find(
+    r => r.id === classDocId(classId, dateStr) || (r.classId === classId && r.date === dateStr)
+  ) || null;
+}
+
+function isStudentAssignedToClass(classData) {
+  const studentId = String(student?.uid || "");
+  const classId = String(classData?.id || "");
+  const className = String(classData?.className || classData?.name || "").trim().toLowerCase();
+
+  const studentClassIds = [
+    profile?.classId,
+    profile?.assignedClassId,
+    ...(Array.isArray(profile?.classIds) ? profile.classIds : []),
+    ...(Array.isArray(profile?.assignedClassIds) ? profile.assignedClassIds : [])
+  ].filter(Boolean).map(String);
+
+  const studentClassName = String(profile?.className || profile?.class || "").trim().toLowerCase();
+  const classStudentIds = Array.isArray(classData?.studentIds) ? classData.studentIds.map(String) : [];
+
+  return (
+    classStudentIds.includes(studentId) ||
+    studentClassIds.includes(classId) ||
+    (studentClassName && className && studentClassName === className)
+  );
 }
 
 function renderSessionDetails() {
-  const item = selectedSession;
-  const record = item ? recordForSession(item) : null;
+  const today = localDateString();
+  const item = selectedClass;
+  const record = item ? recordForClassDate(item.id, today) : null;
 
   if (!item) {
     sessionName.textContent = "—";
-    sessionTime.textContent = "No session selected";
+    sessionTime.textContent = "No class selected";
     statusText.textContent = "Unavailable";
-    statusDetail.textContent = "There are no eligible sessions to display.";
-    checkInTime.textContent = "—";
-    checkOutTime.textContent = "—";
-    checkInButton.disabled = true;
-    checkOutButton.disabled = true;
+    statusDetail.textContent = "No assigned active class found.";
+    punchTimeEl.textContent = "—";
+    markedByEl.textContent = "—";
+    markButton.disabled = true;
     return;
   }
 
-  sessionName.textContent = item.className;
-  sessionTime.textContent =
-    `${item.subject || "Class"} · ${item.startTime || "Time not set"}–${item.endTime || "Time not set"}`;
-
-  checkInTime.textContent = formatTimestamp(record?.checkInAt);
-  checkOutTime.textContent = formatTimestamp(record?.checkOutAt);
+  const label = item.className || item.name || "Class";
+  sessionName.textContent = label;
+  sessionTime.textContent = `Date: ${formatHistoryDate(today)}`;
 
   if (!record) {
-    statusText.textContent = "Not checked in";
-    statusDetail.textContent = "Check in when you arrive for this session.";
-  } else if (!record.checkOutAt) {
-    statusText.textContent = "Checked in";
-    statusDetail.textContent = "Remember to check out when you leave.";
-  } else {
-    statusText.textContent = "Session completed";
-    statusDetail.textContent = "Your arrival and departure have been recorded.";
+    statusText.textContent = "Not marked";
+    statusDetail.textContent = "Click Mark Attendance once for today.";
+    punchTimeEl.textContent = "—";
+    markedByEl.textContent = "—";
+    markButton.disabled = busy;
+    return;
   }
 
-  checkInButton.disabled = busy || Boolean(record);
-  checkOutButton.disabled = busy || !record || Boolean(record.checkOutAt);
+  statusText.textContent = capitalize(record.status || "present");
+  statusDetail.textContent = "Already marked for today. Duplicate marking is locked.";
+  punchTimeEl.textContent = formatPunchTime(record.punchedAt || record.createdAt);
+  markedByEl.textContent = getMarkedByLabel(record);
+  markButton.disabled = true;
 }
 
-function renderHistory() {
-  if (!records.length) {
+function renderSessionOptions() {
+  const today = localDateString();
+  const previousId = sessionSelect.value;
+  sessionSelect.replaceChildren();
+
+  if (!assignedClasses.length) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "No assigned classes found";
+    sessionSelect.appendChild(opt);
+    selectedClass = null;
+    renderSessionDetails();
+    return;
+  }
+
+  assignedClasses.forEach(cls => {
+    const rec = recordForClassDate(cls.id, today);
+    const opt = document.createElement("option");
+    opt.value = cls.id;
+    const clsTitle = cls.className || cls.name || "Class";
+    opt.textContent = rec
+      ? `${clsTitle} — Already marked (${capitalize(rec.status || "present")})`
+      : clsTitle;
+    sessionSelect.appendChild(opt);
+  });
+
+  const matched = assignedClasses.find(c => c.id === previousId) || assignedClasses[0];
+  sessionSelect.value = matched.id;
+  selectedClass = matched;
+  renderSessionDetails();
+}
+
+function renderTodayHistory() {
+  if (!todayRecords.length) {
     historyBody.innerHTML = `
-      <tr><td colspan="6" class="empty-state">
+      <tr><td colspan="5" class="empty-state">
         <strong>No attendance recorded today</strong>
-        <p>Your check-in records will appear here.</p>
+        <p>Your daily attendance punch will appear here.</p>
       </td></tr>`;
     return;
   }
 
-  const sorted = [...records].sort((a, b) =>
-    (a.startTime || "").localeCompare(b.startTime || "")
-  );
-
-  historyBody.innerHTML = sorted.map(record => `
+  historyBody.innerHTML = todayRecords.map(record => `
     <tr>
-      <td>${escapeHTML(record.className)}</td>
-      <td>${escapeHTML(record.subject || "—")}</td>
-      <td>${escapeHTML(record.startTime || "—")} – ${escapeHTML(record.endTime || "—")}</td>
-      <td>${escapeHTML(formatTimestamp(record.checkInAt))}</td>
-      <td>${escapeHTML(formatTimestamp(record.checkOutAt))}</td>
-      <td>${record.checkOutAt ? "Completed" : "Checked in"}</td>
+      <td><strong>${escapeHTML(record.className || "Class")}</strong></td>
+      <td>${escapeHTML(capitalize(record.status || "present"))}</td>
+      <td>${escapeHTML(formatPunchTime(record.punchedAt || record.createdAt))}</td>
+      <td>${escapeHTML(getMarkedByLabel(record))}</td>
+      <td>${formatEditHistory(record)}</td>
     </tr>
   `).join("");
 }
 
-function formatHistoryDate(value) {
-  if (!value) return "—";
-
-  const [year, month, day] = value.split("-").map(Number);
-
-  return new Date(year, month - 1, day).toLocaleDateString(
-    undefined,
-    { day: "numeric", month: "short", year: "numeric" }
-  );
-}
-
 function setHistoryMessage(text, type = "info") {
   if (!historyRangeMessage) return;
-
   historyRangeMessage.textContent = text;
   historyRangeMessage.className = `form-message ${type}`;
   historyRangeMessage.hidden = !text;
@@ -222,10 +261,8 @@ function setHistoryMessage(text, type = "info") {
 function getLast10DaysRange() {
   const end = new Date();
   end.setHours(0, 0, 0, 0);
-
   const start = new Date(end);
   start.setDate(start.getDate() - 9);
-
   return {
     startDate: localDateString(start),
     endDate: localDateString(end)
@@ -243,7 +280,7 @@ function renderAttendanceRangeHistory(historyRecords, startDate, endDate) {
   if (!historyRecords.length) {
     historyRangeBody.innerHTML = `
       <tr>
-        <td colspan="10" class="empty-state">
+        <td colspan="6" class="empty-state">
           <strong>No attendance records found</strong>
           <p>No records were found for this date range.</p>
         </td>
@@ -252,54 +289,20 @@ function renderAttendanceRangeHistory(historyRecords, startDate, endDate) {
     return;
   }
 
-const sorted = [...historyRecords].sort((a, b) =>
-  String(b.date || "").localeCompare(String(a.date || "")) ||
-  String(b.startTime || "").localeCompare(String(a.startTime || ""))
-);
-
-historyRangeBody.innerHTML = sorted.map(record => `
-  <tr>
-    <td>${escapeHTML(formatHistoryDate(record.date))}</td>
-    <td>${escapeHTML(record.className || "—")}</td>
-    <td>${escapeHTML(record.subject || "—")}</td>
-    <td>${escapeHTML(getScheduledTimes(record).startTime || "—")}</td>
-    <td>${escapeHTML(formatTimestamp(record.checkInAt))}</td>
-    <td>${escapeHTML(getScheduledTimes(record).endTime || "—")}</td>
-    <td>${escapeHTML(formatTimestamp(record.checkOutAt))}</td>
-    <td>${escapeHTML(
-      formatScheduledDuration(
-        getScheduledTimes(record).startTime,
-        getScheduledTimes(record).endTime
-      )
-    )}</td>
-    <td>${escapeHTML(
-      formatDuration(record.checkInAt, record.checkOutAt)
-    )}</td>
-    <td>${escapeHTML(
-      record.checkOutAt
-        ? "Completed"
-        : record.checkInAt
-          ? "Checked in"
-          : String(record.status || "Absent")
-              .replace(/^\\w/, char => char.toUpperCase())
-    )}</td>
-  </tr>
-`).join("");
-}
-
-function getScheduledTimes(record) {
-  const classItem = classScheduleCache.find(
-    item => item.id === record.classId
+  const sorted = [...historyRecords].sort((a, b) =>
+    String(b.date || "").localeCompare(String(a.date || ""))
   );
 
-  const session = classItem?.sessions?.find(item =>
-    item.date === record.date
-  );
-
-  return {
-    startTime: record.startTime || session?.startTime || "",
-    endTime: record.endTime || session?.endTime || ""
-  };
+  historyRangeBody.innerHTML = sorted.map(record => `
+    <tr>
+      <td>${escapeHTML(formatHistoryDate(record.date))}</td>
+      <td><strong>${escapeHTML(record.className || "—")}</strong></td>
+      <td>${escapeHTML(capitalize(record.status || "present"))}</td>
+      <td>${escapeHTML(formatPunchTime(record.punchedAt || record.createdAt))}</td>
+      <td>${escapeHTML(getMarkedByLabel(record))}</td>
+      <td>${formatEditHistory(record)}</td>
+    </tr>
+  `).join("");
 }
 
 async function loadAttendanceHistory(startDate, endDate) {
@@ -312,46 +315,29 @@ async function loadAttendanceHistory(startDate, endDate) {
 
   setHistoryMessage("");
   historyRangeBody.innerHTML = `
-    <tr>
-      <td colspan="10" class="empty-state">Loading attendance history…</td>
-    </tr>
+    <tr><td colspan="6" class="empty-state">Loading attendance history…</td></tr>
   `;
 
   if (viewHistoryButton) viewHistoryButton.disabled = true;
   if (last10DaysButton) last10DaysButton.disabled = true;
 
   try {
-    // Fetch this student's records for the academy.
-    // Filter the date range locally to avoid requiring a date-range index.
-    const attendanceSnapshot = await getDocs(query(
+    const snap = await getDocs(query(
       collection(db, "attendance"),
       where("academyId", "==", profile.academyId),
       where("studentId", "==", student.uid)
     ));
 
-    const historyRecords = attendanceSnapshot.docs
-      .map(snapshot => ({
-        id: snapshot.id,
-        ...snapshot.data()
-      }))
-      .filter(record =>
-        typeof record.date === "string" &&
-        record.date >= startDate &&
-        record.date <= endDate
-      );
+    const filtered = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(r => typeof r.date === "string" && r.date >= startDate && r.date <= endDate);
 
-    renderAttendanceRangeHistory(historyRecords, startDate, endDate);
+    renderAttendanceRangeHistory(filtered, startDate, endDate);
   } catch (error) {
     console.error("Could not load attendance history:", error);
-
     historyRangeBody.innerHTML = `
-      <tr>
-        <td colspan="7" class="empty-state">
-          Could not load attendance history. Please try again.
-        </td>
-      </tr>
+      <tr><td colspan="6" class="empty-state">Could not load attendance history.</td></tr>
     `;
-
     setHistoryMessage(
       error.code === "permission-denied"
         ? "You do not have permission to view these records."
@@ -366,47 +352,9 @@ async function loadAttendanceHistory(startDate, endDate) {
 
 async function loadLast10DaysHistory() {
   const range = getLast10DaysRange();
-
   if (historyStartDate) historyStartDate.value = range.startDate;
   if (historyEndDate) historyEndDate.value = range.endDate;
-
   await loadAttendanceHistory(range.startDate, range.endDate);
-}
-
-function renderSessionOptions() {
-  const previousValue = sessionSelect.value;
-
-  sessionSelect.replaceChildren();
-
-  if (!sessions.length) {
-    const option = document.createElement("option");
-    option.value = "";
-    option.textContent = "No class sessions scheduled for today";
-    sessionSelect.appendChild(option);
-    selectedSession = null;
-    renderSessionDetails();
-    return;
-  }
-
-  sessions.forEach((item, index) => {
-    const option = document.createElement("option");
-    option.value = String(index);
-    option.textContent =
-      `${item.className} — ${item.subject || "Class"} (${item.startTime || "Time not set"}–${item.endTime || "Time not set"})`;
-    sessionSelect.appendChild(option);
-  });
-
-  const oldIndex = sessions.findIndex(item =>
-    `${item.classId}_${item.date}_${item.sessionIndex}` === previousValue
-  );
-
-  const chosenIndex = oldIndex >= 0 ? oldIndex : 0;
-  sessionSelect.value = String(chosenIndex);
-  selectedSession = sessions[chosenIndex];
-  sessionSelect.dataset.selectedKey =
-    `${selectedSession.classId}_${selectedSession.date}_${selectedSession.sessionIndex}`;
-
-  renderSessionDetails();
 }
 
 async function loadToday() {
@@ -418,40 +366,9 @@ async function loadToday() {
     where("status", "==", "active")
   ));
 
-  sessions = [];
-
-  classScheduleCache = classSnapshot.docs.map(snapshot => ({
-  id: snapshot.id,
-  ...snapshot.data()
-}));
-
-  classSnapshot.forEach(snapshot => {
-    const data = snapshot.data();
-    const classSessions = Array.isArray(data.sessions) ? data.sessions : [];
-
-    classSessions.forEach((session, sessionIndex) => {
-      if (session.date !== today) return;
-      if ((session.status || data.status || "active") !== "active") return;
-
-      sessions.push({
-        classId: snapshot.id,
-        className: data.className || "Class",
-        subject: data.subject || "",
-        teacherId: data.teacherId || "",
-        teacherName: data.teacherName || "",
-        date: session.date,
-        day: session.day || "",
-        startTime: session.startTime || "",
-        endTime: session.endTime || "",
-        sessionIndex
-      });
-    });
-  });
-
-  sessions.sort((a, b) =>
-    a.startTime.localeCompare(b.startTime) ||
-    a.className.localeCompare(b.className)
-  );
+  assignedClasses = classSnapshot.docs
+    .map(snap => ({ id: snap.id, ...snap.data() }))
+    .filter(cls => isStudentAssignedToClass(cls));
 
   const attendanceSnapshot = await getDocs(query(
     collection(db, "attendance"),
@@ -460,137 +377,60 @@ async function loadToday() {
     where("date", "==", today)
   ));
 
-  records = attendanceSnapshot.docs.map(snapshot => ({
-    id: snapshot.id,
-    ...snapshot.data()
+  todayRecords = attendanceSnapshot.docs.map(snap => ({
+    id: snap.id,
+    ...snap.data()
   }));
 
   renderSessionOptions();
-  renderHistory();
+  renderTodayHistory();
 }
 
-async function markCheckIn() {
-  if (!selectedSession || busy) return;
+async function markStudentAttendance() {
+  if (!selectedClass || busy) return;
+
+  const today = localDateString();
+  const docId = classDocId(selectedClass.id, today);
+  const attendanceRef = doc(db, "attendance", docId);
 
   busy = true;
   renderSessionDetails();
   hideMessage();
-
-  const item = selectedSession;
-  const id = sessionKey(item);
-  const attendanceRef = doc(db, "attendance", id);
-  const classRef = doc(db, "classes", item.classId);
 
   try {
     await runTransaction(db, async transaction => {
       const existing = await transaction.get(attendanceRef);
-      const classSnapshot = await transaction.get(classRef);
-
       if (existing.exists()) {
-        throw new Error("You have already checked in for this session.");
-      }
-
-      if (!classSnapshot.exists()) {
-        throw new Error("This class is no longer available.");
-      }
-
-      const classData = classSnapshot.data();
-      const actualSession = classData.sessions?.[item.sessionIndex];
-
-      if (
-        classData.academyId !== profile.academyId ||
-        classData.status !== "active" ||
-        !actualSession ||
-        actualSession.date !== item.date ||
-        actualSession.startTime !== item.startTime ||
-        actualSession.endTime !== item.endTime ||
-        (actualSession.status || classData.status) !== "active"
-      ) {
-        throw new Error("This class session is no longer available.");
+        throw new Error("Attendance for this class today is already marked.");
       }
 
       transaction.set(attendanceRef, {
         academyId: profile.academyId,
-        classId: item.classId,
-        className: item.className,
-        subject: item.subject,
-        teacherId: item.teacherId,
-        teacherName: item.teacherName,
-        date: item.date,
-        day: item.day,
-        sessionIndex: item.sessionIndex,
-        startTime: item.startTime,
-        endTime: item.endTime,
+        classId: selectedClass.id,
+        className: selectedClass.className || selectedClass.name || "Class",
+        date: today,
         studentId: student.uid,
         studentName: profile.fullName || profile.name || student.displayName || "Student",
         status: "present",
-        checkInAt: serverTimestamp(),
-        checkOutAt: null,
+        originalStatus: "present",
+        markedBy: student.uid,
+        markedByRole: "student",
+        punchedAt: serverTimestamp(),
         createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
+        editHistory: []
       });
     });
 
-    showMessage("Your check-in has been recorded.", "success");
+    showMessage("Your attendance has been marked for today.", "success");
     await loadToday();
+    await loadLast10DaysHistory();
   } catch (error) {
-    console.error("Attendance check-in failed:", error);
+    console.error("Student attendance mark failed:", error);
     showMessage(
-      error.message || "Could not record check-in. Please try again.",
-      "error"
-    );
-  } finally {
-    busy = false;
-    renderSessionDetails();
-  }
-}
-
-async function markCheckOut() {
-  if (!selectedSession || busy) return;
-
-  const item = selectedSession;
-  const id = sessionKey(item);
-  const attendanceRef = doc(db, "attendance", id);
-
-  busy = true;
-  renderSessionDetails();
-  hideMessage();
-
-  try {
-    await runTransaction(db, async transaction => {
-      const snapshot = await transaction.get(attendanceRef);
-
-      if (!snapshot.exists()) {
-        throw new Error("Check in before checking out.");
-      }
-
-      const data = snapshot.data();
-
-      if (data.studentId !== student.uid ||
-          data.academyId !== profile.academyId) {
-        throw new Error("This attendance record is unavailable.");
-      }
-
-      if (data.checkOutAt) {
-        throw new Error("You have already checked out for this session.");
-      }
-
-      if (!data.checkInAt) {
-        throw new Error("Check in before checking out.");
-      }
-
-      transaction.update(attendanceRef, {
-        checkOutAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-    });
-
-    showMessage("Your check-out has been recorded.", "success");
-    await loadToday();
-  } catch (error) {
-    console.error("Attendance check-out failed:", error);
-    showMessage(
-      error.message || "Could not record check-out. Please try again.",
+      error.code === "permission-denied"
+        ? "Permission denied or already marked today."
+        : error.message || "Could not mark attendance.",
       "error"
     );
   } finally {
@@ -600,19 +440,14 @@ async function markCheckOut() {
 }
 
 sessionSelect.addEventListener("change", () => {
-  const index = Number(sessionSelect.value);
-  selectedSession = Number.isInteger(index) ? sessions[index] || null : null;
+  selectedClass = assignedClasses.find(c => c.id === sessionSelect.value) || null;
   renderSessionDetails();
 });
 
-checkInButton.addEventListener("click", markCheckIn);
-checkOutButton.addEventListener("click", markCheckOut);
+markButton.addEventListener("click", markStudentAttendance);
 
 viewHistoryButton?.addEventListener("click", () => {
-  loadAttendanceHistory(
-    historyStartDate?.value,
-    historyEndDate?.value
-  );
+  loadAttendanceHistory(historyStartDate?.value, historyEndDate?.value);
 });
 
 last10DaysButton?.addEventListener("click", loadLast10DaysHistory);
@@ -627,49 +462,30 @@ onAuthStateChanged(auth, async user => {
 
   try {
     const profileSnapshot = await getDoc(doc(db, "users", user.uid));
-
     if (!profileSnapshot.exists()) {
       throw new Error("Your student profile could not be found.");
     }
 
     profile = profileSnapshot.data();
-
-    if (
-      profile.role !== "student" ||
-      profile.isActive !== true ||
-      !profile.academyId
-    ) {
+    if (profile.role !== "student" || profile.isActive !== true || !profile.academyId) {
       throw new Error("An active student account is required.");
     }
 
     await loadToday();
     await loadLast10DaysHistory();
 
-    if (!sessions.length) {
-      showMessage("There are no active class sessions scheduled for today.");
+    if (!assignedClasses.length) {
+      showMessage("No active assigned class found for your profile.");
     } else {
       hideMessage();
     }
   } catch (error) {
-    console.error("Could not load attendance:", error);
+    console.error("Could not load student attendance:", error);
     showMessage(
       error.code === "permission-denied"
-        ? "Attendance could not be loaded. Please contact your academy administrator."
-        : error.message || "Could not load attendance. Please try again.",
+        ? "Attendance could not be loaded. Check your Firestore security rules."
+        : error.message || "Could not load attendance.",
       "error"
     );
-
-    sessionSelect.replaceChildren();
-    const option = document.createElement("option");
-    option.value = "";
-    option.textContent = "Attendance unavailable";
-    sessionSelect.appendChild(option);
-
-    selectedSession = null;
-    renderSessionDetails();
-    historyBody.innerHTML = `
-      <tr><td colspan="6" class="empty-state">
-        Attendance is temporarily unavailable.
-      </td></tr>`;
   }
 });

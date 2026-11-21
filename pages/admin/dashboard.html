@@ -630,6 +630,117 @@
       white-space: nowrap;
     }
 
+    /* Latest Announcements Box */
+    #admin-announcements-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    #admin-announcements-list > :not(.ui-empty),
+    .ui-announcement-card {
+      position: relative;
+      padding: 14px 16px 14px 18px;
+      border: 1px solid #e7e3fa;
+      border-left: 4px solid var(--ui-purple);
+      border-radius: 15px;
+      background: linear-gradient(135deg, #fcfbff 0%, #f7f5ff 100%);
+      box-shadow: 0 4px 14px rgba(65, 49, 120, 0.04);
+      transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
+    }
+
+    #admin-announcements-list > :not(.ui-empty):hover,
+    .ui-announcement-card:hover {
+      transform: translateY(-1px);
+      border-color: #d4cbff;
+      border-left-color: var(--ui-purple);
+      box-shadow: 0 8px 20px rgba(118, 99, 237, 0.1);
+    }
+
+    /* Style plain text/elements when rendered directly inside each item */
+    #admin-announcements-list > :not(.ui-empty) > p:first-child,
+    #admin-announcements-list > :not(.ui-empty) > strong:first-child {
+      display: inline-block;
+      margin: 0 0 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--ui-purple-light);
+      color: var(--ui-purple);
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+
+    #admin-announcements-list > :not(.ui-empty) h5,
+    #admin-announcements-list > :not(.ui-empty) h4,
+    .ui-announcement-title {
+      margin: 2px 0 5px;
+      color: var(--ui-ink);
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1.35;
+      letter-spacing: -0.015em;
+    }
+
+    #admin-announcements-list > :not(.ui-empty) > p,
+    .ui-announcement-body {
+      margin: 0 0 6px;
+      color: #55516e;
+      font-size: 11px;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+
+    #admin-announcements-list > :not(.ui-empty) > p:last-child,
+    .ui-announcement-meta {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      margin: 4px 0 0;
+      padding: 3px 9px;
+      border-radius: 8px;
+      background: #ffffff;
+      border: 1px solid var(--ui-line);
+      color: var(--ui-muted);
+      font-size: 10px;
+      font-weight: 650;
+    }
+
+    /* Structured class support */
+    .ui-announcement-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 5px;
+    }
+
+    .ui-announcement-badge {
+      flex: 0 0 auto;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: var(--ui-purple-light);
+      color: var(--ui-purple);
+      font-size: 10px;
+      font-weight: 750;
+      white-space: nowrap;
+    }
+
+    #announcements-message.visible {
+      color: #b42318;
+    }
+
+    @media (max-width: 700px) {
+      #admin-announcements-list > :not(.ui-empty),
+      .ui-announcement-card {
+        padding: 12px 14px;
+      }
+
+      .ui-announcement-top {
+        flex-direction: column;
+        gap: 6px;
+      }
+    }
+
     .ui-schedule-list { display: grid; }
     .ui-schedule-row {
       display: flex;
@@ -713,6 +824,7 @@
       .ui-attendance-stat strong { font-size: 18px; }
       .ui-activity-time { display: none; }
     }
+
     /* Class Calendar */
 .ui-calendar-panel {
   margin-bottom: 23px;

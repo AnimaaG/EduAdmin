@@ -349,7 +349,11 @@
               b.textContent = snap.size;
               b.hidden = snap.size === 0;
             }
-          });
+          },
+              err => {
+          console.warn("Teacher announcement badge listener skipped:", err.code || err.message);
+        }
+);
         }
       });
     } catch (e) {

@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Study Materials | EduAdmin</title>
+  <link rel="stylesheet" href="../../css/app.css">
+
+  <style>
+    .materials-page,
+    .materials-page * {
+      box-sizing: border-box;
+    }
+
+    .materials-page {
+      padding: 24px;
+      background: #f4f6fc;
+      min-height: 100%;
+    }
+
+    .drive-status-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 5px 16px rgba(30, 41, 59, 0.04);
+    }
+
+    .drive-status-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .drive-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .drive-badge.connected {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .drive-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .drive-stat-box {
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: #f8fafc;
+      border: 1px solid #e5eaf2;
+    }
+
+    .drive-stat-box span {
+      display: block;
+      font-size: 11px;
+      color: #64748b;
+      margin-bottom: 4px;
+    }
+
+    .drive-stat-box strong {
+      font-size: 16px;
+      color: #0f172a;
+      overflow-wrap: anywhere;
+    }
+
+    .quota-bar-track {
+      width: 100%;
+      height: 8px;
+      border-radius: 999px;
+      background: #e2e8f0;
+      overflow: hidden;
+    }
+
+    .quota-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: #2563eb;
+      transition: width 200ms ease;
+    }
+
+    .sub-nav-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .sub-tab-btn {
+      padding: 10px 18px;
+      border-radius: 10px;
+      border: 1px solid #cbd5e1;
+      background: #ffffff;
+      color: #334155;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .sub-tab-btn.active {
+      background: #2563eb;
+      border-color: #2563eb;
+      color: #ffffff;
+    }
+
+    .sub-panel {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 22px;
+      margin-bottom: 20px;
+      box-shadow: 0 5px 16px rgba(30, 41, 59, 0.04);
+    }
+
+    .form-grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .materials-table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+    }
+
+    .materials-table {
+      width: 100%;
+      min-width: 760px;
+      border-collapse: collapse;
+    }
+
+    .materials-table th,
+    .materials-table td {
+      padding: 12px 14px;
+      text-align: left;
+      border-bottom: 1px solid #edf0f5;
+      font-size: 13px;
+    }
+
+    .materials-table th {
+      background: #f8fafc;
+      color: #475569;
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+
+    .viewer-modal-backdrop[hidden] {
+      display: none;
+    }
+
+    .viewer-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.65);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 1000;
+    }
+
+    .viewer-modal {
+      width: 100%;
+      max-width: 860px;
+      max-height: 88vh;
+      background: #ffffff;
+      border-radius: 14px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .viewer-modal-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 18px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .viewer-modal-body {
+      padding: 18px;
+      overflow: auto;
+      min-height: 360px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard-layout">
+    <div id="teacher-sidebar-mount"></div>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <main class="dashboard-main">
+      <header class="dashboard-topbar">
+        <div class="topbar-left">
+          <button
+            type="button"
+            class="sidebar-toggle"
+            id="sidebar-toggle"
+            aria-label="Open navigation menu"
+            aria-controls="teacher-sidebar"
+            aria-expanded="false"
+          >☰</button>
+          <div>
+            <h1>Study Materials</h1>
+            <p>Upload files to Google Drive or add video links for your assigned classes.</p>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <div id="account-menu-mount"></div>
+        </div>
+      </header>
+
+      <div class="dashboard-content">
+        <section class="materials-page">
+          <div id="materials-message" class="form-message" role="status" aria-live="polite" hidden></div>
+
+          <!-- Top Google Drive Connection & Quota Overview -->
+          <section class="drive-status-card">
+            <div class="drive-status-top">
+              <div>
+                <h2 style="margin: 0 0 6px;">Google Drive Connection &amp; Storage</h2>
+                <p id="drive-account-label" style="margin: 0; color: #64748b; font-size: 13px;">
+                  Connect a Google Drive account to upload photos, videos, or PDFs automatically.
+                </p>
+              </div>
+              <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <span id="drive-connection-badge" class="drive-badge">Disconnected</span>
+                <button type="button" id="connect-drive-btn" class="btn btn-primary">Connect Google Drive</button>
+                <button type="button" id="switch-drive-btn" class="btn btn-secondary">Switch Drive</button>
+              </div>
+            </div>
+
+            <div class="drive-stats-grid">
+              <div class="drive-stat-box">
+                <span>Status</span>
+                <strong id="stat-drive-status">Disconnected</strong>
+              </div>
+              <div class="drive-stat-box">
+                <span>Storage Used</span>
+                <strong id="stat-storage-used">—</strong>
+              </div>
+              <div class="drive-stat-box">
+                <span>Remaining Storage</span>
+                <strong id="stat-storage-remaining">—</strong>
+              </div>
+              <div class="drive-stat-box">
+                <span>Total Drive Quota</span>
+                <strong id="stat-storage-total">—</strong>
+              </div>
+              <div class="drive-stat-box">
+                <span>Uploaded Materials</span>
+                <strong id="stat-materials-count">0</strong>
+              </div>
+            </div>
+
+            <div class="quota-bar-track">
+              <div id="drive-quota-bar" class="quota-bar-fill"></div>
+            </div>
+          </section>
+
+          <!-- Sub-Buttons Navigation -->
+          <div class="sub-nav-tabs" role="tablist">
+            <button type="button" class="sub-tab-btn active" data-tab="upload">Upload</button>
+            <button type="button" class="sub-tab-btn" data-tab="view">View</button>
+            <button type="button" class="sub-tab-btn" data-tab="clean">Clean Storage</button>
+          </div>
+
+          <!-- 1. UPLOAD PANEL -->
+          <section id="panel-upload" class="sub-panel">
+            <h3 style="margin-top: 0;">Upload Material or Add Video Link</h3>
+            <form id="upload-material-form">
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label for="material-class-select">Class</label>
+                  <select id="material-class-select" required>
+                    <option value="">Loading classes...</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="material-subject-select">Subject</label>
+                  <select id="material-subject-select" required>
+                    <option value="">Select subject</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="material-title">Material Title</label>
+                  <input type="text" id="material-title" placeholder="e.g. Chapter 1 Notes or Lecture" required>
+                </div>
+
+                <div class="form-group">
+                  <label for="material-source-type">Source Type</label>
+                  <select id="material-source-type">
+                    <option value="drive-file">Upload File to Google Drive (Photo / Video / PDF)</option>
+                    <option value="external-video">Add Video Link (YouTube / Other Platform)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div id="drive-file-fields" class="form-group">
+                <label for="material-file-input">Select File (Photo, Video, or PDF)</label>
+                <input type="file" id="material-file-input" accept="image/*,video/*,application/pdf">
+                <p id="upload-progress-text" style="margin: 6px 0 0; font-size: 12px; color: #64748b;"></p>
+              </div>
+
+              <div id="external-link-fields" class="form-group" hidden>
+                <label for="material-video-url">Video Link (YouTube or Video Platform URL)</label>
+                <input type="url" id="material-video-url" placeholder="https://www.youtube.com/watch?v=...">
+              </div>
+
+              <button type="submit" id="submit-material-btn" class="btn btn-primary">Save Study Material</button>
+            </form>
+          </section>
+
+          <!-- 2. VIEW PANEL -->
+          <section id="panel-view" class="sub-panel" hidden>
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 14px;">
+              <h3 style="margin: 0;">Class &amp; Subject Wise Study Materials</h3>
+              <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <select id="filter-class-select">
+                  <option value="">All Assigned Classes</option>
+                </select>
+                <select id="filter-subject-select">
+                  <option value="">All Subjects</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="materials-table-wrap">
+              <table class="materials-table">
+                <thead>
+                  <tr>
+                    <th>Title</th>
+                    <th>Class</th>
+                    <th>Subject</th>
+                    <th>Type</th>
+                    <th>Uploaded</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="view-materials-tbody">
+                  <tr><td colspan="6" class="empty-state">Loading materials...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- 3. CLEAN STORAGE PANEL -->
+          <section id="panel-clean" class="sub-panel" hidden>
+            <h3 style="margin-top: 0;">Clean Storage</h3>
+            <p style="color: #64748b; font-size: 13px; margin-top: 0;">
+              Deleting a material removes its listing from the app and permanently deletes the file from Google Drive (if uploaded to Drive).
+            </p>
+
+            <div class="materials-table-wrap">
+              <table class="materials-table">
+                <thead>
+                  <tr>
+                    <th>Title</th>
+                    <th>Class &amp; Subject</th>
+                    <th>Source</th>
+                    <th>Size</th>
+                    <th>Delete</th>
+                  </tr>
+                </thead>
+                <tbody id="clean-materials-tbody">
+                  <tr><td colspan="5" class="empty-state">Loading materials...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- In-App Viewer Modal -->
+  <div id="material-viewer-modal" class="viewer-modal-backdrop" hidden>
+    <div class="viewer-modal" role="dialog" aria-modal="true" aria-labelledby="viewer-modal-title">
+      <div class="viewer-modal-head">
+        <strong id="viewer-modal-title">Material Preview</strong>
+        <button type="button" id="close-viewer-modal" class="btn btn-secondary">Close</button>
+      </div>
+      <div id="viewer-modal-body" class="viewer-modal-body"></div>
+    </div>
+  </div>
+
+  <script src="../../js/main.js" defer></script>
+  <script src="../../js/navigation.js" defer></script>
+  <script src="../../js/teacher-sidebar.js" defer></script>
+  <script type="module" src="../../js/account-menu.js"></script>
+  <script type="module" src="../../js/teacher-study-materials.js"></script>
+</body>
+</html>

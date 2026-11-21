@@ -1,4 +1,3 @@
-
 import { auth, db } from "./firebase-config.js";
 
 import {
@@ -106,16 +105,6 @@ function formatTime(value) {
   );
 }
 
-function escapeHTML(value) {
-  return String(value ?? "").replace(/[&<>"']/g, character => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;"
-  })[character]);
-}
-
 function sessionDateTime(session) {
   if (!session.date) return Number.POSITIVE_INFINITY;
 
@@ -127,7 +116,9 @@ function sessionDateTime(session) {
 }
 
 function isCancelled(session) {
-  return String(session.status || "").toLowerCase() === "cancelled";
+  return ["cancelled", "canceled"].includes(
+    String(session.status || "").toLowerCase()
+  );
 }
 
 function showMessage(text) {
@@ -159,6 +150,47 @@ function renderEmptyState(
   tableBody.appendChild(row);
 }
 
+function isStudentAssignedToClass(studentUid, profile, classRecord) {
+  const uid = String(studentUid || "");
+  const classId = String(classRecord?.id || "");
+  const className = String(
+    classRecord?.className || classRecord?.name || ""
+  ).trim().toLowerCase();
+
+  const studentClassIds = [
+    profile?.classId,
+    profile?.assignedClassId,
+    ...(Array.isArray(profile?.classIds) ? profile.classIds : []),
+    ...(Array.isArray(profile?.assignedClassIds) ? profile.assignedClassIds : [])
+  ]
+    .filter(Boolean)
+    .map(String);
+
+  const studentClassName = String(
+    profile?.className || profile?.class || ""
+  ).trim().toLowerCase();
+
+  const classStudentIds = Array.isArray(classRecord?.studentIds)
+    ? classRecord.studentIds.map(String)
+    : [];
+
+  return (
+    classStudentIds.includes(uid) ||
+    studentClassIds.includes(classId) ||
+    (Boolean(studentClassName) && Boolean(className) && studentClassName === className)
+  );
+}
+
+function isStudentAssignedToSubject(studentUid, subjectRecord) {
+  if (!subjectRecord || typeof subjectRecord !== "object") return true;
+
+  if (Array.isArray(subjectRecord.studentIds) && subjectRecord.studentIds.length > 0) {
+    return subjectRecord.studentIds.map(String).includes(String(studentUid));
+  }
+
+  return true;
+}
+
 function updateSummary() {
   const today = localDateString();
   const now = Date.now();
@@ -185,6 +217,7 @@ function updateSummary() {
 
   nextClassName.textContent = next.className;
   nextClassDetail.textContent = [
+    next.subject,
     formatDate(next.date),
     formatTime(next.startTime)
   ].filter(Boolean).join(" · ");
@@ -196,7 +229,6 @@ function renderSessions() {
   const search = (searchInput?.value || "").trim().toLowerCase();
   const selectedDate = dateFilter?.value || "";
 
-  // Search and date filters operate on all loaded sessions.
   const filtered = allSessions.filter(session => {
     const searchable = [
       session.className,
@@ -210,12 +242,11 @@ function renderSessions() {
       (!selectedDate || session.date === selectedDate);
   });
 
-  // Calculate the current calendar week: Monday through Sunday.
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   const monday = new Date(today);
-  const dayOfWeek = monday.getDay(); // Sunday = 0, Monday = 1
+  const dayOfWeek = monday.getDay();
   const daysSinceMonday = (dayOfWeek + 6) % 7;
   monday.setDate(monday.getDate() - daysSinceMonday);
 
@@ -225,8 +256,6 @@ function renderSessions() {
   const weekStart = localDateString(monday);
   const weekEnd = localDateString(sunday);
 
-  // Default: show only this week's sessions.
-  // When a search or date filter is used, search all loaded sessions.
   const displayed = (search || selectedDate)
     ? [...filtered].sort(
         (a, b) => sessionDateTime(a) - sessionDateTime(b)
@@ -257,163 +286,215 @@ function renderSessions() {
     return;
   }
 
-const weekDates = [];
+  const weekDates = [];
+  const currentDay = new Date(monday);
 
-const currentDay = new Date(monday);
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(currentDay);
+    date.setDate(monday.getDate() + i);
 
-for (let i = 0; i < 7; i++) {
-  const date = new Date(currentDay);
-  date.setDate(monday.getDate() + i);
+    weekDates.push({
+      date: localDateString(date),
+      day: date.toLocaleDateString(undefined, { weekday: "long" })
+    });
+  }
 
-  weekDates.push({
-    date: localDateString(date),
-    day: date.toLocaleDateString(undefined, { weekday: "long" })
-  });
-}
+  const sessionsToRender = (search || selectedDate)
+    ? displayed.map(session => ({
+        session,
+        date: session.date,
+        day: session.day || new Date(
+          `${session.date}T12:00:00`
+        ).toLocaleDateString(undefined, { weekday: "long" })
+      }))
+    : weekDates.flatMap(weekDay => {
+        const daySessions = displayed.filter(
+          session => session.date === weekDay.date
+        );
 
-const sessionsToRender = (search || selectedDate)
-  ? displayed.map(session => ({
-      session,
-      date: session.date,
-      day: session.day || new Date(
-        `${session.date}T12:00:00`
-      ).toLocaleDateString(undefined, { weekday: "long" })
-    }))
-  : weekDates.flatMap(weekDay => {
-      const daySessions = displayed.filter(
-        session => session.date === weekDay.date
-      );
+        if (!daySessions.length) {
+          return [{
+            session: null,
+            date: weekDay.date,
+            day: weekDay.day
+          }];
+        }
 
-      if (!daySessions.length) {
-        return [{
-          session: null,
+        return daySessions.map(session => ({
+          session,
           date: weekDay.date,
           day: weekDay.day
-        }];
-      }
+        }));
+      });
 
-      return daySessions.map(session => ({
-        session,
-        date: weekDay.date,
-        day: weekDay.day
-      }));
-    });
+  const dateRowSpans = new Map();
 
-// Combine Date and Day cells when multiple classes occur on the same date.
-const dateRowSpans = new Map();
-
-sessionsToRender.forEach(item => {
-  if (item.session) {
-    dateRowSpans.set(
-      item.date,
-      (dateRowSpans.get(item.date) || 0) + 1
-    );
-  }
-});
-
-const renderedDates = new Set();
-
-sessionsToRender.forEach(item => {
-  const session = item.session;
-  const row = document.createElement("tr");
-
-  // Render Date and Day only once per date.
-  if (!renderedDates.has(item.date)) {
-    const dateCell = document.createElement("td");
-    dateCell.textContent = formatDate(item.date);
-
-    const dayCell = document.createElement("td");
-    dayCell.textContent = item.day;
-
-    const rowSpan = session
-      ? dateRowSpans.get(item.date) || 1
-      : 1;
-
-    dateCell.rowSpan = rowSpan;
-    dayCell.rowSpan = rowSpan;
-
-    row.append(dateCell, dayCell);
-    renderedDates.add(item.date);
-  }
-
-  if (!session) {
-    row.innerHTML += `
-      <td></td>
-      <td></td>
-      <td></td>
-      <td></td>
-      <td></td>
-      <td>No-schedule</td>
-    `;
-
-    row.classList.add("no-class-day");
-    tableBody.appendChild(row);
-    return;
-  }
-
-  const values = [
-    session.className,
-    session.subject || "—",
-    session.teacherName || "—",
-    [
-      formatTime(session.startTime),
-      formatTime(session.endTime)
-    ].filter(Boolean).join(" – ") || "—"
-  ];
-
-  values.forEach(value => {
-    const cell = document.createElement("td");
-    cell.textContent = value;
-    row.appendChild(cell);
+  sessionsToRender.forEach(item => {
+    if (item.session) {
+      dateRowSpans.set(
+        item.date,
+        (dateRowSpans.get(item.date) || 0) + 1
+      );
+    }
   });
 
-  const locationCell = document.createElement("td");
+  const renderedDates = new Set();
 
-  if (session.room) {
-    locationCell.textContent = session.room;
-  } else if (session.meetingLink) {
-    const link = document.createElement("a");
-    link.href = session.meetingLink;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    link.textContent = "Join class";
-    locationCell.appendChild(link);
-  } else {
-    locationCell.textContent = "—";
-  }
+  sessionsToRender.forEach(item => {
+    const session = item.session;
+    const row = document.createElement("tr");
 
-  row.appendChild(locationCell);
+    if (!renderedDates.has(item.date)) {
+      const dateCell = document.createElement("td");
+      dateCell.textContent = formatDate(item.date);
 
-  const statusCell = document.createElement("td");
-  const badge = document.createElement("span");
-  const cancelled = isCancelled(session);
+      const dayCell = document.createElement("td");
+      dayCell.textContent = item.day;
 
-  badge.className =
-    `status-badge ${cancelled ? "inactive" : "active"}`;
-  badge.textContent = cancelled ? "Cancelled" : "Scheduled";
+      const rowSpan = session
+        ? dateRowSpans.get(item.date) || 1
+        : 1;
 
-  statusCell.appendChild(badge);
-  row.appendChild(statusCell);
+      dateCell.rowSpan = rowSpan;
+      dayCell.rowSpan = rowSpan;
 
-  tableBody.appendChild(row);
-});
+      row.append(dateCell, dayCell);
+      renderedDates.add(item.date);
+    }
+
+    if (!session) {
+      row.innerHTML += `
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td>No-schedule</td>
+      `;
+
+      row.classList.add("no-class-day");
+      tableBody.appendChild(row);
+      return;
+    }
+
+    const values = [
+      session.className,
+      session.subject || "—",
+      session.teacherName || "—",
+      [
+        formatTime(session.startTime),
+        formatTime(session.endTime)
+      ].filter(Boolean).join(" – ") || "—"
+    ];
+
+    values.forEach(value => {
+      const cell = document.createElement("td");
+      cell.textContent = value;
+      row.appendChild(cell);
+    });
+
+    const locationCell = document.createElement("td");
+
+    if (session.room) {
+      locationCell.textContent = session.room;
+    } else if (session.meetingLink) {
+      const link = document.createElement("a");
+      link.href = session.meetingLink;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.textContent = "Join class";
+      locationCell.appendChild(link);
+    } else {
+      locationCell.textContent = "—";
+    }
+
+    row.appendChild(locationCell);
+
+    const statusCell = document.createElement("td");
+    const badge = document.createElement("span");
+    const cancelled = isCancelled(session);
+
+    badge.className =
+      `status-badge ${cancelled ? "inactive" : "active"}`;
+    badge.textContent = cancelled ? "Cancelled" : "Scheduled";
+
+    statusCell.appendChild(badge);
+    row.appendChild(statusCell);
+
+    tableBody.appendChild(row);
+  });
 }
 
-function normalizeSession(classRecord, session, index) {
+function normalizeSession(classRecord, session, index, subjectRecord = null) {
+  const className = classRecord.className || classRecord.name || "Class";
+  const subject =
+    subjectRecord?.subjectName ||
+    subjectRecord?.name ||
+    session.subject ||
+    classRecord.subject ||
+    "";
+
   return {
-    id: `${classRecord.id}_${session.date || "undated"}_${index}`,
+    id: `${classRecord.id}_${subject || "general"}_${session.date || "undated"}_${index}`,
     classId: classRecord.id,
-    className: classRecord.className || "Class",
-    subject: classRecord.subject || session.subject || "",
-    teacherName: session.teacherName || classRecord.teacherName || "",
+    className,
+    subject,
+    teacherName:
+      session.teacherName ||
+      subjectRecord?.teacherName ||
+      classRecord.teacherName ||
+      "",
     date: session.date || "",
     day: session.day || "",
     startTime: session.startTime || "",
     endTime: session.endTime || "",
-    status: session.status || classRecord.status || "active",
-    room: session.room || session.roomName || classRecord.room || "",
-    meetingLink: session.meetingLink || session.onlineLink || ""
+    status: session.status || subjectRecord?.status || classRecord.status || "active",
+    room:
+      session.room ||
+      session.roomName ||
+      subjectRecord?.room ||
+      classRecord.room ||
+      "",
+    meetingLink:
+      session.meetingLink ||
+      session.onlineLink ||
+      subjectRecord?.meetingLink ||
+      classRecord.meetingLink ||
+      ""
   };
+}
+
+function extractAssignedClassSessions(studentUid, profile, classRecord) {
+  if (!isStudentAssignedToClass(studentUid, profile, classRecord)) {
+    return [];
+  }
+
+  const extracted = [];
+  const subjects = Array.isArray(classRecord.subjects) ? classRecord.subjects : [];
+
+  subjects.forEach((subj, subjIdx) => {
+    if (!isStudentAssignedToSubject(studentUid, subj)) return;
+
+    const subjSessions = Array.isArray(subj?.sessions) ? subj.sessions : [];
+    subjSessions.forEach((session, sessionIdx) => {
+      if (session?.date) {
+        extracted.push(
+          normalizeSession(classRecord, session, `${subjIdx}_${sessionIdx}`, subj)
+        );
+      }
+    });
+  });
+
+  const rootSessions = Array.isArray(classRecord.sessions) ? classRecord.sessions : [];
+  rootSessions.forEach((session, sessionIdx) => {
+    if (session?.date) {
+      extracted.push(
+        normalizeSession(classRecord, session, `root_${sessionIdx}`, null)
+      );
+    }
+  });
+
+  return extracted;
 }
 
 async function loadSchedules(user) {
@@ -445,24 +526,16 @@ async function loadSchedules(user) {
       )
     );
 
-    const classes = classesSnapshot.docs
+    const activeClasses = classesSnapshot.docs
       .map(snapshot => ({
         id: snapshot.id,
         ...snapshot.data()
       }))
-      .filter(item => item.status === "active");
+      .filter(item => String(item.status || "").toLowerCase() === "active");
 
-    allSessions = classes.flatMap(classRecord => {
-      const sessions = Array.isArray(classRecord.sessions)
-        ? classRecord.sessions
-        : [];
-
-      return sessions
-        .map((session, index) =>
-          normalizeSession(classRecord, session, index)
-        )
-        .filter(session => Boolean(session.date));
-    });
+    allSessions = activeClasses.flatMap(classRecord =>
+      extractAssignedClassSessions(user.uid, profile, classRecord)
+    );
 
     allSessions.sort((a, b) =>
       sessionDateTime(a) - sessionDateTime(b)

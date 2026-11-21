@@ -59,10 +59,6 @@
       border-radius: 9px;
     }
 
-    .attendance-toolbar-actions .primary-button {
-      white-space: nowrap;
-    }
-
     .individual-search-wrap {
       position: relative;
     }
@@ -113,20 +109,6 @@
       font-size: 12px;
       line-height: 1.55;
       overflow-wrap: anywhere;
-    }
-
-    .individual-student-details h4 {
-      margin: 0 0 8px;
-      color: #172033;
-      font-size: 14px;
-    }
-
-    .individual-student-details p {
-      margin: 5px 0;
-    }
-
-    .individual-student-details strong {
-      color: #172033;
     }
 
     .attendance-class-section {
@@ -183,90 +165,57 @@
       border: 1px solid #e5eaf2;
       border-radius: 10px;
       background: #fff;
-      -webkit-overflow-scrolling: touch;
     }
 
     .attendance-table {
       width: 100%;
-      min-width: 0;
-      table-layout: fixed;
+      min-width: 820px;
       border-collapse: collapse;
     }
 
     .attendance-table th,
     .attendance-table td {
-      padding: 10px 7px;
+      padding: 11px 10px;
       text-align: left;
       vertical-align: middle;
-      overflow-wrap: anywhere;
     }
 
     .attendance-table th {
       color: #64748b;
       background: #f8faff;
       border-bottom: 1px solid #e5eaf2;
-      font-size: 9px;
+      font-size: 10px;
       font-weight: 800;
-      line-height: 1.35;
       text-transform: uppercase;
     }
 
     .attendance-table td {
       color: #334155;
       border-bottom: 1px solid #edf0f5;
-      font-size: 11px;
-      line-height: 1.4;
+      font-size: 12px;
     }
 
     .attendance-table tbody tr:last-child td {
       border-bottom: 0;
     }
 
-    .attendance-table th:nth-child(1) { width: 15%; }
-    .attendance-table th:nth-child(2) { width: 18%; }
-    .attendance-table th:nth-child(3) { width: 11%; }
-    .attendance-table th:nth-child(4) { width: 10%; }
-    .attendance-table th:nth-child(5) { width: 11%; }
-    .attendance-table th:nth-child(6) { width: 10%; }
-    .attendance-table th:nth-child(7) { width: 13%; }
-    .attendance-table th:nth-child(8) { width: 12%; }
-
     .attendance-status {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       min-width: 58px;
-      padding: 6px 9px;
+      padding: 5px 8px;
       border-radius: 8px;
       font-size: 11px;
       font-weight: 750;
       text-transform: capitalize;
     }
 
-    .attendance-status-present {
-      color: #166534;
-      background: #dcfce7;
-    }
-
-    .attendance-status-absent {
-      color: #991b1b;
-      background: #fee2e2;
-    }
-
-    .attendance-status-late {
-      color: #92400e;
-      background: #fef3c7;
-    }
-
-    .attendance-status-excused {
-      color: #1d4ed8;
-      background: #dbeafe;
-    }
-
-    .attendance-status-other {
-      color: #475569;
-      background: #e2e8f0;
-    }
+    .attendance-status-present { color: #166534; background: #dcfce7; }
+    .attendance-status-absent { color: #991b1b; background: #fee2e2; }
+    .attendance-status-late { color: #92400e; background: #fef3c7; }
+    .attendance-status-excused { color: #1d4ed8; background: #dbeafe; }
+    .attendance-status-other { color: #475569; background: #e2e8f0; }
 
     .attendance-empty-state,
     #attendance-classes-container .empty-state {
@@ -278,150 +227,25 @@
       text-align: center;
     }
 
-    .attendance-empty-state h3 {
-      margin-bottom: 8px;
-      color: #172033;
+    .attendance-monthly-heading { margin-bottom: 14px; }
+    .attendance-monthly-table {
+      width: 100%;
+      min-width: 820px;
+      border-collapse: collapse;
     }
-
-    .attendance-empty-state p {
-      margin-bottom: 0;
-      font-size: 13px;
+    .attendance-monthly-table th,
+    .attendance-monthly-table td {
+      padding: 10px;
+      border-bottom: 1px solid #e5eaf2;
+      text-align: left;
+      font-size: 12px;
     }
-
-    .dashboard-content > .page-heading {
-      margin-bottom: 24px;
-    }
-
-    .dashboard-content > .page-heading h1 {
-      margin-bottom: 7px;
-      font-size: 27px;
-    }
-
-    .dashboard-content > .page-heading p {
-      margin-bottom: 0;
+    .attendance-monthly-table th {
+      background: #f8faff;
       color: #64748b;
-      font-size: 13px;
+      text-transform: uppercase;
+      font-size: 10px;
     }
-
-    #attendance-message {
-      margin-bottom: 18px;
-      border-radius: 10px;
-    }
-
-    @media (max-width: 1100px) {
-      .attendance-table {
-        min-width: 850px;
-        table-layout: auto;
-      }
-    }
-
-    @media (max-width: 900px) {
-      .attendance-toolbar {
-        align-items: flex-start;
-        padding: 18px;
-      }
-
-      .attendance-toolbar-actions {
-        width: 100%;
-      }
-
-      .attendance-class-section {
-        padding: 16px;
-      }
-    }
-
-    @media (max-width: 600px) {
-      .attendance-toolbar {
-        padding: 15px;
-      }
-
-      .attendance-toolbar-actions {
-        align-items: stretch;
-        flex-direction: column;
-      }
-
-      .attendance-toolbar-actions .primary-button,
-      .individual-search-wrap {
-        width: 100%;
-      }
-
-      .individual-search-wrap > button {
-        width: 100%;
-      }
-
-      .individual-search-panel {
-        right: auto;
-        left: 0;
-      }
-
-      .attendance-class-section {
-        padding: 12px;
-      }
-
-      .attendance-class-heading {
-        align-items: flex-start;
-        flex-direction: column;
-      }
-
-      .dashboard-content > .page-heading h1 {
-        font-size: 24px;
-      }
-    }
-    #individual-month,
-#download-month,
-#download-start-date,
-#download-end-date {
-  display: block;
-  width: 100%;
-  min-height: 40px;
-  margin-bottom: 12px;
-  padding: 9px 10px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  background: #fff;
-  font: inherit;
-}
-
-#show-monthly-attendance-button,
-#export-attendance-button {
-  width: 100%;
-  margin: 4px 0 12px;
-}
-
-.attendance-monthly-heading {
-  margin-bottom: 14px;
-}
-
-.attendance-monthly-heading h3 {
-  margin-bottom: 5px;
-}
-
-.attendance-monthly-heading p {
-  color: #64748b;
-  font-size: 13px;
-}
-
-.attendance-monthly-table {
-  width: 100%;
-  min-width: 850px;
-  border-collapse: collapse;
-}
-
-.attendance-monthly-table th,
-.attendance-monthly-table td {
-  padding: 10px;
-  border-bottom: 1px solid #e5eaf2;
-  text-align: left;
-  font-size: 12px;
-  overflow-wrap: anywhere;
-}
-
-.attendance-monthly-table th {
-  background: #f8faff;
-  color: #64748b;
-  text-transform: uppercase;
-  font-size: 10px;
-}
   </style>
 </head>
 
@@ -441,10 +265,9 @@
             aria-controls="admin-sidebar"
             aria-expanded="false"
           >☰</button>
-
           <div>
             <h1>Attendance</h1>
-            <p>View student attendance class-wise.</p>
+            <p>View class-wise student attendance, punch times, and edit history.</p>
           </div>
         </div>
       </header>
@@ -469,9 +292,7 @@
           <div class="attendance-toolbar">
             <div>
               <h2 id="attendance-selected-date-label">Today's Attendance</h2>
-              <p id="attendance-session-details">
-                Loading class-wise attendance...
-              </p>
+              <p id="attendance-session-details">Loading class-wise attendance...</p>
             </div>
 
             <div class="attendance-toolbar-actions">
@@ -532,58 +353,58 @@
                     class="individual-student-details"
                     aria-live="polite"
                   >
-                    Search for or select a student to view their login details.
+                    Search for or select a student to view monthly attendance.
                   </div>
                 </div>
               </div>
 
               <div class="individual-search-wrap">
-              <button
-                type="button"
-                class="primary-button"
-                id="download-attendance-button"
-                aria-expanded="false"
-                aria-controls="attendance-download-panel"
-              >
-                Download Attendance ▾
-              </button>
-
-              <div
-                id="attendance-download-panel"
-                class="individual-search-panel"
-                hidden
-              >
-                <label for="download-report-type">Report type</label>
-                <select id="download-report-type">
-                  <option value="all-month">All students — selected month</option>
-                  <option value="student-month">Individual student — selected month</option>
-                  <option value="all-range">All students — date range</option>
-                  <option value="student-current-month">Individual student — current month</option>
-                </select>
-
-                <label for="download-student-select">Student</label>
-                <select id="download-student-select">
-                  <option value="">Select a student</option>
-                </select>
-
-                <label for="download-month">Month</label>
-                <input id="download-month" type="month">
-
-                <label for="download-start-date">Start date</label>
-                <input id="download-start-date" type="date">
-
-                <label for="download-end-date">End date</label>
-                <input id="download-end-date" type="date">
-
                 <button
                   type="button"
                   class="primary-button"
-                  id="export-attendance-button"
+                  id="download-attendance-button"
+                  aria-expanded="false"
+                  aria-controls="attendance-download-panel"
                 >
-                  Download CSV
+                  Download Attendance ▾
                 </button>
+
+                <div
+                  id="attendance-download-panel"
+                  class="individual-search-panel"
+                  hidden
+                >
+                  <label for="download-report-type">Report type</label>
+                  <select id="download-report-type">
+                    <option value="all-month">All students — selected month</option>
+                    <option value="student-month">Individual student — selected month</option>
+                    <option value="all-range">All students — date range</option>
+                    <option value="student-current-month">Individual student — current month</option>
+                  </select>
+
+                  <label for="download-student-select">Student</label>
+                  <select id="download-student-select">
+                    <option value="">Select a student</option>
+                  </select>
+
+                  <label for="download-month">Month</label>
+                  <input id="download-month" type="month">
+
+                  <label for="download-start-date">Start date</label>
+                  <input id="download-start-date" type="date">
+
+                  <label for="download-end-date">End date</label>
+                  <input id="download-end-date" type="date">
+
+                  <button
+                    type="button"
+                    class="primary-button"
+                    id="export-attendance-button"
+                  >
+                    Download CSV
+                  </button>
+                </div>
               </div>
-            </div>
             </div>
           </div>
 

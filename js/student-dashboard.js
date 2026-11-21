@@ -176,14 +176,52 @@ if (!dashboard) {
   }
 
   function announcementTarget(item) {
-    if (item.targetType === "class") {
-      return item.className
-        ? `Class: ${item.className}`
-        : "Class announcement";
-    }
-
-    return "Academy-wide announcement";
+  if (item.targetType === "class") {
+    const clsLabel = item.className ? `Class: ${item.className}` : "Class announcement";
+    return item.subject ? `${clsLabel} · ${item.subject}` : clsLabel;
   }
+
+  return "Academy-wide announcement";
+}
+
+function announcementRaisedBy(item) {
+  return (
+    item.teacherName ||
+    item.postedByName ||
+    item.createdByName ||
+    (item.teacherId ? "Teacher" : "Academy Admin")
+  );
+}
+
+function formatAnnouncementForDate(item) {
+  const raw = item.announcementDate || item.date;
+  if (!raw) return formatAnnouncementDate(item);
+
+  if (typeof raw === "string") {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw.trim());
+    if (match) {
+      const date = new Date(
+        Number(match[1]),
+        Number(match[2]) - 1,
+        Number(match[3])
+      );
+      return new Intl.DateTimeFormat("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric"
+      }).format(date);
+    }
+  }
+
+  const parsed = announcementDate(item);
+  if (!parsed) return String(raw);
+
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric"
+  }).format(parsed);
+}
 
   function renderAnnouncementEmpty(title, description) {
     if (!announcementList) return;
@@ -289,13 +327,25 @@ function renderAnnouncements(announcements) {
       announcementTarget(item)
     );
 
+    const raisedBy = makeElement(
+      "span",
+      "",
+      `Raised by: ${announcementRaisedBy(item)}`
+    );
+
+    const forDate = makeElement(
+      "span",
+      "",
+      `For date: ${formatAnnouncementForDate(item)}`
+    );
     const date = makeElement(
       "span",
       "",
-      formatAnnouncementDate(item)
+      `Announcment published at: ${formatAnnouncementDate(item)}`
     );
 
-    meta.append(target, date);
+    meta.append(target, forDate, raisedBy,date);
+
     copy.append(title, body, meta);
 
     row.append(icon, copy);
@@ -411,22 +461,45 @@ async function loadStudentAnnouncements(academyId) {
 
     // 3. Find classes in this academy where this student is enrolled.
     const classesQuery = query(
-      collection(db, "classes"),
-      where("academyId", "==", academyId)
+    collection(db, "classes"),
+    where("academyId", "==", academyId)
+  );
+
+  const classesSnapshot = await getDocs(classesQuery);
+
+  const studentClassIds = [
+  currentProfile?.classId,
+  currentProfile?.assignedClassId,
+  ...(Array.isArray(currentProfile?.classIds) ? currentProfile.classIds : []),
+  ...(Array.isArray(currentProfile?.assignedClassIds) ? currentProfile.assignedClassIds : [])
+].filter(Boolean).map(String);
+
+const studentClassName = String(
+  currentProfile?.className || currentProfile?.class || ""
+).trim().toLowerCase();
+
+const enrolledClasses = classesSnapshot.docs
+  .map(classDoc => ({
+    id: classDoc.id,
+    ...classDoc.data()
+  }))
+  .filter(classData => {
+    const status = String(classData.status || "").toLowerCase();
+    if (status && !["active", "scheduled"].includes(status)) return false;
+
+    const classStudents = Array.isArray(classData.studentIds)
+      ? classData.studentIds.map(String)
+      : [];
+    const className = String(
+      classData.className || classData.name || ""
+    ).trim().toLowerCase();
+
+    return (
+      classStudents.includes(String(currentUser.uid)) ||
+      studentClassIds.includes(String(classData.id)) ||
+      (Boolean(studentClassName) && Boolean(className) && studentClassName === className)
     );
-
-    const classesSnapshot = await getDocs(classesQuery);
-
-    const enrolledClasses = classesSnapshot.docs
-      .map(classDoc => ({
-        id: classDoc.id,
-        ...classDoc.data()
-      }))
-      .filter(classData =>
-        classData.status === "active" &&
-        Array.isArray(classData.studentIds) &&
-        classData.studentIds.includes(currentUser.uid)
-      );
+  });
 
     // 4. Listen to each enrolled class's announcements.
     enrolledClasses.forEach(classData => {
@@ -541,22 +614,35 @@ async function loadStudentAnnouncements(academyId) {
 
       const today = localDateString();
 
-      const sessions = classes.flatMap(item =>
-        (Array.isArray(item.sessions) ? item.sessions : [])
-          .filter(session =>
-            session.date &&
-            session.status !== "cancelled"
-          )
-          .map(session => ({
-            classId: item.id,
-            className: item.className || "Class",
-            subject: item.subject || "",
-            date: session.date,
-            startTime: session.startTime || "",
-            endTime: session.endTime || "",
-            status: session.status || item.status
-          }))
-      );
+     const sessions = classes.flatMap(item => {
+  const fromSubjects = Array.isArray(item.subjects)
+    ? item.subjects.flatMap(subj =>
+        (Array.isArray(subj.sessions) ? subj.sessions : []).map(session => ({
+          classId: item.id,
+          className: item.className || item.name || "Class",
+          subject: subj.subjectName || item.subject || "",
+          date: session.date,
+          startTime: session.startTime || "",
+          endTime: session.endTime || "",
+          status: session.status || item.status
+        }))
+      )
+    : [];
+
+  const fromRoot = (Array.isArray(item.sessions) ? item.sessions : []).map(session => ({
+    classId: item.id,
+    className: item.className || item.name || "Class",
+    subject: session.subject || item.subject || "",
+    date: session.date,
+    startTime: session.startTime || "",
+    endTime: session.endTime || "",
+    status: session.status || item.status
+  }));
+
+  return [...fromSubjects, ...fromRoot].filter(
+    session => session.date && session.status !== "cancelled"
+  );
+});
 
       const upcoming = sessions
         .filter(session => session.date >= today)

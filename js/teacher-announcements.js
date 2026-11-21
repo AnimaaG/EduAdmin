@@ -156,6 +156,14 @@ function startEditingAnnouncement(item) {
     ) || Array.from(classSelect.options).find(
       opt => opt.dataset.classId === item.classId
     );
+    if (!matchingOption) {
+      showMessage(
+        "The class or subject for this announcement is no longer available in your assigned classes.",
+        true
+      );
+      editingAnnouncementId = null;
+      return;
+    }
     classSelect.value = matchingOption ? matchingOption.value : "";
   }
 
@@ -411,7 +419,15 @@ form.addEventListener("submit", async event => {
       return;
     }
 
-    selectedSubjectName = selectedOption?.dataset.subject || classData.subject || "";
+selectedSubjectName = (selectedOption?.dataset.subject || classData.subject || "").trim();
+
+    if (!selectedSubjectName) {
+      showMessage(
+        "Please select a valid class and subject.",
+        true
+      );
+      return;
+    }
   }
 
   publishButton.disabled = true;

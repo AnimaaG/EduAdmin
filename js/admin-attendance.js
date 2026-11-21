@@ -1,5 +1,4 @@
 import { auth, db } from "./firebase-config.js";
-import { recordAcademyAdminActivity } from "./admin-activity.js";
 
 import {
   onAuthStateChanged
@@ -11,9 +10,7 @@ import {
   getDoc,
   getDocs,
   query,
-  where,
-  writeBatch,
-  serverTimestamp
+  where
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -31,9 +28,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const individualStudentSelect = document.getElementById("individual-student-select");
   const individualStudentDetails = document.getElementById("individual-student-details");
   const individualMonth = document.getElementById("individual-month");
-  const showMonthlyAttendanceButton = document.getElementById(
-    "show-monthly-attendance-button"
-  );
+  const showMonthlyAttendanceButton = document.getElementById("show-monthly-attendance-button");
 
   const downloadPanel = document.getElementById("attendance-download-panel");
   const downloadReportType = document.getElementById("download-report-type");
@@ -52,11 +47,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   let academyId = null;
-  let attendanceRows = [];
   let studentDirectory = [];
   let loading = false;
-  let currentView = "attendance";
-  let classScheduleCache = [];
   const today = getLocalDateString(new Date());
 
   dateInput.value = today;
@@ -65,21 +57,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (individualMonth) individualMonth.value = currentMonth;
   if (downloadMonth) downloadMonth.value = currentMonth;
+  if (downloadStartDate) downloadStartDate.value = `${currentMonth}-01`;
+  if (downloadEndDate) downloadEndDate.value = today;
 
-  if (downloadStartDate) {
-    downloadStartDate.value = `${currentMonth}-01`;
-  }
-
-  if (downloadEndDate) {
-    downloadEndDate.value = today;
-  }
   pageDate.textContent = formatDate(today);
   selectedDateLabel.textContent = "Today's attendance";
   sessionDetails.textContent = "Loading class-wise attendance...";
 
   changeDateButton.addEventListener("click", () => {
     dateInput.hidden = false;
-
     try {
       if (typeof dateInput.showPicker === "function") {
         dateInput.showPicker();
@@ -99,44 +85,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
   downloadButton.addEventListener("click", () => {
     if (!downloadPanel) return;
-
     const open = downloadPanel.hidden;
     downloadPanel.hidden = !open;
     downloadButton.setAttribute("aria-expanded", String(open));
-
     if (open) populateDownloadStudentSelect();
   });
 
   exportAttendanceButton?.addEventListener("click", async () => {
     await exportSelectedReport();
-
-    if (downloadPanel) {
-      downloadPanel.hidden = true;
-    }
-
+    if (downloadPanel) downloadPanel.hidden = true;
     downloadButton?.setAttribute("aria-expanded", "false");
   });
 
   showMonthlyAttendanceButton?.addEventListener("click", async () => {
     const studentId = individualStudentSelect?.value;
     const month = individualMonth?.value;
-
-    if (!studentId) {
-      showMessage("Select a student first.");
+    if (!studentId || !month) {
+      showMessage("Select both a student and a month first.");
       return;
     }
-
-    if (!month) {
-      showMessage("Select a month first.");
-      return;
-    }
-
     await loadIndividualMonthlyAttendance(studentId, month);
-
-    if (individualSearchPanel) {
-      individualSearchPanel.hidden = true;
-    }
-
+    if (individualSearchPanel) individualSearchPanel.hidden = true;
     searchIndividualButton?.setAttribute("aria-expanded", "false");
   });
 
@@ -145,7 +114,6 @@ document.addEventListener("DOMContentLoaded", () => {
       const open = individualSearchPanel.hidden;
       individualSearchPanel.hidden = !open;
       searchIndividualButton.setAttribute("aria-expanded", String(open));
-
       if (open) {
         populateIndividualStudentSelect();
         individualStudentSearch?.focus();
@@ -155,77 +123,36 @@ document.addEventListener("DOMContentLoaded", () => {
 
   individualStudentSearch?.addEventListener("input", () => {
     const term = individualStudentSearch.value.trim().toLowerCase();
-
-    const filteredStudents = studentDirectory.filter((student) =>
-      `${student.studentName} ${student.email}`.toLowerCase().includes(term)
+    const filtered = studentDirectory.filter(s =>
+      `${s.studentName} ${s.email}`.toLowerCase().includes(term)
     );
-
-    const previousValue = individualStudentSelect?.value || "";
-
     if (individualStudentSelect) {
-      individualStudentSelect.innerHTML =
-        '<option value="">Select a student</option>';
-
-      filteredStudents.forEach((student) => {
-        const option = document.createElement("option");
-        option.value = student.studentId;
-        option.textContent =
-          `${student.studentName} (${student.email || "No email"})`;
-
-        individualStudentSelect.appendChild(option);
+      individualStudentSelect.innerHTML = '<option value="">Select a student</option>';
+      filtered.forEach(s => {
+        const opt = document.createElement("option");
+        opt.value = s.studentId;
+        opt.textContent = `${s.studentName} (${s.email || "No email"})`;
+        individualStudentSelect.appendChild(opt);
       });
-
-      if (filteredStudents.some((student) => student.studentId === previousValue)) {
-        individualStudentSelect.value = previousValue;
-      }
     }
   });
 
-  individualStudentSelect?.addEventListener("change", () => {
-    if (individualStudentDetails) {
-      individualStudentDetails.textContent =
-        "Choose a month and click Show Monthly Data to load the student's records.";
-    }
-  });
-
-  document.addEventListener("click", (event) => {
-    if (
-      individualSearchPanel &&
-      searchIndividualButton &&
-      !individualSearchPanel.hidden &&
-      !individualSearchPanel.contains(event.target) &&
-      !searchIndividualButton.contains(event.target)
-    ) {
-      individualSearchPanel.hidden = true;
-      searchIndividualButton.setAttribute("aria-expanded", "false");
-    }
-  });
-
-  onAuthStateChanged(auth, async (user) => {
+  onAuthStateChanged(auth, async user => {
     if (!user) {
       showMessage("Please sign in to view attendance.");
       return;
     }
-
     try {
       const profileSnapshot = await getDoc(doc(db, "users", user.uid));
-
       if (!profileSnapshot.exists()) {
         showMessage("Your administrator profile was not found.");
         return;
       }
-
       const profile = profileSnapshot.data();
-
-      if (
-        profile.role !== "admin" ||
-        profile.isActive !== true ||
-        !profile.academyId
-      ) {
+      if (profile.role !== "admin" || profile.isActive !== true || !profile.academyId) {
         showMessage("You do not have permission to view this attendance.");
         return;
       }
-
       academyId = profile.academyId;
       await loadAttendance(dateInput.value || today);
     } catch (error) {
@@ -234,20 +161,41 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  function isStudentAssigned(student, classItem) {
+    const studentClassIds = new Set();
+    if (student.classId) studentClassIds.add(String(student.classId));
+    if (student.assignedClassId) studentClassIds.add(String(student.assignedClassId));
+    if (Array.isArray(student.classIds)) student.classIds.forEach(id => studentClassIds.add(String(id)));
+
+    const classIdStr = String(classItem.id);
+    const classNameStr = String(classItem.className || classItem.name || "").trim().toLowerCase();
+    const studentClassName = String(student.className || student.class || "").trim().toLowerCase();
+
+    return (
+      studentClassIds.has(classIdStr) ||
+      (Array.isArray(classItem.studentIds) && classItem.studentIds.includes(student.id)) ||
+      (studentClassName && classNameStr && studentClassName === classNameStr)
+    );
+  }
+
+  function hasClassOnDate(classItem, dateStr) {
+    const subjects = Array.isArray(classItem.subjects) ? classItem.subjects : [];
+    const inSubjects = subjects.some(subj =>
+      Array.isArray(subj.sessions) && subj.sessions.some(s => s && s.date === dateStr && s.status !== "cancelled")
+    );
+    if (inSubjects) return true;
+    const rootSessions = Array.isArray(classItem.sessions) ? classItem.sessions : [];
+    return rootSessions.some(s => s && s.date === dateStr && s.status !== "cancelled");
+  }
+
   async function loadAttendance(selectedDate) {
     if (!academyId || loading) return;
-
     loading = true;
-    attendanceRows = [];
-    currentView = "attendance";
     setLoadingState(true);
 
     pageDate.textContent = formatDate(selectedDate);
     selectedDateLabel.textContent =
-      selectedDate === today
-        ? "Today's attendance"
-        : `Attendance for ${formatDate(selectedDate)}`;
-
+      selectedDate === today ? "Today's attendance" : `Attendance for ${formatDate(selectedDate)}`;
     sessionDetails.textContent = "Loading class-wise attendance...";
     classesContainer.innerHTML = `
       <div class="attendance-empty-state">
@@ -257,92 +205,75 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
 
     try {
-      const [classesSnapshot, studentsSnapshot] = await Promise.all([
-        getDocs(query(
-          collection(db, "classes"),
-          where("academyId", "==", academyId)
-        )),
+      const [classesSnapshot, studentsSnapshot, attendanceSnapshot] = await Promise.all([
+        getDocs(query(collection(db, "classes"), where("academyId", "==", academyId))),
         getDocs(query(
           collection(db, "users"),
           where("academyId", "==", academyId),
           where("role", "==", "student"),
           where("isActive", "==", true)
+        )),
+        getDocs(query(
+          collection(db, "attendance"),
+          where("academyId", "==", academyId),
+          where("date", "==", selectedDate)
         ))
       ]);
 
       const classes = classesSnapshot.docs
-        .map((item) => ({ id: item.id, ...item.data() }))
-        .filter((item) => item.status === "active");
-      
-      classScheduleCache = classes;
-      
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(c => c.status === "active");
+
       const students = studentsSnapshot.docs
-        .map((item) => ({ id: item.id, ...item.data() }))
+        .map(d => ({ id: d.id, ...d.data() }))
         .sort((a, b) => getStudentName(a).localeCompare(getStudentName(b)));
 
-      studentDirectory = students.map((student) => ({
-        studentId: student.id,
-        studentName: getStudentName(student),
-        email: student.email || ""
+      studentDirectory = students.map(s => ({
+        studentId: s.id,
+        studentName: getStudentName(s),
+        email: s.email || ""
       }));
 
       populateIndividualStudentSelect();
       populateDownloadStudentSelect();
 
-      const scheduledClasses = classes.filter((item) =>
-        hasClassOnDate(item, selectedDate)
-      );
+      const dayRecords = attendanceSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      const scheduledClasses = classes.filter(c => hasClassOnDate(c, selectedDate));
 
       if (!scheduledClasses.length) {
         renderWeeklySchedule(classes, selectedDate);
-        sessionDetails.textContent =
-          `No schedule for Today ! ${formatDate(selectedDate)}. Check this week's classes schedule below.`;
         return;
       }
 
-      const results = [];
+      const classResults = scheduledClasses.map(cls => {
+        const assigned = students.filter(s => isStudentAssigned(s, cls));
+        const targetStudents = assigned.length ? assigned : students;
+        const classRecMap = new Map();
+        dayRecords
+          .filter(r => r.classId === cls.id)
+          .forEach(r => classRecMap.set(r.studentId, r));
 
-      for (const classItem of scheduledClasses) {
-        const classResults = await getClassAttendance(classItem, students, selectedDate);
-        if (Array.isArray(classResults)) {
-          results.push(...classResults);
-        } else {
-          results.push(classResults);
-        }
-      }
+        const records = targetStudents.map(s => {
+          const rec = classRecMap.get(s.id) || null;
+          return {
+            studentId: s.id,
+            studentName: rec?.studentName || getStudentName(s),
+            email: s.email || "—",
+            status: rec ? normalizeStatus(rec.status) : "not-marked",
+            punchedAt: rec ? (rec.punchedAt || rec.createdAt || null) : null,
+            markedBy: rec ? (rec.markedByRole === "student" ? "Student" : `Teacher (${rec.teacherName || "Teacher"})`) : "—",
+            editHistoryText: rec ? formatEditHistoryText(rec) : "—"
+          };
+        });
 
-      attendanceRows = results.flatMap((item) =>
-        item.records.map((record) => ({
-          date: selectedDate,
-          className: item.className,
-          subject: item.subject,
-          studentName: record.studentName,
-          studentId: record.studentId,
-          email: record.email,
-          classStartTime: record.classStartTime || item.classStartTime || "",
-          checkInAt: record.checkInAt || null,
-          classEndTime: record.classEndTime || item.classEndTime || "",
-          checkOutAt: record.checkOutAt || null,
-          loginDetails: record.loginDetails || {},
-          loginAt: firstValue(record.loginDetails || {}, [
-            "loginAt", "loggedInAt", "lastLoginAt", "sessionStartedAt"
-          ]),
-          logoutAt: firstValue(record.loginDetails || {}, [
-            "logoutAt", "loggedOutAt", "sessionEndedAt"
-          ]),
-          classDuration: calculateClassDuration(
-            record.classStartTime || item.classStartTime,
-            record.classEndTime || item.classEndTime
-          ),
-          loginDuration: calculateRecordedLoginDuration({
-            ...record,
-            ...(record.loginDetails || {})
-          }),
-          status: record.status
-        }))
-      );
+        return {
+          classId: cls.id,
+          className: cls.className || cls.name || "Class",
+          records
+        };
+      });
 
-      renderAttendance(results, selectedDate);
+      renderAttendance(classResults);
     } catch (error) {
       console.error("Failed to load attendance:", error);
       showMessage(getErrorMessage(error));
@@ -352,221 +283,35 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  function hasClassOnDate(classItem, selectedDate) {
-    const subjects = Array.isArray(classItem.subjects) ? classItem.subjects : [];
-    return subjects.some((subj) => {
-      const sessions = Array.isArray(subj.sessions) ? subj.sessions : [];
-      return sessions.some((session) => {
-        if (!session || session.date !== selectedDate) return false;
-        const status = String(session.status || "").toLowerCase();
-        return status !== "cancelled" && status !== "canceled";
-      });
-    });
-  }
+  function renderAttendance(classResults) {
+    const totalStudents = classResults.reduce((acc, c) => acc + c.records.length, 0);
+    sessionDetails.textContent = `${classResults.length} class(es) · ${totalStudents} student entry(ies)`;
 
-  async function getClassAttendance(classItem, students, selectedDate) {
-    const assignedStudents = students.filter(student => {
-      const studentClassIds = new Set();
-      if (student.classId) studentClassIds.add(String(student.classId));
-      if (student.assignedClassId) studentClassIds.add(String(student.assignedClassId));
-      if (Array.isArray(student.classIds)) {
-        student.classIds.forEach(id => studentClassIds.add(String(id)));
-      }
-      
-      const classIdStr = String(classItem.id);
-      const classNameStr = String(classItem.className || classItem.name || "").trim().toLowerCase();
-      const studentClassName = String(student.className || student.class || "").trim().toLowerCase();
+    classesContainer.innerHTML = classResults.map(cls => {
+      const present = countStatus(cls.records, "present");
+      const absent = countStatus(cls.records, "absent");
+      const late = countStatus(cls.records, "late");
 
-      return (
-        studentClassIds.has(classIdStr) ||
-        (Array.isArray(classItem.studentIds) && classItem.studentIds.includes(student.id)) ||
-        (studentClassName && studentClassName === classNameStr)
-      );
-    });
-
-    const targetStudents = assignedStudents.length > 0 ? assignedStudents : students;
-
-    const attendanceQuery = query(
-      collection(db, "attendance"),
-      where("academyId", "==", academyId),
-      where("classId", "==", classItem.id),
-      where("date", "==", selectedDate)
-    );
-
-    const existingSnapshot = await getDocs(attendanceQuery);
-    const recordsByStudentAndSubject = new Map();
-
-    existingSnapshot.docs.forEach((item) => {
-      const record = item.data();
-      if (record.studentId) {
-        const key = `${record.studentId}_${record.subject || classItem.subject || ""}`;
-        recordsByStudentAndSubject.set(key, {
-          ...record,
-          documentId: item.id
-        });
-      }
-    });
-
-    // Find all sessions/subjects for this class on this selected date
-    const daySessions = [];
-    const subjects = Array.isArray(classItem.subjects) ? classItem.subjects : [];
-    subjects.forEach((subj) => {
-      (subj.sessions || []).forEach((session) => {
-        if (session && session.date === selectedDate) {
-          const status = String(session.status || "").toLowerCase();
-          if (status !== "cancelled" && status !== "canceled") {
-            daySessions.push({ ...session, subject: subj.subjectName });
-          }
-        }
-      });
-    });
-
-    // If no explicit sessions found under subjects but class has subject/time info
-    if (daySessions.length === 0) {
-      daySessions.push({
-        subject: classItem.subject || "General",
-        startTime: classItem.startTime || "09:00",
-        endTime: classItem.endTime || "10:00"
-      });
-    }
-
-    const classResults = [];
-
-    for (const session of daySessions) {
-      const subjectName = session.subject || "General";
-      const missingStudents = targetStudents.filter(
-        (student) => !recordsByStudentAndSubject.has(`${student.id}_${subjectName}`)
-      );
-
-      for (let start = 0; start < missingStudents.length; start += 400) {
-        const batch = writeBatch(db);
-        const chunk = missingStudents.slice(start, start + 400);
-
-        chunk.forEach((student) => {
-          const attendanceId = `${classItem.id}_${selectedDate}_${student.id}_${subjectName.replace(/\s+/g, '_')}`;
-          const attendanceRef = doc(db, "attendance", attendanceId);
-
-          batch.set(attendanceRef, {
-            academyId,
-            classId: classItem.id,
-            className: classItem.className || classItem.name || "Class",
-            subject: subjectName,
-            teacherId: classItem.teacherId || "",
-            teacherName: classItem.teacherName || "",
-            date: selectedDate,
-            studentId: student.id,
-            studentName: getStudentName(student),
-            status: "absent",
-            markedBy: auth.currentUser.uid,
-            updatedAt: serverTimestamp()
-          });
-
-          recordsByStudentAndSubject.set(`${student.id}_${subjectName}`, {
-            studentId: student.id,
-            studentName: getStudentName(student),
-            status: "absent",
-            subject: subjectName
-          });
-        });
-
-        await batch.commit();
-      }
-
-      const records = targetStudents.map((student) => {
-        const existing = recordsByStudentAndSubject.get(`${student.id}_${subjectName}`);
-        const loginDetails = extractLoginDetails(existing || {}, student);
-
-        return {
-          studentId: student.id,
-          studentName: existing?.studentName || getStudentName(student),
-          email: student.email || existing?.email || "",
-          classStartTime: existing?.startTime || session.startTime || "",
-          checkInAt: existing?.checkInAt || existing?.checkedInAt || null,
-          classEndTime: existing?.endTime || session.endTime || "",
-          checkOutAt: existing?.checkOutAt || existing?.checkedOutAt || null,
-          loginDetails,
-          status: normalizeStatus(existing?.status || "absent")
-        };
-      });
-
-      classResults.push({
-        classId: classItem.id,
-        className: classItem.className || classItem.name || "Class",
-        subject: subjectName,
-        classStartTime: session.startTime || "",
-        classEndTime: session.endTime || "",
-        records
-      });
-    }
-
-    return classResults;
-  }
-
-  function renderAttendance(classResults, selectedDate) {
-    currentView = "attendance";
-
-    if (!classResults.length) {
-      renderWeeklySchedule([], selectedDate);
-      return;
-    }
-
-    const totals = { students: 0, present: 0, absent: 0, late: 0 };
-
-    classResults.forEach((classItem) => {
-      totals.students += classItem.records.length;
-
-      classItem.records.forEach((record) => {
-        const status = normalizeStatus(record.status);
-        if (status === "present") totals.present++;
-        if (status === "absent") totals.absent++;
-        if (status === "late") totals.late++;
-      });
-    });
-
-    sessionDetails.textContent =
-      `${classResults.length} class/subject section(s) · ${totals.students} total record(s)`;
-
-    classesContainer.innerHTML = classResults.map((classItem) => {
-      const present = countStatus(classItem.records, "present");
-      const absent = countStatus(classItem.records, "absent");
-      const late = countStatus(classItem.records, "late");
-
-      const rows = classItem.records.map((record) => {
-        const searchText =
-          `${record.studentName} ${record.email || ""}`.toLowerCase();
-
-        const loginAt = firstValue(record.loginDetails || {}, [
-          "loginAt", "loggedInAt", "lastLoginAt", "sessionStartedAt"
-        ]);
-
-        return `
-          <tr data-student-id="${escapeHTML(record.studentId)}"
-              data-search="${escapeHTML(searchText)}">
-            <td>${escapeHTML(record.studentName)}</td>
-            <td>${escapeHTML(record.email || "—")}</td>
-            <td>${escapeHTML(record.classStartTime || classItem.classStartTime || "—")}</td>
-            <td>${escapeHTML(formatTimestamp(record.checkInAt))}</td>
-            <td>${escapeHTML(record.classEndTime || classItem.classEndTime || "—")}</td>
-            <td>${escapeHTML(formatTimestamp(record.checkOutAt))}</td>
-            <td>${escapeHTML(calculateClassDuration(
-              record.classStartTime || classItem.classStartTime,
-              record.classEndTime || classItem.classEndTime
-            ))}</td>
-            <td>${escapeHTML(formatTimestamp(loginAt))}</td>
-          </tr>
-        `;
-      }).join("");
+      const rows = cls.records.map(rec => `
+        <tr>
+          <td><strong>${escapeHTML(rec.studentName)}</strong></td>
+          <td>${escapeHTML(rec.email)}</td>
+          <td><span class="attendance-status attendance-status-${escapeHTML(rec.status)}">${escapeHTML(rec.status === "not-marked" ? "Not Marked" : rec.status)}</span></td>
+          <td>${escapeHTML(formatTimestamp(rec.punchedAt))}</td>
+          <td>${escapeHTML(rec.markedBy)}</td>
+          <td>${rec.editHistoryText}</td>
+        </tr>
+      `).join("");
 
       return `
         <section class="attendance-class-section">
           <div class="attendance-class-heading">
             <div>
-              <h3>${escapeHTML(classItem.className)}</h3>
-              <p>${escapeHTML(classItem.subject || "Subject not specified")}</p>
+              <h3>${escapeHTML(cls.className)}</h3>
+              <p>Daily class-wise attendance</p>
             </div>
-
             <div class="attendance-counts">
-              <span>Total: ${classItem.records.length}</span>
+              <span>Total: ${cls.records.length}</span>
               <span>Present: ${present}</span>
               <span>Absent: ${absent}</span>
               <span>Late: ${late}</span>
@@ -579,12 +324,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 <tr>
                   <th>Student Name</th>
                   <th>Email</th>
-                  <th>Class Start Time</th>
-                  <th>Check-in Time</th>
-                  <th>Class End Time</th>
-                  <th>Check-out Time</th>
-                  <th>Class Duration</th>
-                  <th>Student Login Time</th>
+                  <th>Status</th>
+                  <th>Punch Time</th>
+                  <th>Marked By</th>
+                  <th>Original / Updated History</th>
                 </tr>
               </thead>
               <tbody>${rows}</tbody>
@@ -593,151 +336,111 @@ document.addEventListener("DOMContentLoaded", () => {
         </section>
       `;
     }).join("");
-
-    populateIndividualStudentSelect();
-    filterAttendanceTable(
-      individualStudentSearch?.value.trim().toLowerCase() || ""
-    );
   }
 
-  function populateIndividualStudentSelect() {
-    updateStudentDropdown(individualStudentSelect);
-  }
-
-  function populateDownloadStudentSelect() {
-    updateStudentDropdown(downloadStudentSelect);
-  }
-
-  function updateStudentDropdown(selectElement) {
-    if (!selectElement) return;
-
-    const previousValue = selectElement.value;
-
-    selectElement.innerHTML = '<option value="">Select a student</option>';
-
-    [...studentDirectory]
-      .sort((a, b) => a.studentName.localeCompare(b.studentName))
-      .forEach((student) => {
-        const option = document.createElement("option");
-        option.value = student.studentId;
-        option.textContent =
-          `${student.studentName} (${student.email || "No email"})`;
-
-        selectElement.appendChild(option);
-      });
-
-    if (
-      previousValue &&
-      studentDirectory.some((student) => student.studentId === previousValue)
-    ) {
-      selectElement.value = previousValue;
-    }
-  }
-
-  function filterAttendanceTable(searchTerm = "", studentId = "") {
-    document.querySelectorAll(
-      "#attendance-classes-container tbody tr[data-student-id]"
-    ).forEach((row) => {
-      const matchesStudent =
-        !studentId || row.dataset.studentId === studentId;
-
-      const matchesSearch =
-        !searchTerm || (row.dataset.search || "").includes(searchTerm);
-
-      row.hidden = !(matchesStudent && matchesSearch);
+  function renderWeeklySchedule(classes, dateStr) {
+    const start = getStartOfWeek(dateStr);
+    const weekDates = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(start);
+      d.setDate(d.getDate() + i);
+      return getLocalDateString(d);
     });
-
-    document.querySelectorAll(
-      "#attendance-classes-container .attendance-class-section"
-    ).forEach((section) => {
-      const visible = section.querySelectorAll(
-        "tbody tr[data-student-id]:not([hidden])"
-      );
-
-      section.hidden = visible.length === 0;
-    });
-  }
-
-  function renderWeeklySchedule(classes, selectedDate) {
-    currentView = "week";
-    attendanceRows = [];
-    downloadButton.disabled = false;
-
-    const start = getStartOfWeek(selectedDate);
-    const weekDates = Array.from({ length: 7 }, (_, index) => {
-      const date = new Date(start);
-      date.setDate(date.getDate() + index);
-      return getLocalDateString(date);
-    });
-
-    const weekClasses = classes
-      .filter((item) => item.status === "active")
-      .map((classItem) => {
-        const subjects = Array.isArray(classItem.subjects) ? classItem.subjects : [];
-        const sessions = [];
-        subjects.forEach((subj) => {
-          (subj.sessions || []).forEach((session) => {
-            if (!session || !weekDates.includes(session.date)) return;
-            const status = String(session.status || "").toLowerCase();
-            if (status !== "cancelled" && status !== "canceled") {
-              sessions.push({
-                ...session,
-                subject: subj.subjectName
-              });
-            }
-          });
-        });
-        return { classItem, sessions };
-      })
-      .filter((item) => item.sessions.length);
 
     pageDate.textContent = `${formatDate(weekDates[0])} – ${formatDate(weekDates[6])}`;
     selectedDateLabel.textContent = "Weekly class schedule";
-    sessionDetails.textContent =
-      `No schedule for Today ! ${formatDate(selectedDate)}. Check this week's classes schedule below.`;
+    sessionDetails.textContent = `No schedule for ${formatDate(dateStr)}.`;
 
-    if (!weekClasses.length) {
-      classesContainer.innerHTML = `
-        <div class="attendance-empty-state">
-          <h3>No classes scheduled this week</h3>
-          <p>There are no scheduled class sessions in this week.</p>
-        </div>
-      `;
+    const rows = [];
+    classes.forEach(cls => {
+      const subjects = Array.isArray(cls.subjects) ? cls.subjects : [];
+      subjects.forEach(subj => {
+        (subj.sessions || []).forEach(s => {
+          if (s && weekDates.includes(s.date) && s.status !== "cancelled") {
+            rows.push(`
+              <tr>
+                <td>${escapeHTML(formatDate(s.date))}</td>
+                <td>${escapeHTML(cls.className || cls.name || "Class")}</td>
+                <td>${escapeHTML(subj.subjectName || "—")}</td>
+                <td>${escapeHTML(s.startTime || "—")} – ${escapeHTML(s.endTime || "—")}</td>
+              </tr>
+            `);
+          }
+        });
+      });
+    });
+
+    classesContainer.innerHTML = rows.length
+      ? `
+        <section class="attendance-class-section">
+          <div class="attendance-class-heading"><h3>This Week's Classes</h3></div>
+          <div class="attendance-table-wrapper">
+            <table class="attendance-table">
+              <thead><tr><th>Date</th><th>Class</th><th>Subject</th><th>Time</th></tr></thead>
+              <tbody>${rows.join("")}</tbody>
+            </table>
+          </div>
+        </section>
+      `
+      : `<div class="attendance-empty-state"><h3>No classes scheduled this week</h3></div>`;
+  }
+
+  async function loadIndividualMonthlyAttendance(studentId, month) {
+    if (!academyId) return;
+    const [year, monthNumber] = month.split("-").map(Number);
+    const startDate = `${month}-01`;
+    const endDate = getLocalDateString(new Date(year, monthNumber, 0));
+
+    const snap = await getDocs(query(
+      collection(db, "attendance"),
+      where("academyId", "==", academyId),
+      where("studentId", "==", studentId)
+    ));
+
+    const rows = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(r => typeof r.date === "string" && r.date >= startDate && r.date <= endDate)
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+
+    const student = studentDirectory.find(s => s.studentId === studentId);
+    const studentName = student?.studentName || "Student";
+
+    pageDate.textContent = `${formatDate(startDate)} – ${formatDate(endDate)}`;
+    selectedDateLabel.textContent = `${studentName} — Monthly Attendance`;
+    sessionDetails.textContent = `${rows.length} record(s) in ${month}`;
+
+    if (!rows.length) {
+      classesContainer.innerHTML = `<div class="attendance-empty-state"><h3>No records found</h3></div>`;
       return;
     }
 
     classesContainer.innerHTML = `
       <section class="attendance-class-section">
-        <div class="attendance-class-heading">
-          <div>
-            <h3>This Week's Classes</h3>
-            <p>${escapeHTML(formatDate(weekDates[0]))} – ${escapeHTML(formatDate(weekDates[6]))}</p>
-          </div>
+        <div class="attendance-monthly-heading">
+          <h3>${escapeHTML(studentName)} — ${escapeHTML(month)}</h3>
         </div>
-
         <div class="attendance-table-wrapper">
-          <table class="attendance-table">
+          <table class="attendance-monthly-table">
             <thead>
               <tr>
                 <th>Date</th>
                 <th>Class</th>
-                <th>Subject</th>
-                <th>Start Time</th>
-                <th>End Time</th>
+                <th>Status</th>
+                <th>Punch Time</th>
+                <th>Marked By</th>
+                <th>Original / Updated History</th>
               </tr>
             </thead>
             <tbody>
-              ${weekClasses.flatMap(({ classItem, sessions }) =>
-                sessions.map((session) => `
-                  <tr>
-                    <td>${escapeHTML(formatDate(session.date))}</td>
-                    <td>${escapeHTML(classItem.name || classItem.className || "Class")}</td>
-                    <td>${escapeHTML(session.subject || "—")}</td>
-                    <td>${escapeHTML(session.startTime || "—")}</td>
-                    <td>${escapeHTML(session.endTime || "—")}</td>
-                  </tr>
-                `)
-              ).join("")}
+              ${rows.map(r => `
+                <tr>
+                  <td>${escapeHTML(formatDate(r.date))}</td>
+                  <td>${escapeHTML(r.className || "—")}</td>
+                  <td>${escapeHTML(capitalize(r.status || "present"))}</td>
+                  <td>${escapeHTML(formatTimestamp(r.punchedAt || r.createdAt))}</td>
+                  <td>${escapeHTML(r.markedByRole === "student" ? "Student" : `Teacher (${r.teacherName || "Teacher"})`)}</td>
+                  <td>${formatEditHistoryText(r)}</td>
+                </tr>
+              `).join("")}
             </tbody>
           </table>
         </div>
@@ -745,356 +448,92 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
   }
 
-  async function loadIndividualMonthlyAttendance(studentId, month) {
-    if (!academyId) return;
-
-    const [year, monthNumber] = month.split("-").map(Number);
-    const startDate = `${month}-01`;
-    const endDate = getLocalDateString(
-      new Date(year, monthNumber, 0)
-    );
-
-    if (individualStudentDetails) {
-      individualStudentDetails.textContent = "Loading monthly records...";
-    }
-
-    try {
-      const rows = await fetchAttendanceRecords(
-        startDate,
-        endDate,
-        studentId
-      );
-
-      const student = studentDirectory.find(
-        (item) => item.studentId === studentId
-      );
-
-      const studentName = student?.studentName || "Student";
-      const studentEmail = student?.email || "";
-
-      attendanceRows = rows.map((record) =>
-        normalizeAttendanceRecord(record, studentDirectory)
-      );
-
-      currentView = "monthly";
-
-      pageDate.textContent = `${formatDate(startDate)} – ${formatDate(endDate)}`;
-      selectedDateLabel.textContent = `${studentName} — Monthly Attendance`;
-      sessionDetails.textContent =
-        `${studentEmail ? `${studentEmail} · ` : ""}${rows.length} attendance record(s) found`;
-
-      if (!rows.length) {
-        classesContainer.innerHTML = `
-          <div class="attendance-empty-state">
-            <h3>No records found</h3>
-            <p>No attendance records were found for ${escapeHTML(studentName)} in ${escapeHTML(month)}.</p>
-          </div>
-        `;
-
-        if (individualStudentDetails) {
-          individualStudentDetails.textContent =
-            "No attendance records were found for this student and month.";
-        }
-
-        return;
-      }
-
-      classesContainer.innerHTML = `
-        <section class="attendance-class-section">
-          <div class="attendance-monthly-heading">
-            <h3>${escapeHTML(studentName)} — ${escapeHTML(month)}</h3>
-            <p>Daily attendance and recorded login/logout details</p>
-          </div>
-
-          <div class="attendance-table-wrapper">
-            <table class="attendance-monthly-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Class</th>
-                  <th>Class Start</th>
-                  <th>Check-in</th>
-                  <th>Class End</th>
-                  <th>Check-out</th>
-                  <th>Login</th>
-                  <th>Logout</th>
-                  <th>Login Duration</th>
-                  <th>Attendance</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${attendanceRows
-                  .sort((a, b) =>
-                    String(a.date).localeCompare(String(b.date))
-                  )
-                  .map((row) => `
-                    <tr>
-                      <td>${escapeHTML(row.date ? formatDate(row.date) : "—")}</td>
-                      <td>${escapeHTML(row.className || "—")}</td>
-                      <td>${escapeHTML(row.classStartTime || "—")}</td>
-                      <td>${escapeHTML(formatTimestamp(row.checkInAt))}</td>
-                      <td>${escapeHTML(row.classEndTime || "—")}</td>
-                      <td>${escapeHTML(formatTimestamp(row.checkOutAt))}</td>
-                      <td>${escapeHTML(formatTimestamp(row.loginAt))}</td>
-                      <td>${escapeHTML(formatTimestamp(row.logoutAt))}</td>
-                      <td>${escapeHTML(row.loginDuration || "Not tracked")}</td>
-                      <td>${escapeHTML(capitalize(row.status || "unknown"))}</td>
-                    </tr>
-                  `).join("")}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      `;
-
-      if (individualStudentDetails) {
-        individualStudentDetails.textContent =
-          `${rows.length} record(s) loaded for ${studentName}, ${month}.`;
-      }
-    } catch (error) {
-      console.error("Unable to load monthly student attendance:", error);
-
-      if (individualStudentDetails) {
-        individualStudentDetails.textContent =
-          getErrorMessage(error);
-      }
-    }
-  }
-
-  async function fetchAttendanceRecords(startDate, endDate, studentId = "") {
-    const constraints = [
-      where("academyId", "==", academyId),
-      where("date", ">=", startDate),
-      where("date", "<=", endDate)
-    ];
-
-    const snapshot = await getDocs(
-      query(collection(db, "attendance"), ...constraints)
-    );
-
-    return snapshot.docs
-      .map((item) => ({
-        id: item.id,
-        ...item.data()
-      }))
-      .filter((record) => !studentId || record.studentId === studentId)
-      .sort((a, b) => {
-        const dateCompare = String(a.date || "").localeCompare(String(b.date || ""));
-        if (dateCompare !== 0) return dateCompare;
-
-        return String(a.studentName || "").localeCompare(
-          String(b.studentName || "")
-        );
-      });
-  }
-
-  function getClassSessionTime(classId, date, field) {
-    const classItem = classScheduleCache.find(
-      (item) => item.id === classId
-    );
-
-    const subjects = Array.isArray(classItem?.subjects) ? classItem.subjects : [];
-    for (const subj of subjects) {
-      const session = (subj.sessions || []).find(
-        (item) => item.date === date
-      );
-      if (session && session[field]) {
-        return session[field];
-      }
-    }
-    return "";
-  }
-
-  function normalizeAttendanceRecord(record, directory = studentDirectory) {
-    const student = directory.find(
-      (item) => item.studentId === record.studentId
-    );
-
-    const loginDetails = extractLoginDetails(record, student || {});
-    const loginAt = firstValue(record, [
-      "loginAt", "loggedInAt", "lastLoginAt", "sessionStartedAt"
-    ]) || firstValue(loginDetails, [
-      "loginAt", "loggedInAt", "lastLoginAt", "sessionStartedAt"
-    ]);
-
-    const logoutAt = firstValue(record, [
-      "logoutAt", "loggedOutAt", "sessionEndedAt"
-    ]) || firstValue(loginDetails, [
-      "logoutAt", "loggedOutAt", "sessionEndedAt"
-    ]);
-
-    return {
-      ...record,
-      studentName: record.studentName || student?.studentName || "Unknown student",
-      email: record.email || student?.email || "",
-      className: record.className || record.class || "—",
-      classStartTime:
-        record.startTime ||
-        record.classStartTime ||
-        getClassSessionTime(record.classId, record.date, "startTime"),
-
-      classEndTime:
-        record.endTime ||
-        record.classEndTime ||
-        getClassSessionTime(record.classId, record.date, "endTime"),
-      checkInAt: record.checkInAt || record.checkedInAt || null,
-      checkOutAt: record.checkOutAt || record.checkedOutAt || null,
-      loginAt,
-      logoutAt,
-      loginDuration: calculateRecordedLoginDuration({
-        ...record,
-        ...loginDetails,
-        loginAt,
-        logoutAt
-      }),
-      status: normalizeStatus(record.status || "unknown")
-    };
-  }
-
   async function exportSelectedReport() {
-    if (!academyId) {
-      showMessage("Administrator profile is not ready yet.");
+    if (!academyId) return;
+    const reportType = downloadReportType?.value || "all-month";
+    const selectedStudentId = downloadStudentSelect?.value || "";
+    const selectedMonth = downloadMonth?.value || currentMonth;
+    let startDate = `${selectedMonth}-01`;
+    const [y, m] = selectedMonth.split("-").map(Number);
+    let endDate = getLocalDateString(new Date(y, m, 0));
+    let studentId = "";
+
+    if (reportType === "student-month" || reportType === "student-current-month") {
+      studentId = selectedStudentId;
+      if (reportType === "student-current-month") {
+        const cur = getLocalDateString(new Date()).slice(0, 7);
+        const [cy, cm] = cur.split("-").map(Number);
+        startDate = `${cur}-01`;
+        endDate = getLocalDateString(new Date(cy, cm, 0));
+      }
+    } else if (reportType === "all-range") {
+      startDate = downloadStartDate?.value || startDate;
+      endDate = downloadEndDate?.value || endDate;
+    }
+
+    const snap = await getDocs(query(collection(db, "attendance"), where("academyId", "==", academyId)));
+    const rows = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(r =>
+        typeof r.date === "string" &&
+        r.date >= startDate &&
+        r.date <= endDate &&
+        (!studentId || r.studentId === studentId)
+      );
+
+    if (!rows.length) {
+      showMessage("No attendance records found for those filters.");
       return;
     }
 
-    const reportType = downloadReportType?.value || "all-month";
-    const selectedStudentId = downloadStudentSelect?.value || "";
-    const selectedMonth = downloadMonth?.value || "";
-    let startDate = "";
-    let endDate = "";
-    let studentId = "";
+    const headers = ["Date", "Student Name", "Class", "Status", "Punch Time", "Marked By", "Original Status"];
+    const csvRows = [
+      headers,
+      ...rows.map(r => [
+        r.date || "",
+        r.studentName || "",
+        r.className || "",
+        capitalize(r.status || "present"),
+        formatTimestamp(r.punchedAt || r.createdAt),
+        r.markedByRole === "student" ? "Student" : (r.teacherName || "Teacher"),
+        capitalize(r.originalStatus || r.status || "present")
+      ])
+    ];
 
-    if (reportType === "all-month") {
-      if (!selectedMonth) {
-        showMessage("Select a month for the report.");
-        return;
-      }
+    const csv = "\uFEFF" + csvRows.map(row => row.map(csvEscape).join(",")).join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `attendance-${startDate}-to-${endDate}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
 
-      startDate = `${selectedMonth}-01`;
+  function populateIndividualStudentSelect() { updateStudentDropdown(individualStudentSelect); }
+  function populateDownloadStudentSelect() { updateStudentDropdown(downloadStudentSelect); }
 
-      const [year, monthNumber] = selectedMonth.split("-").map(Number);
-      endDate = getLocalDateString(new Date(year, monthNumber, 0));
-    }
+  function updateStudentDropdown(selectElement) {
+    if (!selectElement) return;
+    const prev = selectElement.value;
+    selectElement.innerHTML = '<option value="">Select a student</option>';
+    studentDirectory.forEach(s => {
+      const opt = document.createElement("option");
+      opt.value = s.studentId;
+      opt.textContent = `${s.studentName} (${s.email || "No email"})`;
+      selectElement.appendChild(opt);
+    });
+    if (prev && studentDirectory.some(s => s.studentId === prev)) selectElement.value = prev;
+  }
 
-    if (reportType === "student-month") {
-      if (!selectedStudentId || !selectedMonth) {
-        showMessage("Select both a student and a month.");
-        return;
-      }
-
-      studentId = selectedStudentId;
-      startDate = `${selectedMonth}-01`;
-
-      const [year, monthNumber] = selectedMonth.split("-").map(Number);
-      endDate = getLocalDateString(new Date(year, monthNumber, 0));
-    }
-
-    if (reportType === "all-range") {
-      startDate = downloadStartDate?.value || "";
-      endDate = downloadEndDate?.value || "";
-
-      if (!startDate || !endDate || startDate > endDate) {
-        showMessage("Choose a valid start date and end date.");
-        return;
-      }
-    }
-
-    if (reportType === "student-current-month") {
-      if (!selectedStudentId) {
-        showMessage("Select a student.");
-        return;
-      }
-
-      studentId = selectedStudentId;
-
-      const currentMonth = getLocalDateString(new Date()).slice(0, 7);
-      startDate = `${currentMonth}-01`;
-
-      const [year, monthNumber] = currentMonth.split("-").map(Number);
-      endDate = getLocalDateString(new Date(year, monthNumber, 0));
-    }
-
-    exportAttendanceButton.disabled = true;
-    exportAttendanceButton.textContent = "Preparing CSV...";
-
-    try {
-      const records = await fetchAttendanceRecords(
-        startDate,
-        endDate,
-        studentId
-      );
-
-      if (!records.length) {
-        showMessage("No attendance records were found for those filters.");
-        return;
-      }
-
-      const rows = records.map((record) =>
-        normalizeAttendanceRecord(record, studentDirectory)
-      );
-
-      const headers = [
-        "Date",
-        "Student Name",
-        "Student ID",
-        "Email",
-        "Class",
-        "Class Start Time",
-        "Check-in Time",
-        "Class End Time",
-        "Check-out Time",
-        "Student Login Time",
-        "Student Logout Time",
-        "Login Duration",
-        "Attendance"
-      ];
-
-      const csvRows = [
-        headers,
-        ...rows.map((row) => [
-          row.date || "",
-          row.studentName,
-          row.studentId || "",
-          row.email,
-          row.className,
-          row.classStartTime,
-          formatTimestamp(row.checkInAt),
-          row.classEndTime,
-          formatTimestamp(row.checkOutAt),
-          formatTimestamp(row.loginAt),
-          formatTimestamp(row.logoutAt),
-          row.loginDuration,
-          capitalize(row.status)
-        ])
-      ];
-
-      const csv = "\uFEFF" + csvRows
-        .map((row) => row.map(csvEscape).join(","))
-        .join("\r\n");
-
-      const blob = new Blob([csv], {
-        type: "text/csv;charset=utf-8;"
-      });
-
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-
-      link.href = url;
-      link.download =
-        `attendance-${reportType}-${startDate}-to-${endDate}.csv`;
-
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch (error) {
-      console.error("Attendance export failed:", error);
-      showMessage(getErrorMessage(error));
-    } finally {
-      exportAttendanceButton.disabled = false;
-      exportAttendanceButton.textContent = "Download CSV";
-    }
+  function formatEditHistoryText(record) {
+    const edits = Array.isArray(record.editHistory) ? record.editHistory : [];
+    if (!edits.length) return `Original: ${escapeHTML(capitalize(record.status || "present"))}`;
+    const firstEdit = edits[0];
+    const latestEdit = edits[edits.length - 1];
+    return `Original: <strong>${escapeHTML(capitalize(firstEdit.previousStatus || record.originalStatus || "present"))}</strong> → Updated: <strong>${escapeHTML(capitalize(latestEdit.newStatus || record.status || "present"))}</strong> (${escapeHTML(formatTimestamp(latestEdit.editedAt || record.updatedAt))})`;
   }
 
   function setLoadingState(isLoading) {
@@ -1102,240 +541,76 @@ document.addEventListener("DOMContentLoaded", () => {
     downloadButton.disabled = isLoading;
   }
 
-  function showMessage(message) {
-    sessionDetails.textContent = message;
-
-    classesContainer.innerHTML = `
-      <div class="attendance-empty-state">
-        <p>${escapeHTML(message)}</p>
-      </div>
-    `;
+  function showMessage(msg) {
+    sessionDetails.textContent = msg;
+    classesContainer.innerHTML = `<div class="attendance-empty-state"><p>${escapeHTML(msg)}</p></div>`;
   }
 
-  function getStudentName(student) {
-    return (
-      student.fullName ||
-      student.name ||
-      [student.firstName, student.lastName].filter(Boolean).join(" ") ||
-      student.email ||
-      "Unnamed student"
-    );
+  function getStudentName(s) {
+    return s.fullName || s.name || [s.firstName, s.lastName].filter(Boolean).join(" ") || s.email || "Unnamed student";
   }
 
-  function normalizeStatus(status) {
-    const value = String(status || "absent").toLowerCase();
-
-    if (["present", "absent", "late", "excused"].includes(value)) {
-      return value;
-    }
-
-    return "other";
+  function normalizeStatus(st) {
+    const v = String(st || "absent").toLowerCase();
+    return ["present", "absent", "late", "excused"].includes(v) ? v : "other";
   }
 
-  function countStatus(records, status) {
-    return records.filter(
-      (record) => normalizeStatus(record.status) === status
-    ).length;
-  }
-
-  function firstValue(object, keys) {
-    for (const key of keys) {
-      if (
-        object &&
-        object[key] !== undefined &&
-        object[key] !== null &&
-        object[key] !== ""
-      ) {
-        return object[key];
-      }
-    }
-
-    return null;
+  function countStatus(recs, st) {
+    return recs.filter(r => normalizeStatus(r.status) === st).length;
   }
 
   function toDate(value) {
     if (!value) return null;
-
     if (typeof value.toDate === "function") return value.toDate();
     if (value instanceof Date) return value;
-
     if (typeof value === "number" || typeof value === "string") {
-      const date = new Date(value);
-      return Number.isNaN(date.getTime()) ? null : date;
+      const d = new Date(value);
+      return Number.isNaN(d.getTime()) ? null : d;
     }
-
-    if (typeof value === "object" && Number.isFinite(value.seconds)) {
-      return new Date(value.seconds * 1000);
-    }
-
+    if (typeof value === "object" && Number.isFinite(value.seconds)) return new Date(value.seconds * 1000);
     return null;
   }
 
   function formatTimestamp(value) {
-    const date = toDate(value);
-    if (!date) return "—";
-
-    return date.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit"
-    });
-  }
-
-  function parseClassTime(value) {
-    if (!value || typeof value !== "string") return null;
-
-    const match = value.match(/^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i);
-    if (!match) return null;
-
-    let hours = Number(match[1]);
-    const minutes = Number(match[2]);
-    const suffix = (match[3] || "").toUpperCase();
-
-    if (minutes > 59 || hours > 23) return null;
-
-    if (suffix === "PM" && hours < 12) hours += 12;
-    if (suffix === "AM" && hours === 12) hours = 0;
-
-    return hours * 60 + minutes;
-  }
-
-  function calculateClassDuration(startTime, endTime) {
-    const start = parseClassTime(startTime);
-    const end = parseClassTime(endTime);
-
-    if (start === null || end === null) return "—";
-
-    let minutes = end - start;
-    if (minutes < 0) minutes += 24 * 60;
-
-    const hours = Math.floor(minutes / 60);
-    const remainingMinutes = minutes % 60;
-
-    if (hours && remainingMinutes) {
-      return `${hours} hr ${remainingMinutes} min`;
-    }
-
-    if (hours) return `${hours} hr`;
-    return `${remainingMinutes} min`;
-  }
-
-  function calculateRecordedLoginDuration(record) {
-    const direct = firstValue(record, [
-      "loginDuration", "sessionDuration", "activeDuration"
-    ]);
-
-    if (typeof direct === "string" && direct.trim()) return direct;
-
-    if (typeof direct === "number" && Number.isFinite(direct)) {
-      const minutes = Math.max(0, Math.round(direct));
-
-      return minutes >= 60
-        ? `${Math.floor(minutes / 60)} hr${minutes % 60 ? ` ${minutes % 60} min` : ""}`
-        : `${minutes} min`;
-    }
-
-    const start = toDate(firstValue(record, [
-      "loginAt", "loggedInAt", "sessionStartedAt", "startedAt"
-    ]));
-
-    const end = toDate(firstValue(record, [
-      "logoutAt", "loggedOutAt", "sessionEndedAt", "endedAt"
-    ]));
-
-    if (!start || !end || end < start) return "Not tracked";
-
-    const minutes = Math.round((end.getTime() - start.getTime()) / 60000);
-
-    return minutes >= 60
-      ? `${Math.floor(minutes / 60)} hr${minutes % 60 ? ` ${minutes % 60} min` : ""}`
-      : `${minutes} min`;
-  }
-
-  function extractLoginDetails(attendanceRecord, student) {
-    const candidates = [
-      attendanceRecord.loginDetails,
-      attendanceRecord.sessionDetails,
-      attendanceRecord,
-      student?.loginDetails,
-      student?.sessionDetails,
-      student || {}
-    ].filter((value) => value && typeof value === "object");
-
-    const result = {};
-
-    for (const candidate of candidates) {
-      for (const key of [
-        "loginAt", "loggedInAt", "lastLoginAt", "sessionStartedAt",
-        "logoutAt", "loggedOutAt", "sessionEndedAt",
-        "loginDuration", "sessionDuration", "activeDuration",
-        "loginHistory", "sessions"
-      ]) {
-        if (result[key] === undefined && candidate[key] !== undefined) {
-          result[key] = candidate[key];
-        }
-      }
-    }
-
-    return result;
+    const d = toDate(value);
+    if (!d) return "—";
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   }
 
   function getLocalDateString(date) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-
-    return `${year}-${month}-${day}`;
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
   }
 
   function formatDate(dateString) {
-    const [year, month, day] = dateString.split("-").map(Number);
-    const date = new Date(year, month - 1, day);
-
-    return date.toLocaleDateString(undefined, {
-      day: "numeric",
-      month: "short",
-      year: "numeric"
-    });
+    const [y, m, d] = dateString.split("-").map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
   }
 
   function getStartOfWeek(dateString) {
-    const [year, month, day] = dateString.split("-").map(Number);
-    const date = new Date(year, month - 1, day);
+    const [y, m, d] = dateString.split("-").map(Number);
+    const date = new Date(y, m - 1, d);
     const weekday = date.getDay();
-    const offset = weekday === 0 ? -6 : 1 - weekday;
-
-    date.setDate(date.getDate() + offset);
+    date.setDate(date.getDate() + (weekday === 0 ? -6 : 1 - weekday));
     return date;
   }
 
-  function capitalize(value) {
-    const text = String(value || "");
-    return text.charAt(0).toUpperCase() + text.slice(1);
+  function capitalize(v) {
+    const s = String(v || "");
+    return s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
   }
 
-  function csvEscape(value) {
-    return `"${String(value ?? "").replace(/"/g, '""')}"`;
+  function csvEscape(v) {
+    return `"${String(v ?? "").replace(/"/g, '""')}"`;
   }
 
-  function escapeHTML(value) {
-    return String(value ?? "").replace(/[&<>"']/g, (character) => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#39;"
-    })[character]);
+  function escapeHTML(v) {
+    return String(v ?? "").replace(/[&<>"']/g, ch => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[ch]));
   }
 
-  function getErrorMessage(error) {
-    if (error?.code === "permission-denied") {
-      return "Firestore denied access. Check your attendance and student security rules.";
-    }
-
-    if (error?.code === "failed-precondition") {
-      return "Firestore requires an index for one of the queries. Check the browser console for the index link.";
-    }
-
-    return error?.message || "An unexpected error occurred.";
+  function getErrorMessage(err) {
+    if (err?.code === "permission-denied") return "Firestore denied access. Check your security rules.";
+    return err?.message || "An unexpected error occurred.";
   }
 });
