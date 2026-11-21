@@ -1,4 +1,4 @@
-const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_OAUTH_CLIENT_ID.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID = "122093844253-0rjpa4dn89n5tt4rucm9q1sortgttcle.apps.googleusercontent.com";
 const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 
 let tokenClient = null;
