@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,178 +8,707 @@
 
   <link rel="stylesheet" href="../../css/app.css">
 
-  <script src="../../js/main.js" defer></script>
-  <script src="../../js/navigation.js" defer></script>
-  <script src="../../js/student-sidebar.js" defer></script>
-  <script src="../../js/student-materials.js" defer></script>
-  <script type="module" src="../../js/account-menu.js"></script>
+  <style>
+    .student-materials-page,
+    .student-materials-page * {
+      box-sizing: border-box;
+    }
+
+    .student-materials-page {
+      padding: 24px;
+      background: #f4f6fc;
+      min-height: 100%;
+    }
+
+    .stats-strip {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .stat-box {
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 4px 12px rgba(30, 41, 59, 0.04);
+    }
+
+    .stat-box span {
+      display: block;
+      font-size: 11px;
+      color: #64748b;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .stat-box strong {
+      font-size: 18px;
+      color: #0f172a;
+      overflow-wrap: anywhere;
+    }
+
+    .sub-nav-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .sub-tab-btn {
+      padding: 10px 18px;
+      border-radius: 10px;
+      border: 1px solid #cbd5e1;
+      background: #ffffff;
+      color: #334155;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .sub-tab-btn.active {
+      background: #2563eb;
+      border-color: #2563eb;
+      color: #ffffff;
+    }
+
+    .sub-panel {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 22px;
+      margin-bottom: 20px;
+      box-shadow: 0 5px 16px rgba(30, 41, 59, 0.04);
+    }
+
+    .materials-table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+    }
+
+    .materials-table {
+      width: 100%;
+      min-width: 760px;
+      border-collapse: collapse;
+    }
+
+    .materials-table th,
+    .materials-table td {
+      padding: 12px 14px;
+      text-align: left;
+      border-bottom: 1px solid #edf0f5;
+      font-size: 13px;
+    }
+
+    .materials-table th {
+      background: #f8fafc;
+      color: #475569;
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+
+    .action-btn-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .viewer-modal-backdrop[hidden] {
+      display: none;
+    }
+
+    .viewer-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.65);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 1000;
+    }
+
+    .viewer-modal {
+      width: 100%;
+      max-width: 860px;
+      max-height: 88vh;
+      background: #ffffff;
+      border-radius: 14px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .viewer-modal-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 18px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .viewer-modal-body {
+      padding: 18px;
+      overflow: auto;
+      min-height: 360px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    /* ==========================================================================
+   EduAdmin — Student Study Materials Styles
+   ========================================================================== */
+
+.student-materials-page,
+.student-materials-page * {
+  box-sizing: border-box;
+}
+
+.student-materials-page {
+  padding: 24px;
+  background: #f4f6fc;
+  min-height: calc(100vh - 76px);
+}
+
+/* Top Overview Stats */
+.stats-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.stat-box {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 15px 18px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.stat-box:hover {
+  transform: translateY(-1px);
+  border-color: #cbd5e1;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+}
+
+.stat-box span {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+
+.stat-box strong {
+  display: block;
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+/* Sub-Navigation Tabs: Browse Material | My Material */
+.sub-nav-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.sub-tab-btn {
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.sub-tab-btn:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.sub-tab-btn.active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.22);
+}
+
+/* Main Content Panels */
+.sub-panel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 22px;
+  margin-bottom: 20px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+}
+
+.sub-panel .section-heading {
+  margin-bottom: 16px;
+}
+
+.sub-panel .section-heading h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+  color: #0f172a;
+}
+
+.sub-panel .section-heading p {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+/* Filter Toolbar */
+.student-materials-page .table-toolbar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+  align-items: end;
+}
+
+.student-materials-page .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+}
+
+.student-materials-page .form-group label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.student-materials-page .form-group input,
+.student-materials-page .form-group select {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #0f172a;
+  font: inherit;
+  font-size: 13.5px;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.student-materials-page .form-group input:focus,
+.student-materials-page .form-group select:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+
+/* Materials Table */
+.materials-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.materials-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+}
+
+.materials-table th,
+.materials-table td {
+  padding: 13px 15px;
+  text-align: left;
+  border-bottom: 1px solid #edf0f5;
+  font-size: 13.5px;
+  color: #1e293b;
+  vertical-align: middle;
+}
+
+.materials-table th {
+  background: #f8fafc;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.materials-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.materials-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.materials-table td strong {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.materials-table td.empty-state {
+  text-align: center;
+  padding: 36px 20px;
+  color: #64748b;
+}
+
+.materials-table td.empty-state strong {
+  display: block;
+  font-size: 15px;
+  color: #334155;
+  margin-bottom: 4px;
+}
+
+.materials-table td.empty-state p {
+  margin: 0;
+  font-size: 13px;
+}
+
+/* Action Buttons inside Table & Modal */
+.action-btn-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.student-materials-page .btn,
+.viewer-modal .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 13px;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.student-materials-page .btn-primary,
+.viewer-modal .btn-primary {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+}
+
+.student-materials-page .btn-primary:hover,
+.viewer-modal .btn-primary:hover {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+.student-materials-page .btn-secondary,
+.viewer-modal .btn-secondary {
+  background: #ffffff;
+  color: #334155;
+  border-color: #cbd5e1;
+}
+
+.student-materials-page .btn-secondary:hover,
+.viewer-modal .btn-secondary:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+/* Preview Modal */
+.viewer-modal-backdrop[hidden] {
+  display: none;
+}
+
+.viewer-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.68);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 1500;
+}
+
+.viewer-modal {
+  width: 100%;
+  max-width: 900px;
+  max-height: 88vh;
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.viewer-modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.viewer-modal-head strong {
+  font-size: 15px;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.viewer-modal-body {
+  padding: 18px;
+  overflow: auto;
+  min-height: 360px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.viewer-modal-body iframe {
+  width: 100%;
+  height: 68vh;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+
+.viewer-modal-body img {
+  max-width: 100%;
+  max-height: 70vh;
+  border-radius: 10px;
+  object-fit: contain;
+}
+
+/* Mobile Adjustments */
+@media (max-width: 768px) {
+  .student-materials-page {
+    padding: 14px;
+  }
+
+  .sub-panel {
+    padding: 16px;
+    border-radius: 14px;
+  }
+
+  .sub-nav-tabs .sub-tab-btn {
+    flex: 1 1 140px;
+    text-align: center;
+  }
+}
+  </style>
 </head>
 
 <body>
   <div class="dashboard-layout">
-
     <div id="student-sidebar-mount"></div>
     <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
     <main class="dashboard-main">
-
       <header class="dashboard-topbar">
-        <button
-          type="button"
-          class="sidebar-toggle"
-          id="sidebar-toggle"
-          aria-label="Toggle navigation"
-          aria-controls="student-sidebar"
-          aria-expanded="false"
-        >☰</button>
+        <div class="topbar-left">
+          <button
+            type="button"
+            class="sidebar-toggle"
+            id="sidebar-toggle"
+            aria-label="Toggle navigation"
+            aria-controls="student-sidebar"
+            aria-expanded="false"
+          >☰</button>
 
-        <div>
-          <p class="eyebrow">STUDENT PORTAL</p>
-          <h1>Study Materials</h1>
-          <p>Browse your learning resources and check access to paid materials.</p>
+          <div>
+            <p class="eyebrow">STUDENT PORTAL</p>
+            <h1>Study Materials</h1>
+            <p>Access notes, PDFs, diagrams, and video lectures published for your batch.</p>
+          </div>
+        </div>
+
+        <div class="topbar-actions">
+          <div id="account-menu-mount"></div>
         </div>
       </header>
 
-      <section class="dashboard-section">
-        <div class="section-heading">
-          <div>
-            <h2>Browse Materials</h2>
-            <p>Search for notes, worksheets, assignments, and other resources.</p>
-          </div>
-        </div>
+      <div class="dashboard-content">
+        <section class="student-materials-page">
+          <div id="student-materials-message" class="form-message" role="status" aria-live="polite" hidden></div>
 
-        <div class="table-toolbar">
-          <div class="form-group">
-            <label for="student-material-search">Search materials</label>
-            <input
-              type="search"
-              id="student-material-search"
-              placeholder="Search by title or subject"
-            >
-          </div>
-
-          <div class="form-group">
-            <label for="student-material-type-filter">Material type</label>
-            <select id="student-material-type-filter">
-              <option value="all">All types</option>
-              <option value="notes">Notes</option>
-              <option value="worksheet">Worksheets</option>
-              <option value="assignment">Assignments</option>
-              <option value="question-paper">Question papers</option>
-              <option value="answer-key">Answer keys</option>
-              <option value="other">Other</option>
-            </select>
+          <!-- Overview Stats -->
+          <div class="stats-strip">
+            <div class="stat-box">
+              <span>Your Batch / Class</span>
+              <strong id="stat-student-class">—</strong>
+            </div>
+            <div class="stat-box">
+              <span>Available Materials</span>
+              <strong id="stat-total-materials">0</strong>
+            </div>
+            <div class="stat-box">
+              <span>Saved in My Material</span>
+              <strong id="stat-saved-materials">0</strong>
+            </div>
           </div>
 
-          <div class="form-group">
-            <label for="student-material-access-filter">Access</label>
-            <select id="student-material-access-filter">
-              <option value="all">All materials</option>
-              <option value="free">Free</option>
-              <option value="paid">Paid</option>
-            </select>
+          <!-- Sub-Buttons Navigation -->
+          <div class="sub-nav-tabs" role="tablist">
+            <button type="button" class="sub-tab-btn active" data-tab="browse">Browse Material</button>
+            <button type="button" class="sub-tab-btn" data-tab="my">My Material</button>
           </div>
-        </div>
 
-        <div class="table-container">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Material</th>
-                <th>Subject</th>
-                <th>Class</th>
-                <th>Access</th>
-                <th>Price</th>
-                <th>Availability</th>
-                <th>Action</th>
-              </tr>
-            </thead>
+          <!-- 1. BROWSE MATERIAL PANEL -->
+          <section id="panel-browse" class="sub-panel">
+            <div class="section-heading" style="margin-bottom: 14px;">
+              <div>
+                <h2 style="margin: 0 0 4px;">Browse Material</h2>
+                <p style="margin: 0; color: #64748b; font-size: 13px;">
+                  Search and filter study materials uploaded by your teachers.
+                </p>
+              </div>
+            </div>
 
-            <tbody id="student-materials-table-body">
-              <tr>
-                <td colspan="7" class="empty-state">
-                  <strong>No materials available</strong>
-                  <p>
-                    Study materials will appear here when published materials
-                    are connected to your student account.
-                  </p>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
+            <div class="table-toolbar" style="margin-bottom: 14px;">
+              <div class="form-group">
+                <label for="student-material-search">Search materials</label>
+                <input
+                  type="search"
+                  id="student-material-search"
+                  placeholder="Search by title, subject, or teacher"
+                >
+              </div>
 
-      <section class="dashboard-section">
-        <div class="section-heading">
-          <div>
-            <h2>Paid Material Access</h2>
-            <p>Understand how payment verification controls access.</p>
-          </div>
-        </div>
+              <div class="form-group">
+                <label for="student-subject-filter">Subject</label>
+                <select id="student-subject-filter">
+                  <option value="all">All Subjects</option>
+                </select>
+              </div>
 
-        <div class="stats-grid">
+              <div class="form-group">
+                <label for="student-material-type-filter">Material type</label>
+                <select id="student-material-type-filter">
+                  <option value="all">All Types</option>
+                  <option value="pdf">PDF / Notes</option>
+                  <option value="photo">Image / Diagram</option>
+                  <option value="video">Video Lecture</option>
+                  <option value="file">Other File</option>
+                </select>
+              </div>
+            </div>
 
-          <article class="stat-card">
-            <p class="stat-label">Payment Pending</p>
-            <h3>Pending Review</h3>
-            <p class="stat-description">
-              The admin must verify the UPI transaction. Material access remains locked.
-            </p>
-          </article>
+            <div class="materials-table-wrap">
+              <table class="materials-table">
+                <thead>
+                  <tr>
+                    <th>Material</th>
+                    <th>Subject</th>
+                    <th>Class</th>
+                    <th>Type</th>
+                    <th>Teacher</th>
+                    <th>Uploaded</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="browse-materials-tbody">
+                  <tr>
+                    <td colspan="7" class="empty-state">Loading study materials...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
 
-          <article class="stat-card">
-            <p class="stat-label">Payment Approved</p>
-            <h3>Access Granted</h3>
-            <p class="stat-description">
-              Access becomes available after the backend records the approval.
-            </p>
-          </article>
+          <!-- 2. MY MATERIAL PANEL -->
+          <section id="panel-my" class="sub-panel" hidden>
+            <div class="section-heading" style="margin-bottom: 14px;">
+              <div>
+                <h2 style="margin: 0 0 4px;">My Material</h2>
+                <p style="margin: 0; color: #64748b; font-size: 13px;">
+                  Bookmarked notes and video lectures saved for quick revision.
+                </p>
+              </div>
+            </div>
 
-          <article class="stat-card">
-            <p class="stat-label">Payment Rejected</p>
-            <h3>Access Locked</h3>
-            <p class="stat-description">
-              Check the payment details and contact the academy if necessary.
-            </p>
-          </article>
-
-        </div>
-
-        <p class="form-help">
-          These are workflow explanations, not your personal payment status.
-          No payment has been verified by this page.
-        </p>
-      </section>
-
-      <section
-        class="dashboard-section"
-        id="student-material-payment-section"
-        aria-labelledby="student-material-payment-title"
-      >
-        <div class="section-heading">
-          <div>
-            <h2 id="student-material-payment-title">Payment Instructions</h2>
-            <p>Instructions for requesting access to a paid material.</p>
-          </div>
-        </div>
-
-        <ol>
-          <li>Select a paid material from the list once materials are available.</li>
-          <li>Review the price and the academy's configured UPI payment details.</li>
-          <li>Pay using the displayed QR code or UPI details.</li>
-          <li>Submit the transaction reference through the payment form when available.</li>
-          <li>Wait for the admin to verify the payment.</li>
-          <li>Open the material after approval is recorded.</li>
-        </ol>
-
-        <div class="form-message" role="status">
-          UPI details, QR code, payment submission, and material unlocking are
-          not connected yet. Do not make a payment based on this placeholder page.
-        </div>
-      </section>
-
+            <div class="materials-table-wrap">
+              <table class="materials-table">
+                <thead>
+                  <tr>
+                    <th>Material</th>
+                    <th>Subject</th>
+                    <th>Class</th>
+                    <th>Type</th>
+                    <th>Teacher</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="my-materials-tbody">
+                  <tr>
+                    <td colspan="6" class="empty-state">
+                      No saved materials yet. Click <strong>Save</strong> on any item in Browse Material to pin it here.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+      </div>
     </main>
   </div>
+
+  <!-- In-App Viewer Modal -->
+  <div id="student-viewer-modal" class="viewer-modal-backdrop" hidden>
+    <div class="viewer-modal" role="dialog" aria-modal="true" aria-labelledby="student-viewer-title">
+      <div class="viewer-modal-head">
+        <strong id="student-viewer-title">Material Preview</strong>
+        <div class="action-btn-group">
+          <a
+            id="student-viewer-external-link"
+            href="#"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn btn-secondary"
+          >Open in New Tab</a>
+          <button type="button" id="close-student-viewer-modal" class="btn btn-primary">Close</button>
+        </div>
+      </div>
+      <div id="student-viewer-body" class="viewer-modal-body"></div>
+    </div>
+  </div>
+
+  <script src="../../js/main.js" defer></script>
+  <script src="../../js/navigation.js" defer></script>
+  <script src="../../js/student-sidebar.js" defer></script>
+  <script type="module" src="../../js/student-live-class.js"></script>
+  <script type="module" src="../../js/account-menu.js"></script>
+  <script type="module" src="../../js/student-materials.js"></script>
 </body>
 </html>

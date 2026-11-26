@@ -185,6 +185,10 @@
           role="tab" aria-selected="false" aria-controls="panel-todays-due"
           data-fee-tab="panel-todays-due">Todays Due Payments</button>
 
+          <button class="fee-tab" id="tab-due-miss" type="button"
+          role="tab" aria-selected="false" aria-controls="panel-due-miss"
+          data-fee-tab="panel-due-miss">Due Miss Payment</button>
+
       </nav>
 
       <!-- TAB 1: ASSIGN FEE -->
@@ -499,6 +503,47 @@
 
       </section>
 
+      <!-- TAB 6: DUE MISS PAYMENT -->
+      <section class="dashboard-section fee-tab-panel"
+        id="panel-due-miss" role="tabpanel" aria-labelledby="tab-due-miss" hidden>
+
+        <div class="section-heading">
+          <div>
+            <h2>Due Miss Payment</h2>
+            <p>Students who have not paid their fee or installment even after the due date has passed.</p>
+          </div>
+        </div>
+
+        <div class="table-toolbar">
+          <div class="form-group">
+            <label for="due-miss-search">Search missed due payments</label>
+            <input type="search" id="due-miss-search"
+              placeholder="Search student name or fee type...">
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th>Fee Type</th>
+                <th>Total Amount</th>
+                <th>Amount Paid</th>
+                <th>Balance Due</th>
+                <th>Due Date</th>
+                <th>Plan Type</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="due-miss-table-body">
+              <tr><td colspan="8">Loading missed due payments...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+      </section>
+      
     </main>
   </div>
 </body>

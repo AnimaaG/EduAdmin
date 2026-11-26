@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f5f7fb">
+  <title>Online Classes | EduAdmin</title>
+  <link rel="stylesheet" href="../../css/app.css">
+
+  <script src="https://meet.jit.si/external_api.js" defer></script>
+  <script src="../../js/main.js" defer></script>
+  <script src="../../js/navigation.js" defer></script>
+  <script src="../../js/teacher-sidebar.js" defer></script>
+  <script type="module" src="../../js/teacher-online-classes.js"></script>
+  <script type="module" src="../../js/account-menu.js"></script>
+
+  <style>
+    .schedule-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .live-schedule-card {
+      background: var(--card-bg, #fff);
+      border: 1px solid var(--border-color, #e5e7eb);
+      border-radius: 14px;
+      padding: 1.15rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .live-schedule-card.is-live {
+      border-color: #dc2626;
+      box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.12);
+    }
+
+    .card-top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .status-pill {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+      text-transform: uppercase;
+    }
+
+    .status-pill.scheduled {
+      background: #eff6ff;
+      color: #1d4ed8;
+    }
+
+    .status-pill.live {
+      background: #fef2f2;
+      color: #dc2626;
+    }
+
+    .live-mode-switch {
+      display: flex;
+      gap: 0.5rem;
+      margin: 0.75rem 0;
+    }
+
+    .mode-option-btn {
+      flex: 1;
+      padding: 0.65rem 0.85rem;
+      border: 1px solid var(--border-color, #d1d5db);
+      border-radius: 10px;
+      background: #fff;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .mode-option-btn.active {
+      background: var(--primary-color, #2563eb);
+      color: #fff;
+      border-color: var(--primary-color, #2563eb);
+    }
+
+    .live-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.72);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      z-index: 1200;
+    }
+
+    .live-modal-backdrop[hidden] {
+      display: none !important;
+    }
+
+    .live-modal-box {
+      width: min(1040px, 100%);
+      background: #fff;
+      border-radius: 16px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.28);
+    }
+
+    .live-modal-box.setup-box {
+      width: min(500px, 100%);
+      padding: 1.35rem;
+    }
+
+    .live-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.9rem 1.2rem;
+      background: #0f172a;
+      color: #fff;
+    }
+
+    .live-stage-container {
+      width: 100%;
+      height: min(74vh, 640px);
+      background: #000;
+    }
+
+    .live-stage-container iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
+
+    .btn-danger {
+      background: #dc2626;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 0.55rem 0.95rem;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="dashboard-layout">
+    <div id="teacher-sidebar-mount"></div>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <main class="dashboard-main">
+      <header class="dashboard-topbar">
+        <button
+          type="button"
+          class="sidebar-toggle"
+          id="sidebar-toggle"
+          aria-label="Toggle navigation"
+          aria-controls="teacher-sidebar"
+          aria-expanded="false"
+        >☰</button>
+
+        <div>
+          <p class="eyebrow">LIVE CLASSROOM</p>
+          <h1>Online Classes</h1>
+          <p>Start an interactive live meeting or broadcast a YouTube Live session from today's schedule.</p>
+        </div>
+      </header>
+
+      <p id="online-class-message" class="form-message" role="status" hidden></p>
+
+      <section class="dashboard-section">
+        <div class="section-heading">
+          <div>
+            <h2>Today's Scheduled Classes (<span id="today-date-label">—</span>)</h2>
+            <p>Select a scheduled class to start an online session. Enrolled students are notified automatically.</p>
+          </div>
+        </div>
+
+        <div id="todays-schedules-grid" class="schedule-cards-grid">
+          <p>Loading today's schedule...</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- SETUP MODAL: CHOOSE MEETING OR YOUTUBE LIVE -->
+  <div id="start-class-modal" class="live-modal-backdrop" hidden>
+    <div class="live-modal-box setup-box" role="dialog" aria-modal="true" aria-labelledby="setup-modal-title">
+      <h2 id="setup-modal-title" style="margin: 0 0 0.35rem;">Start Online Class</h2>
+      <p id="setup-modal-subtitle" style="margin: 0 0 1rem; color: #475569; font-size: 0.92rem;"></p>
+
+      <label style="font-weight: 600; font-size: 0.9rem;">Choose Class Mode</label>
+      <div class="live-mode-switch">
+        <button type="button" id="mode-btn-jitsi" class="mode-option-btn active">
+          Interactive Meeting
+        </button>
+        <button type="button" id="mode-btn-youtube" class="mode-option-btn">
+          YouTube Live Link
+        </button>
+      </div>
+
+      <div id="jitsi-mode-info" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 0.85rem; font-size: 0.88rem; color: #334155;">
+        <strong>Embedded Live Room (Up to 95 mins free)</strong>
+        <p style="margin: 0.35rem 0 0;">
+          Opens an interactive audio/video & screen-share classroom directly inside EduAdmin.
+          Enrolled students connect automatically without leaving the app.
+        </p>
+      </div>
+
+      <div id="youtube-mode-fields" hidden style="margin-top: 0.5rem;">
+        <div class="form-group">
+          <label for="youtube-live-url">YouTube Live URL or Video ID *</label>
+          <input
+            type="url"
+            id="youtube-live-url"
+            placeholder="https://www.youtube.com/watch?v=... or https://youtu.be/..."
+          >
+        </div>
+        <p style="margin: 0.35rem 0 0; font-size: 0.82rem; color: #64748b;">
+          Set your YouTube Live stream to <strong>Unlisted</strong> or <strong>Public</strong> with embedding enabled.
+        </p>
+      </div>
+
+      <div class="form-actions" style="display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 1.25rem;">
+        <button type="button" id="cancel-start-modal" class="btn btn-secondary">Cancel</button>
+        <button type="button" id="confirm-start-class" class="btn btn-primary">Go Live Now</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ACTIVE LIVE ROOM MODAL (JITSI OR YOUTUBE PREVIEW) -->
+  <div id="active-live-modal" class="live-modal-backdrop" hidden>
+    <div class="live-modal-box" role="dialog" aria-modal="true" aria-labelledby="active-live-title">
+      <div class="live-modal-header">
+        <div>
+          <strong id="active-live-title">Live Class</strong>
+          <div id="active-live-meta" style="font-size: 0.82rem; color: #cbd5e1;"></div>
+        </div>
+        <div style="display: flex; gap: 0.6rem;">
+          <button type="button" id="minimize-live-modal" class="btn btn-secondary">Hide Window</button>
+          <button type="button" id="end-live-class-btn" class="btn-danger">End Class for All</button>
+        </div>
+      </div>
+
+      <div id="live-stage-container" class="live-stage-container"></div>
+    </div>
+  </div>
+</body>
+</html>

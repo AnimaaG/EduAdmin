@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f5f7fb">
+  <title>Online Classes | EduAdmin</title>
+  <link rel="stylesheet" href="../../css/app.css">
+
+  <script src="https://meet.jit.si/external_api.js" defer></script>
+  <script src="../../js/main.js" defer></script>
+  <script src="../../js/navigation.js" defer></script>
+  <script src="../../js/student-sidebar.js" defer></script>
+  <script type="module" src="../../js/student-live-class.js"></script>
+  <script type="module" src="../../js/student-online-classes-page.js"></script>
+  <script type="module" src="../../js/account-menu.js"></script>
+
+  <style>
+    .student-live-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .student-session-card {
+      background: var(--card-bg, #fff);
+      border: 1px solid var(--border-color, #e5e7eb);
+      border-radius: 14px;
+      padding: 1.15rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.7rem;
+    }
+
+    .student-session-card.is-live {
+      border-color: #dc2626;
+      background: #fffafa;
+      box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.12);
+    }
+
+    .session-top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .live-status-pill {
+      font-size: 0.74rem;
+      font-weight: 700;
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+      text-transform: uppercase;
+    }
+
+    .live-status-pill.live {
+      background: #fef2f2;
+      color: #dc2626;
+    }
+
+    .live-status-pill.upcoming {
+      background: #eff6ff;
+      color: #1d4ed8;
+    }
+
+    .live-status-pill.ended {
+      background: #f1f5f9;
+      color: #475569;
+    }
+
+    .mode-tag {
+      font-size: 0.78rem;
+      color: #475569;
+      background: #f1f5f9;
+      padding: 0.2rem 0.55rem;
+      border-radius: 6px;
+      display: inline-block;
+      width: fit-content;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="dashboard-layout">
+    <div id="student-sidebar-mount"></div>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <main class="dashboard-main">
+      <header class="dashboard-topbar">
+        <button
+          type="button"
+          class="sidebar-toggle"
+          id="sidebar-toggle"
+          aria-label="Toggle navigation"
+          aria-controls="student-sidebar"
+          aria-expanded="false"
+        >☰</button>
+
+        <div>
+          <p class="eyebrow">LIVE LEARNING</p>
+          <h1>Online Classes</h1>
+          <p>Join active live classes immediately or check your scheduled sessions for today.</p>
+        </div>
+      </header>
+
+      <p id="student-online-message" class="form-message" role="status" hidden></p>
+
+      <!-- ACTIVE LIVE SESSIONS SECTION -->
+      <section class="dashboard-section">
+        <div class="section-heading">
+          <div>
+            <h2>Live Now</h2>
+            <p>Classes currently streaming or in progress for your batch.</p>
+          </div>
+        </div>
+
+        <div id="student-live-now-grid" class="student-live-grid">
+          <p>Checking for live classes...</p>
+        </div>
+      </section>
+
+      <!-- TODAY'S SCHEDULED CLASSES SECTION -->
+      <section class="dashboard-section">
+        <div class="section-heading">
+          <div>
+            <h2>Today's Class Schedule (<span id="student-today-date">—</span>)</h2>
+            <p>When your teacher starts any class below, the live classroom opens automatically or via Join Now.</p>
+          </div>
+        </div>
+
+        <div id="student-today-schedule-grid" class="student-live-grid">
+          <p>Loading today's schedule...</p>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

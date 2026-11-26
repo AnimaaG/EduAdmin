@@ -1,12 +1,4 @@
 import { auth, db } from "./firebase-config.js";
-import {
-  connectGoogleDrive,
-  getDriveQuotaInfo,
-  formatBytes,
-  uploadFileToDrive,
-  deleteDriveFile,
-  isDriveConnected
-} from "./google-drive-service.js";
 
 import {
   onAuthStateChanged
@@ -27,28 +19,29 @@ import {
 const $ = id => document.getElementById(id);
 
 const messageBox = $("materials-message");
-const connectDriveBtn = $("connect-drive-btn");
-const switchDriveBtn = $("switch-drive-btn");
-const driveBadge = $("drive-connection-badge");
-const driveAccountLabel = $("drive-account-label");
 
-const statDriveStatus = $("stat-drive-status");
-const statStorageUsed = $("stat-storage-used");
-const statStorageRemaining = $("stat-storage-remaining");
-const statStorageTotal = $("stat-storage-total");
+const openSavedFolderBtn = $("open-saved-folder-btn");
+const driveShortcutStatus = $("drive-shortcut-status");
+const folderUrlInput = $("shared-folder-url-input");
+const saveFolderBtn = $("save-folder-shortcut-btn");
+const clearFolderBtn = $("clear-folder-shortcut-btn");
+
+const statAssignedClasses = $("stat-assigned-classes");
 const statMaterialsCount = $("stat-materials-count");
-const quotaBar = $("drive-quota-bar");
+const statFolderShortcut = $("stat-folder-shortcut");
 
 const uploadForm = $("upload-material-form");
 const classSelect = $("material-class-select");
 const subjectSelect = $("material-subject-select");
 const titleInput = $("material-title");
 const sourceTypeSelect = $("material-source-type");
-const driveFileFields = $("drive-file-fields");
+const driveLinkFields = $("drive-link-fields");
 const externalLinkFields = $("external-link-fields");
-const fileInput = $("material-file-input");
+const driveUrlInput = $("material-drive-url");
 const videoUrlInput = $("material-video-url");
-const uploadProgressText = $("upload-progress-text");
+const testPreviewBtn = $("test-link-preview-btn");
+const driveLinkStatus = $("drive-link-status");
+const inlinePreviewBox = $("inline-link-preview");
 const submitBtn = $("submit-material-btn");
 
 const filterClassSelect = $("filter-class-select");
@@ -62,7 +55,6 @@ const viewerBody = $("viewer-modal-body");
 const closeViewerBtn = $("close-viewer-modal");
 
 let teacherProfile = null;
-let academyName = "Academy";
 let assignedClasses = [];
 let materials = [];
 
@@ -79,9 +71,82 @@ function escapeHTML(val) {
   }[ch]));
 }
 
+function getFolderStorageKey() {
+  const uid = auth.currentUser?.uid || teacherProfile?.uid || "default";
+  return `eduadmin_drive_folder_${uid}`;
+}
+
+function extractDriveFileId(rawUrl) {
+  const input = String(rawUrl || "").trim();
+  if (!input) return "";
+
+  if (/^[a-zA-Z0-9_-]{15,}$/.test(input)) {
+    return input;
+  }
+
+  const patterns = [
+    /\/file\/d\/([a-zA-Z0-9_-]+)/,
+    /\/d\/([a-zA-Z0-9_-]+)/,
+    /[?&]id=([a-zA-Z0-9_-]+)/
+  ];
+
+  for (const re of patterns) {
+    const match = input.match(re);
+    if (match && match[1]) return match[1];
+  }
+
+  return "";
+}
+
+function extractDriveFolderUrl(rawUrl) {
+  const input = String(rawUrl || "").trim();
+  if (!input) return "";
+
+  const folderMatch = input.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+  if (folderMatch && folderMatch[1]) {
+    return `https://drive.google.com/drive/folders/${folderMatch[1]}`;
+  }
+
+  if (/^[a-zA-Z0-9_-]{15,}$/.test(input)) {
+    return `https://drive.google.com/drive/folders/${input}`;
+  }
+
+  try {
+    const parsed = new URL(input);
+    if (parsed.hostname.endsWith("google.com") && parsed.pathname.includes("/drive/")) {
+      return parsed.toString();
+    }
+  } catch {
+    return "";
+  }
+
+  return "";
+}
+
+function buildDriveLinks(rawUrl) {
+  const trimmed = String(rawUrl || "").trim();
+  const fileId = extractDriveFileId(trimmed);
+
+  if (fileId) {
+    return {
+      driveFileId: fileId,
+      viewUrl: `https://drive.google.com/file/d/${fileId}/view`,
+      previewUrl: `https://drive.google.com/file/d/${fileId}/preview`,
+      imageUrl: `https://drive.google.com/thumbnail?id=${fileId}&sz=w1200`
+    };
+  }
+
+  return {
+    driveFileId: "",
+    viewUrl: trimmed,
+    previewUrl: trimmed,
+    imageUrl: trimmed
+  };
+}
+
 function toEmbedVideoUrl(url) {
   const trimmed = String(url || "").trim();
-  const ytMatch = trimmed.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([A-Za-z0-9_-]{6,})/);
+  const ytMatch = trimmed.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([A-Za-z0-9_-]{6,})/);
   if (ytMatch) {
     return `https://www.youtube.com/embed/${ytMatch[1]}`;
   }
@@ -92,46 +157,82 @@ function toEmbedVideoUrl(url) {
   return trimmed;
 }
 
-function detectFileCategory(file) {
-  const mime = String(file?.type || "").toLowerCase();
-  if (mime.startsWith("image/")) return "photo";
-  if (mime.startsWith("video/")) return "video";
-  if (mime === "application/pdf") return "pdf";
+function detectMaterialType(title, url) {
+  const combined = `${title || ""} ${url || ""}`.toLowerCase();
+  if (/\.(png|jpe?g|gif|webp|bmp|svg)(\?|#|$)/i.test(combined)) return "photo";
+  if (/\.(mp4|mov|webm|mkv|avi)(\?|#|$)/i.test(combined) || /youtube\.com|youtu\.be|vimeo\.com/i.test(combined)) {
+    return "video";
+  }
+  if (/\.pdf(\?|#|$)/i.test(combined) || /notes|worksheet|chapter|pdf/i.test(title || "")) {
+    return "pdf";
+  }
   return "file";
 }
 
-function renderDriveStats(quota = null) {
-  const connected = isDriveConnected();
-  driveBadge.textContent = connected ? "Connected" : "Disconnected";
-  driveBadge.classList.toggle("connected", connected);
-  statDriveStatus.textContent = connected ? "Connected" : "Disconnected";
-  statMaterialsCount.textContent = String(materials.length);
+function syncFolderShortcutUI() {
+  const savedUrl = localStorage.getItem(getFolderStorageKey()) || "";
+  if (folderUrlInput && document.activeElement !== folderUrlInput) {
+    folderUrlInput.value = savedUrl;
+  }
 
-  if (connected && quota) {
-    driveAccountLabel.textContent = `Connected Google Drive: ${quota.emailAddress}`;
-    statStorageUsed.textContent = formatBytes(quota.usedBytes);
-    statStorageRemaining.textContent = formatBytes(quota.remainingBytes);
-    statStorageTotal.textContent = quota.limitBytes > 0 ? formatBytes(quota.limitBytes) : "Unlimited";
-    quotaBar.style.width = `${quota.percentUsed}%`;
+  if (savedUrl) {
+    if (openSavedFolderBtn) {
+      openSavedFolderBtn.href = savedUrl;
+      openSavedFolderBtn.hidden = false;
+    }
+    if (statFolderShortcut) statFolderShortcut.textContent = "Saved";
+    if (driveShortcutStatus) {
+      driveShortcutStatus.textContent =
+        "Saved folder shortcut ready—click 'Open Saved Drive Folder' to drop files straight into your shared folder.";
+    }
   } else {
-    statStorageUsed.textContent = "—";
-    statStorageRemaining.textContent = "—";
-    statStorageTotal.textContent = "—";
-    quotaBar.style.width = "0%";
+    if (openSavedFolderBtn) {
+      openSavedFolderBtn.href = "#";
+      openSavedFolderBtn.hidden = true;
+    }
+    if (statFolderShortcut) statFolderShortcut.textContent = "Not Set";
+    if (driveShortcutStatus) {
+      driveShortcutStatus.textContent =
+        "Uses your own Google Drive storage with no extra login or app approval needed.";
+    }
   }
 }
 
-async function refreshQuota() {
-  if (!isDriveConnected()) {
-    renderDriveStats(null);
+function renderInlinePreview(rawUrl) {
+  if (!inlinePreviewBox || !driveLinkStatus) return;
+
+  const trimmed = String(rawUrl || "").trim();
+  if (!trimmed) {
+    inlinePreviewBox.hidden = true;
+    inlinePreviewBox.innerHTML = "";
+    driveLinkStatus.className = "link-status-hint";
+    driveLinkStatus.textContent = "Paste any Google Drive file link—EduAdmin will format it for in-app viewing.";
     return;
   }
-  try {
-    const quota = await getDriveQuotaInfo();
-    renderDriveStats(quota);
-  } catch (err) {
-    console.warn("Quota refresh failed:", err);
+
+  const parsed = buildDriveLinks(trimmed);
+  if (!parsed.driveFileId) {
+    driveLinkStatus.className = "link-status-hint warn";
+    driveLinkStatus.textContent =
+      "Could not detect a Drive file ID. Make sure you copied a file link (not a folder link) set to 'Anyone with the link'.";
+    inlinePreviewBox.hidden = true;
+    inlinePreviewBox.innerHTML = "";
+    return;
   }
+
+  driveLinkStatus.className = "link-status-hint ok";
+  driveLinkStatus.textContent =
+    "Drive file link detected. Check the preview below—if you see a sign-in or access wall, set sharing in Drive to 'Anyone with the link'.";
+
+  inlinePreviewBox.hidden = false;
+  inlinePreviewBox.innerHTML = `
+    <iframe
+      src="${escapeHTML(parsed.previewUrl)}"
+      style="width: 100%; height: 280px; border: 0; border-radius: 8px; background: #ffffff;"
+      allow="autoplay; encrypted-media"
+      allowfullscreen
+    ></iframe>
+  `;
 }
 
 function getSubjectsForClass(classItem) {
@@ -150,6 +251,7 @@ function populateClassDropdowns() {
 
   classSelect.innerHTML = optionsHtml || '<option value="">No assigned classes</option>';
   filterClassSelect.innerHTML = '<option value="">All Assigned Classes</option>' + optionsHtml;
+  statAssignedClasses.textContent = String(assignedClasses.length);
 
   populateSubjectDropdownForUpload();
   populateSubjectDropdownForFilter();
@@ -208,21 +310,28 @@ function renderViewList() {
 
 function renderCleanList() {
   if (!materials.length) {
-    cleanTbody.innerHTML = '<tr><td colspan="5" class="empty-state">No materials to clean.</td></tr>';
+    cleanTbody.innerHTML = '<tr><td colspan="5" class="empty-state">No materials to manage.</td></tr>';
     return;
   }
 
-  cleanTbody.innerHTML = materials.map(item => `
-    <tr>
-      <td><strong>${escapeHTML(item.title)}</strong></td>
-      <td>${escapeHTML(item.className || "—")} · ${escapeHTML(item.subject || "—")}</td>
-      <td>${escapeHTML(item.sourceType === "drive-file" ? "Google Drive" : "Video Link")}</td>
-      <td>${escapeHTML(item.fileSize ? formatBytes(item.fileSize) : "—")}</td>
-      <td>
-        <button type="button" class="btn btn-secondary" data-delete-id="${escapeHTML(item.id)}">Delete</button>
-      </td>
-    </tr>
-  `).join("");
+  cleanTbody.innerHTML = materials.map(item => {
+    const openHref = item.viewUrl || item.videoUrl || item.previewUrl || "#";
+    return `
+      <tr>
+        <td><strong>${escapeHTML(item.title)}</strong></td>
+        <td>${escapeHTML(item.className || "—")} · ${escapeHTML(item.subject || "—")}</td>
+        <td>${escapeHTML(item.sourceType === "drive-file" ? "Google Drive" : "Video Link")}</td>
+        <td>
+          <a href="${escapeHTML(openHref)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
+            Open Link
+          </a>
+        </td>
+        <td>
+          <button type="button" class="btn btn-secondary" data-delete-id="${escapeHTML(item.id)}">Delete</button>
+        </td>
+      </tr>
+    `;
+  }).join("");
 }
 
 function openMaterialViewer(item) {
@@ -288,10 +397,7 @@ async function loadTeacherSetup(user) {
     throw new Error("Active teacher account is required.");
   }
 
-  const academySnap = await getDoc(doc(db, "academies", teacherProfile.academyId));
-  if (academySnap.exists()) {
-    academyName = academySnap.data()?.name || "Academy";
-  }
+  syncFolderShortcutUI();
 
   const classSnap = await getDocs(query(
     collection(db, "classes"),
@@ -308,7 +414,6 @@ async function loadTeacherSetup(user) {
     });
 
   populateClassDropdowns();
-  renderDriveStats(null);
   await loadMaterials();
 }
 
@@ -323,32 +428,38 @@ document.querySelectorAll(".sub-tab-btn").forEach(btn => {
   });
 });
 
-connectDriveBtn?.addEventListener("click", async () => {
-  try {
-    showMessage("Connecting to Google Drive...", "info");
-    const quota = await connectGoogleDrive({ switchAccount: false });
-    renderDriveStats(quota);
-    showMessage(`Connected Google Drive (${quota.emailAddress}).`, "success");
-  } catch (err) {
-    showMessage(err.message || "Google Drive connection failed.", "error");
+// Optional shared Drive folder shortcut
+saveFolderBtn?.addEventListener("click", () => {
+  const cleanFolderUrl = extractDriveFolderUrl(folderUrlInput?.value);
+  if (!cleanFolderUrl) {
+    showMessage("Paste a valid Google Drive folder URL (containing /folders/...).", "error");
+    return;
   }
+  localStorage.setItem(getFolderStorageKey(), cleanFolderUrl);
+  syncFolderShortcutUI();
+  showMessage("Saved your Google Drive folder shortcut for quick repeat uploads.", "success");
 });
 
-switchDriveBtn?.addEventListener("click", async () => {
-  try {
-    showMessage("Opening Google account selector...", "info");
-    const quota = await connectGoogleDrive({ switchAccount: true });
-    renderDriveStats(quota);
-    showMessage(`Switched to Google Drive (${quota.emailAddress}).`, "success");
-  } catch (err) {
-    showMessage(err.message || "Could not switch Google Drive account.", "error");
-  }
+clearFolderBtn?.addEventListener("click", () => {
+  localStorage.removeItem(getFolderStorageKey());
+  if (folderUrlInput) folderUrlInput.value = "";
+  syncFolderShortcutUI();
+  showMessage("Cleared saved Google Drive folder shortcut.", "info");
 });
 
+// Source type toggle & live preview check
 sourceTypeSelect?.addEventListener("change", () => {
   const isDrive = sourceTypeSelect.value === "drive-file";
-  driveFileFields.hidden = !isDrive;
+  driveLinkFields.hidden = !isDrive;
   externalLinkFields.hidden = isDrive;
+});
+
+testPreviewBtn?.addEventListener("click", () => {
+  renderInlinePreview(driveUrlInput?.value);
+});
+
+driveUrlInput?.addEventListener("paste", () => {
+  setTimeout(() => renderInlinePreview(driveUrlInput.value), 0);
 });
 
 classSelect?.addEventListener("change", populateSubjectDropdownForUpload);
@@ -373,7 +484,6 @@ uploadForm?.addEventListener("submit", async event => {
   }
 
   submitBtn.disabled = true;
-  uploadProgressText.textContent = "";
 
   try {
     let payload = {
@@ -389,57 +499,51 @@ uploadForm?.addEventListener("submit", async event => {
     };
 
     if (sourceType === "drive-file") {
-      const file = fileInput.files?.[0];
-      if (!file) throw new Error("Please choose a photo, video, or PDF file.");
-      if (!isDriveConnected()) {
-        throw new Error("Please connect Google Drive before uploading a file.");
+      const rawDriveUrl = driveUrlInput.value.trim();
+      if (!rawDriveUrl) {
+        throw new Error("Please paste your Google Drive file link.");
       }
 
-      uploadProgressText.textContent = "Uploading to Google Drive...";
-      const uploaded = await uploadFileToDrive({
-        file,
-        academyName,
-        className: payload.className,
-        subjectName: selectedSubject,
-        onProgress: pct => {
-          uploadProgressText.textContent = `Uploading to Google Drive: ${pct}%`;
-        }
-      });
+      const driveLinks = buildDriveLinks(rawDriveUrl);
+      if (!driveLinks.driveFileId) {
+        throw new Error("Please paste a valid Google Drive file link (e.g. https://drive.google.com/file/d/.../view).");
+      }
 
       payload = {
         ...payload,
-        materialType: detectFileCategory(file),
-        driveFileId: uploaded.driveFileId,
-        driveAccount: uploaded.driveAccount,
-        fileName: uploaded.fileName,
-        mimeType: uploaded.mimeType,
-        fileSize: uploaded.fileSize,
-        previewUrl: uploaded.previewUrl,
-        imageUrl: uploaded.imageUrl
+        materialType: detectMaterialType(title, rawDriveUrl),
+        driveFileId: driveLinks.driveFileId,
+        viewUrl: driveLinks.viewUrl,
+        previewUrl: driveLinks.previewUrl,
+        imageUrl: driveLinks.imageUrl,
+        videoUrl: ""
       };
-      renderDriveStats(uploaded.quota);
     } else {
       const rawUrl = videoUrlInput.value.trim();
-      if (!rawUrl) throw new Error("Please enter a valid video URL.");
+      if (!rawUrl) {
+        throw new Error("Please enter a valid video URL.");
+      }
+
       payload = {
         ...payload,
         materialType: "video",
         videoUrl: rawUrl,
+        viewUrl: rawUrl,
         previewUrl: toEmbedVideoUrl(rawUrl),
         imageUrl: "",
-        driveFileId: "",
-        fileSize: 0
+        driveFileId: ""
       };
     }
 
     await addDoc(collection(db, "studyMaterials"), payload);
     uploadForm.reset();
+    syncFolderShortcutUI();
     populateSubjectDropdownForUpload();
-    uploadProgressText.textContent = "";
+    renderInlinePreview("");
     showMessage("Study material saved successfully.", "success");
     await loadMaterials();
   } catch (err) {
-    console.error("Upload failed:", err);
+    console.error("Save failed:", err);
     showMessage(err.message || "Could not save study material.", "error");
   } finally {
     submitBtn.disabled = false;
@@ -461,19 +565,12 @@ cleanTbody?.addEventListener("click", async event => {
 
   btn.disabled = true;
   try {
-    if (item.sourceType === "drive-file" && item.driveFileId) {
-      if (!isDriveConnected()) {
-        throw new Error("Connect Google Drive first so the file can be removed from Drive.");
-      }
-      await deleteDriveFile(item.driveFileId);
-    }
     await deleteDoc(doc(db, "studyMaterials", item.id));
-    showMessage(`Deleted "${item.title}" and cleaned storage.`, "success");
+    showMessage(`Removed "${item.title}" from EduAdmin.`, "success");
     await loadMaterials();
-    await refreshQuota();
   } catch (err) {
     console.error("Delete failed:", err);
-    showMessage(err.message || "Could not delete material.", "error");
+    showMessage(err.message || "Could not remove material.", "error");
     btn.disabled = false;
   }
 });

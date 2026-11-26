@@ -18,7 +18,7 @@
       min-height: 100%;
     }
 
-    .drive-status-card {
+    .drive-helper-card {
       background: #ffffff;
       border: 1px solid #e2e8f0;
       border-radius: 16px;
@@ -27,72 +27,80 @@
       box-shadow: 0 5px 16px rgba(30, 41, 59, 0.04);
     }
 
-    .drive-status-top {
+    .drive-helper-top {
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: flex-start;
       flex-wrap: wrap;
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-
-    .drive-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 5px 10px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 700;
-      background: #fee2e2;
-      color: #991b1b;
-    }
-
-    .drive-badge.connected {
-      background: #dcfce7;
-      color: #166534;
-    }
-
-    .drive-stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-      gap: 12px;
+      gap: 14px;
       margin-bottom: 14px;
     }
 
-    .drive-stat-box {
+    .drive-action-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .drive-steps-box {
+      background: #f8fafc;
+      border: 1px solid #e5eaf2;
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-bottom: 14px;
+      font-size: 13px;
+      color: #334155;
+    }
+
+    .drive-steps-box ol {
+      margin: 6px 0 0;
+      padding-left: 18px;
+    }
+
+    .drive-steps-box li {
+      margin-bottom: 4px;
+    }
+
+    .folder-shortcut-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      padding-top: 12px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .folder-shortcut-bar input {
+      flex: 1 1 260px;
+      min-width: 220px;
+    }
+
+    .stats-strip {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .stat-box {
       padding: 12px 14px;
       border-radius: 12px;
       background: #f8fafc;
       border: 1px solid #e5eaf2;
     }
 
-    .drive-stat-box span {
+    .stat-box span {
       display: block;
       font-size: 11px;
       color: #64748b;
       margin-bottom: 4px;
     }
 
-    .drive-stat-box strong {
+    .stat-box strong {
       font-size: 16px;
       color: #0f172a;
       overflow-wrap: anywhere;
-    }
-
-    .quota-bar-track {
-      width: 100%;
-      height: 8px;
-      border-radius: 999px;
-      background: #e2e8f0;
-      overflow: hidden;
-    }
-
-    .quota-bar-fill {
-      height: 100%;
-      width: 0%;
-      background: #2563eb;
-      transition: width 200ms ease;
     }
 
     .sub-nav-tabs {
@@ -133,6 +141,38 @@
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 14px;
       margin-bottom: 14px;
+    }
+
+    .link-check-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .link-status-hint {
+      font-size: 12px;
+      color: #475569;
+      margin-top: 6px;
+    }
+
+    .link-status-hint.ok {
+      color: #166534;
+      font-weight: 600;
+    }
+
+    .link-status-hint.warn {
+      color: #991b1b;
+      font-weight: 600;
+    }
+
+    .inline-preview-box {
+      margin-top: 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 12px;
+      background: #f8fafc;
     }
 
     .materials-table-wrap {
@@ -225,7 +265,7 @@
           >☰</button>
           <div>
             <h1>Study Materials</h1>
-            <p>Upload files to Google Drive or add video links for your assigned classes.</p>
+            <p>Upload files to your own Google Drive and share them cleanly with your classes.</p>
           </div>
         </div>
         <div class="topbar-actions">
@@ -237,47 +277,70 @@
         <section class="materials-page">
           <div id="materials-message" class="form-message" role="status" aria-live="polite" hidden></div>
 
-          <!-- Top Google Drive Connection & Quota Overview -->
-          <section class="drive-status-card">
-            <div class="drive-status-top">
+          <!-- Google Drive Quick Helper & Shared Folder Shortcut -->
+          <section class="drive-helper-card">
+            <div class="drive-helper-top">
               <div>
-                <h2 style="margin: 0 0 6px;">Google Drive Connection &amp; Storage</h2>
-                <p id="drive-account-label" style="margin: 0; color: #64748b; font-size: 13px;">
-                  Connect a Google Drive account to upload photos, videos, or PDFs automatically.
+                <h2 style="margin: 0 0 6px;">My Google Drive Helper (15 GB Per Account)</h2>
+                <p id="drive-shortcut-status" style="margin: 0; color: #64748b; font-size: 13px;">
+                  Uses your own Google Drive storage with no extra login or app approval needed.
                 </p>
               </div>
-              <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                <span id="drive-connection-badge" class="drive-badge">Disconnected</span>
-                <button type="button" id="connect-drive-btn" class="btn btn-primary">Connect Google Drive</button>
-                <button type="button" id="switch-drive-btn" class="btn btn-secondary">Switch Drive</button>
+              <div class="drive-action-row">
+                <a
+                  id="open-my-drive-btn"
+                  href="https://drive.google.com/drive/my-drive"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="btn btn-primary"
+                >Open My Google Drive</a>
+
+                <a
+                  id="open-saved-folder-btn"
+                  href="#"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="btn btn-secondary"
+                  hidden
+                >Open Saved Drive Folder</a>
               </div>
             </div>
 
-            <div class="drive-stats-grid">
-              <div class="drive-stat-box">
-                <span>Status</span>
-                <strong id="stat-drive-status">Disconnected</strong>
+            <div class="drive-steps-box">
+              <strong>How to upload in 3 quick steps:</strong>
+              <ol>
+                <li>Click <strong>Open My Google Drive</strong> (or your <strong>Saved Drive Folder</strong>) and upload your PDF, photo, video, or notes.</li>
+                <li>Set sharing on the file—or once on your shared folder—to <strong>Anyone with the link</strong> (Viewer), then click <strong>Copy link</strong>.</li>
+                <li>Paste the link in the form below, click <strong>Test Preview</strong> to verify students can view it, and save.</li>
+              </ol>
+            </div>
+
+            <div class="folder-shortcut-bar">
+              <label for="shared-folder-url-input" style="font-size: 13px; font-weight: 600; color: #334155;">
+                Repeat-Upload Folder Shortcut (Optional):
+              </label>
+              <input
+                type="url"
+                id="shared-folder-url-input"
+                placeholder="Paste your shared Google Drive folder link (e.g. https://drive.google.com/drive/folders/...)"
+              >
+              <button type="button" id="save-folder-shortcut-btn" class="btn btn-secondary">Save Folder</button>
+              <button type="button" id="clear-folder-shortcut-btn" class="btn btn-secondary">Clear</button>
+            </div>
+
+            <div class="stats-strip">
+              <div class="stat-box">
+                <span>Assigned Classes</span>
+                <strong id="stat-assigned-classes">0</strong>
               </div>
-              <div class="drive-stat-box">
-                <span>Storage Used</span>
-                <strong id="stat-storage-used">—</strong>
-              </div>
-              <div class="drive-stat-box">
-                <span>Remaining Storage</span>
-                <strong id="stat-storage-remaining">—</strong>
-              </div>
-              <div class="drive-stat-box">
-                <span>Total Drive Quota</span>
-                <strong id="stat-storage-total">—</strong>
-              </div>
-              <div class="drive-stat-box">
+              <div class="stat-box">
                 <span>Uploaded Materials</span>
                 <strong id="stat-materials-count">0</strong>
               </div>
-            </div>
-
-            <div class="quota-bar-track">
-              <div id="drive-quota-bar" class="quota-bar-fill"></div>
+              <div class="stat-box">
+                <span>Shared Folder Shortcut</span>
+                <strong id="stat-folder-shortcut">Not Set</strong>
+              </div>
             </div>
           </section>
 
@@ -285,12 +348,12 @@
           <div class="sub-nav-tabs" role="tablist">
             <button type="button" class="sub-tab-btn active" data-tab="upload">Upload</button>
             <button type="button" class="sub-tab-btn" data-tab="view">View</button>
-            <button type="button" class="sub-tab-btn" data-tab="clean">Clean Storage</button>
+            <button type="button" class="sub-tab-btn" data-tab="clean">Manage List</button>
           </div>
 
           <!-- 1. UPLOAD PANEL -->
           <section id="panel-upload" class="sub-panel">
-            <h3 style="margin-top: 0;">Upload Material or Add Video Link</h3>
+            <h3 style="margin-top: 0;">Add Study Material</h3>
             <form id="upload-material-form">
               <div class="form-grid-2">
                 <div class="form-group">
@@ -313,18 +376,29 @@
                 </div>
 
                 <div class="form-group">
-                  <label for="material-source-type">Source Type</label>
+                  <label for="material-source-type">Material Source</label>
                   <select id="material-source-type">
-                    <option value="drive-file">Upload File to Google Drive (Photo / Video / PDF)</option>
-                    <option value="external-video">Add Video Link (YouTube / Other Platform)</option>
+                    <option value="drive-file">Google Drive File Link (PDF / Photo / Video / Doc)</option>
+                    <option value="external-video">YouTube / External Video Link</option>
                   </select>
                 </div>
               </div>
 
-              <div id="drive-file-fields" class="form-group">
-                <label for="material-file-input">Select File (Photo, Video, or PDF)</label>
-                <input type="file" id="material-file-input" accept="image/*,video/*,application/pdf">
-                <p id="upload-progress-text" style="margin: 6px 0 0; font-size: 12px; color: #64748b;"></p>
+              <div id="drive-link-fields" class="form-group">
+                <label for="material-drive-url">Google Drive File Link</label>
+                <input
+                  type="url"
+                  id="material-drive-url"
+                  placeholder="Paste Google Drive file link here (https://drive.google.com/file/d/.../view)"
+                >
+                <div class="link-check-row">
+                  <button type="button" id="test-link-preview-btn" class="btn btn-secondary">Test Preview</button>
+                  <span id="drive-link-status" class="link-status-hint">
+                    Paste any Google Drive file link—EduAdmin will format it for in-app viewing.
+                  </span>
+                </div>
+
+                <div id="inline-link-preview" class="inline-preview-box" hidden></div>
               </div>
 
               <div id="external-link-fields" class="form-group" hidden>
@@ -369,11 +443,11 @@
             </div>
           </section>
 
-          <!-- 3. CLEAN STORAGE PANEL -->
+          <!-- 3. MANAGE / CLEAN LIST PANEL -->
           <section id="panel-clean" class="sub-panel" hidden>
-            <h3 style="margin-top: 0;">Clean Storage</h3>
+            <h3 style="margin-top: 0;">Manage Uploaded Materials</h3>
             <p style="color: #64748b; font-size: 13px; margin-top: 0;">
-              Deleting a material removes its listing from the app and permanently deletes the file from Google Drive (if uploaded to Drive).
+              Removing a material deletes its entry from EduAdmin. Files stored in your Google Drive remain safely in your Drive unless you delete them there.
             </p>
 
             <div class="materials-table-wrap">
@@ -383,8 +457,8 @@
                     <th>Title</th>
                     <th>Class &amp; Subject</th>
                     <th>Source</th>
-                    <th>Size</th>
-                    <th>Delete</th>
+                    <th>Drive Link</th>
+                    <th>Remove</th>
                   </tr>
                 </thead>
                 <tbody id="clean-materials-tbody">

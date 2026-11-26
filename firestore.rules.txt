@@ -569,7 +569,11 @@ service cloud.firestore {
     }
 
     match /schedules/{scheduleId} {
-      allow read: if isAcademyAdmin(resource.data.academyId);
+      allow read: if isAcademyAdmin(resource.data.academyId)
+        || (
+          isAcademyTeacher(resource.data.academyId)
+          && resource.data.teacherId == request.auth.uid
+        );
 
       allow create: if isAcademyAdmin(request.resource.data.academyId)
         && request.resource.data.createdBy == request.auth.uid
@@ -613,6 +617,29 @@ service cloud.firestore {
         && get(userPath(request.resource.data.teacherId)).data.isActive == true;
 
       allow delete: if isAcademyAdmin(resource.data.academyId);
+    }
+
+    match /liveClasses/{liveClassId} {
+      // Admin, teacher, and active students in the same academy can read live classes
+      allow read: if isAcademyAdmin(resource.data.academyId)
+        || isAcademyTeacher(resource.data.academyId)
+        || isAcademyStudent(resource.data.academyId);
+
+      // Assigned teacher can start or update their own live class session
+      allow create, update: if isAcademyTeacher(request.resource.data.academyId)
+        && request.resource.data.teacherId == request.auth.uid
+        && request.resource.data.classId is string
+        && request.resource.data.className is string
+        && request.resource.data.subject is string
+        && request.resource.data.mode in ["jitsi", "youtube"]
+        && request.resource.data.status in ["live", "ended"]
+        && request.resource.data.updatedAt == request.time;
+
+      allow delete: if isAcademyAdmin(resource.data.academyId)
+        || (
+          isAcademyTeacher(resource.data.academyId)
+          && resource.data.teacherId == request.auth.uid
+        );
     }
 
     match /fees/{feeId} {

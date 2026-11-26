@@ -51,7 +51,12 @@ import { onAuthStateChanged } from
   const feeBody = $("fee-records-table-body");
   const installmentBody = $("installment-records-table-body");
   const todaysDueBody = $("todays-due-table-body");
+  const dueMissBody = $("due-miss-table-body");
   const message = $("fees-message");
+  const isPendingReview = (status) => {
+  const normalized = String(status || "").trim().toLowerCase();
+  return normalized === "pending" || normalized === "pending_review";
+};
 
   function showMessage(text, type = "info") {
     if (!message) return;
@@ -614,6 +619,7 @@ async function loadFees() {
 
         renderFees();
         renderTodaysDuePayments();
+        renderDueMissPayments();
         updateSummary();
   }
 
@@ -704,6 +710,90 @@ function renderTodaysDuePayments() {
     });
   }
 
+  function renderDueMissPayments() {
+    if (!dueMissBody) return;
+
+    dueMissBody.replaceChildren();
+
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const term = ($("due-miss-search")?.value || "").trim().toLowerCase();
+
+    const missedItems = [];
+
+    fees.forEach((fee) => {
+      const total = Number(fee.amount) || 0;
+      const paid = Number(fee.amountPaid) || 0;
+      const balance = Math.max(0, total - paid);
+
+      if (balance <= 0 || fee.status === "paid") return;
+
+      if (fee.paymentPlan === "installments" && Array.isArray(fee.installments)) {
+        fee.installments.forEach((inst) => {
+          const instPaid = Number(inst.amountPaid) || 0;
+          const instTotal = Number(inst.amount) || 0;
+          const instBalance = Math.max(0, instTotal - instPaid);
+
+          if (instBalance > 0 && inst.dueDate && inst.dueDate < todayStr) {
+            missedItems.push({
+              studentName: fee.studentName,
+              feeType: `${fee.feeType} (Inst. #${inst.number})`,
+              amount: instTotal,
+              amountPaid: instPaid,
+              balance: instBalance,
+              dueDate: inst.dueDate,
+              paymentPlan: "Installment",
+              status: "missed"
+            });
+          }
+        });
+      } else if (fee.dueDate && fee.dueDate < todayStr) {
+        missedItems.push({
+          studentName: fee.studentName,
+          feeType: fee.feeType || "General",
+          amount: total,
+          amountPaid: paid,
+          balance,
+          dueDate: fee.dueDate,
+          paymentPlan: "Full payment",
+          status: "missed"
+        });
+      }
+    });
+
+    const filtered = missedItems
+      .filter((item) => {
+        const searchable = [item.studentName, item.feeType].join(" ").toLowerCase();
+        return searchable.includes(term);
+      })
+      .sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate)));
+
+    if (!filtered.length) {
+      const row = document.createElement("tr");
+      const cell = makeCell("No missed due payments found.");
+      cell.colSpan = 8;
+      row.appendChild(cell);
+      dueMissBody.appendChild(row);
+      return;
+    }
+
+    filtered.forEach((item) => {
+      const row = document.createElement("tr");
+      [
+        item.studentName || "—",
+        item.feeType || "—",
+        money(item.amount),
+        money(item.amountPaid),
+        money(item.balance),
+        item.dueDate || "—",
+        item.paymentPlan,
+        item.status
+      ].forEach((val) => row.appendChild(makeCell(val)));
+
+      dueMissBody.appendChild(row);
+    });
+  }
+
   async function loadPayments() {
     const q = query(
       collection(db, "paymentSubmissions"),
@@ -727,7 +817,7 @@ function renderTodaysDuePayments() {
       (sum, fee) => sum + (Number(fee.amountPaid) || 0), 0
     );
 
-    const pending = payments.filter((payment) => payment.status === "pending");
+    const pending = payments.filter((payment) => isPendingReview(payment.status));
     const rejected = payments.filter((payment) => payment.status === "rejected");
 
     const pendingAmount = pending.reduce(
@@ -963,7 +1053,7 @@ function renderTodaysDuePayments() {
   function makeReviewButtons(payment) {
     const cell = document.createElement("td");
 
-    if (payment.status !== "pending") {
+   if (!isPendingReview(payment.status)) {
       cell.textContent = "Reviewed";
       return cell;
     }
@@ -997,8 +1087,8 @@ function renderTodaysDuePayments() {
     pendingPaymentBody.replaceChildren();
 
     const pending = payments
-      .filter((payment) => payment.status === "pending")
-      .sort((a, b) => dateValue(b.createdAt) - dateValue(a.createdAt));
+  .filter((payment) => isPendingReview(payment.status))
+  .sort((a, b) => dateValue(b.createdAt) - dateValue(a.createdAt));
 
     if (!pending.length) {
       const row = document.createElement("tr");
@@ -1076,7 +1166,7 @@ function renderTodaysDuePayments() {
     if (busy || !["approved", "rejected"].includes(nextStatus)) return;
 
     const payment = payments.find((item) => item.id === paymentId);
-    if (!payment || payment.status !== "pending") return;
+    if (!payment || !isPendingReview(payment.status)) return;
 
     if (
       nextStatus === "approved" &&
@@ -1205,6 +1295,7 @@ assignmentForm?.addEventListener("submit", assignFees);
   $("payment-search")?.addEventListener("input", renderPayments);
   $("payment-status-filter")?.addEventListener("change", renderPayments);
   $("todays-due-search")?.addEventListener("input", renderTodaysDuePayments);
+  $("due-miss-search")?.addEventListener("input", renderDueMissPayments);
 
   onAuthStateChanged(auth, async (user) => {
     if (!user) {

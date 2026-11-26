@@ -1,0 +1,86 @@
+/* ==========================================================================
+   EduAdmin — Web Ad Layout & Mobile Responsiveness
+   ========================================================================== */
+
+.edu-ad-slot {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  clear: both;
+}
+
+.edu-ad-slot:empty {
+  display: none;
+}
+
+.edu-ad-inner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  max-width: 100%;
+}
+
+/* Top bar / header banner spacing */
+.edu-ad-top {
+  margin: 10px auto 14px;
+  padding: 6px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+
+/* Section / card native & rectangle slots */
+.edu-ad-section {
+  margin: 18px auto;
+  padding: 8px;
+}
+
+/* Loading screen ad box (shown while data is loading) */
+.edu-ad-loading-box {
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+/* Desktop (728x90) vs Mobile (320x50) for top & leaderboard slots */
+.edu-ad-desktop-728 {
+  display: none;
+}
+
+.edu-ad-mobile-320 {
+  display: flex;
+}
+
+@media (min-width: 768px) {
+  .edu-ad-desktop-728 {
+    display: flex;
+  }
+
+  .edu-ad-mobile-320 {
+    display: none;
+  }
+}
+
+/* Mobile view refinements (aligned with app.css mobile layout) */
+@media (max-width: 767px) {
+  .edu-ad-top {
+    margin: 8px 12px 10px;
+    padding: 4px 6px;
+    border-radius: 8px;
+  }
+
+  .edu-ad-section {
+    margin: 12px;
+    padding: 4px;
+  }
+
+  .edu-ad-loading-box {
+    max-width: calc(100vw - 24px);
+    padding: 8px;
+  }
+}

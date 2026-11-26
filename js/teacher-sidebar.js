@@ -82,6 +82,13 @@
             <span>Timetable</span>
           </a>
 
+          <a href="online-classes.html"
+             data-nav-path="online-classes.html">
+            <span class="nav-icon" aria-hidden="true">🎥</span>
+            <span>Online Classes</span>
+            <span id="badge-live-classes" class="sidebar-badge" hidden>LIVE</span>
+          </a>
+
           <a href="syllabus.html"
              data-nav-path="syllabus.html">
             <span class="nav-icon" aria-hidden="true">☷</span>
@@ -331,7 +338,7 @@
     }
   }
 
-  async function initTeacherBadges() {
+async function initTeacherBadges() {
     try {
       const { auth, db } = await import("./firebase-config.js");
       const { onAuthStateChanged } = await import("https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js");
@@ -350,11 +357,31 @@
               b.hidden = snap.size === 0;
             }
           },
-              err => {
-          console.warn("Teacher announcement badge listener skipped:", err.code || err.message);
+            err => {
+              console.warn("Teacher announcement badge listener skipped:", err.code || err.message);
+            }
+          );
         }
-);
-        }
+
+        const qLive = query(
+          collection(db, "liveClasses"),
+          where("teacherId", "==", user.uid),
+          where("status", "==", "live")
+        );
+
+        onSnapshot(
+          qLive,
+          (snap) => {
+            const liveBadge = document.getElementById("badge-live-classes");
+            if (liveBadge) {
+              liveBadge.textContent = snap.size > 0 ? "LIVE" : "";
+              liveBadge.hidden = snap.size === 0;
+            }
+          },
+          (err) => {
+            console.warn("Teacher live class badge listener skipped:", err.code || err.message);
+          }
+        );
       });
     } catch (e) {
       console.error("Teacher badge initialization failed:", e);

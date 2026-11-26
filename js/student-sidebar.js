@@ -48,6 +48,13 @@
             <span>Schedules</span>
           </a>
 
+          <a href="online-classes.html"
+             data-nav-path="online-classes.html">
+            <span class="nav-icon" aria-hidden="true">🎥</span>
+            <span>Online Classes</span>
+            <span id="badge-student-live" class="sidebar-badge" hidden>LIVE</span>
+          </a>
+
           <a href="materials.html" data-nav-path="materials.html">
             <span class="nav-icon" aria-hidden="true">▤</span>
             <span>Study Materials</span>
@@ -144,11 +151,28 @@
     initStudentBadges();
   }
 
+  function studentMatchesSession(profile, session) {
+    if (!profile || !session) return false;
+
+    const sClassId = profile.classId || "";
+    const sClassIds = Array.isArray(profile.classIds) ? profile.classIds : [];
+    const sClassName = String(profile.className || "").trim().toLowerCase();
+
+    const sessionClassId = session.classId || "";
+    const sessionClassName = String(session.className || "").trim().toLowerCase();
+
+    if (sClassId && sessionClassId && sClassId === sessionClassId) return true;
+    if (sessionClassId && sClassIds.includes(sessionClassId)) return true;
+    if (sClassName && sessionClassName && sClassName === sessionClassName) return true;
+
+    return false;
+  }
+
   async function initStudentBadges() {
     try {
       const { auth, db } = await import("./firebase-config.js");
       const { onAuthStateChanged } = await import("https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js");
-      const { collection, query, where, onSnapshot } = await import("https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js");
+      const { collection, doc, getDoc, query, where, onSnapshot } = await import("https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js");
 
       onAuthStateChanged(auth, async (user) => {
         if (!user) return;
@@ -156,14 +180,63 @@
 
         // Monitor pending/unpaid fees for students
         if (currentFile !== "payments.html") {
-          const qFees = query(collection(db, "fees"), where("studentId", "==", user.uid), where("status", "in", ["pending", "partial"]));
-          onSnapshot(qFees, (snap) => {
-            const b = document.getElementById("badge-payments");
-            if (b) {
-              b.textContent = snap.size;
-              b.hidden = snap.size === 0;
+          const qFees = query(
+            collection(db, "fees"),
+            where("studentId", "==", user.uid),
+            where("status", "in", ["pending", "partial"])
+          );
+          onSnapshot(
+            qFees,
+            (snap) => {
+              const b = document.getElementById("badge-payments");
+              if (b) {
+                b.textContent = snap.size;
+                b.hidden = snap.size === 0;
+              }
+            },
+            (err) => {
+              console.warn("Student fee badge listener skipped:", err.code || err.message);
             }
-          });
+          );
+        }
+
+        // Monitor active live classes for the student's batch
+        if (currentFile !== "online-classes.html") {
+          try {
+            const profileSnap = await getDoc(doc(db, "users", user.uid));
+            if (!profileSnap.exists()) return;
+
+            const profile = profileSnap.data();
+            if (profile.role !== "student" || profile.isActive !== true || !profile.academyId) {
+              return;
+            }
+
+            const qLive = query(
+              collection(db, "liveClasses"),
+              where("academyId", "==", profile.academyId),
+              where("status", "==", "live")
+            );
+
+            onSnapshot(
+              qLive,
+              (snap) => {
+                const liveBadge = document.getElementById("badge-student-live");
+                if (!liveBadge) return;
+
+                const hasActiveClass = snap.docs.some((d) =>
+                  studentMatchesSession(profile, d.data())
+                );
+
+                liveBadge.textContent = hasActiveClass ? "LIVE" : "";
+                liveBadge.hidden = !hasActiveClass;
+              },
+              (err) => {
+                console.warn("Student live class badge listener skipped:", err.code || err.message);
+              }
+            );
+          } catch (profileErr) {
+            console.warn("Student live badge profile lookup skipped:", profileErr.code || profileErr.message);
+          }
         }
       });
     } catch (e) {
