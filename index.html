@@ -17,6 +17,12 @@
             <span>EduAdmin</span>
         </a>
 
+            <!-- Header Banner: 320x50 -->
+            <div class="edu-ad-slot edu-ad-fitted edu-ad-header"
+                data-ad-type="header-banner-320"
+                aria-label="Advertisement">
+            </div>
+
         <nav class="header-nav" aria-label="Main navigation">
             <a href="#features">Features</a>
             <a href="pages/login.html">Login</a>
@@ -26,8 +32,7 @@
         </nav>
     </header>
 
-    <!-- Top Responsive Adsterra Banner (728x90 Desktop / 320x50 Mobile) -->
-    <div class="edu-ad-slot edu-ad-top" data-ad-type="top-responsive" aria-label="Advertisement"></div>
+   
 
     <main>
         <section class="hero">
@@ -80,6 +85,12 @@
                 </div>
             </div>
         </section>
+
+         <!-- Top Split Row: Native Ad (Left) + Banner 1 / 728x90 (Right) -->
+    <div class="edu-ad-top-row" aria-label="Sponsored">
+        <div class="edu-ad-slot edu-ad-fitted edu-ad-left" data-ad-type="native"></div>
+        <div class="edu-ad-slot edu-ad-fitted edu-ad-right" data-ad-type="top-banner-728"></div>
+    </div>
 
         <section class="features-section" id="features">
             <div class="features-heading">
@@ -147,9 +158,6 @@
             </div>
         </section>
 
-        <!-- Native Banner Between Features and CTA -->
-        <div class="edu-ad-slot edu-ad-section" data-ad-type="native" data-ad-suffix="home" aria-label="Sponsored"></div>
-
         <section class="landing-cta">
             <h2>Ready to organize your academy?</h2>
             <p>Create an account to get started with EduAdmin.</p>
@@ -157,6 +165,17 @@
                 Get Started
             </a>
         </section>
+
+        <!-- Bottom Split Row: 300x250 (Left) + 468x60 (Right) -->
+            <div class="edu-ad-bottom-row" aria-label="Advertisement">
+
+                <div class="edu-ad-slot edu-ad-fitted edu-ad-bottom-left"
+                    data-ad-type="bottom-left-300"></div>
+
+                <div class="edu-ad-slot edu-ad-fitted edu-ad-bottom-right"
+                    data-ad-type="banner-468"></div>
+
+            </div>
     </main>
 
     <footer class="main-footer">

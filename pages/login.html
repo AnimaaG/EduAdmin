@@ -7,6 +7,8 @@
   <meta name="description" content="Sign in to your EduAdmin academy account.">
   <title>Login | EduAdmin</title>
   <link rel="stylesheet" href="../css/app.css">
+  <link rel="stylesheet" href="../css/ads.css">
+  <script src="../js/web-ads.js" defer></script>
   <script src="../js/main.js" defer></script>
   <script src="../js/navigation.js" defer></script>
 <script type="module" src="../js/auth.js"></script>
@@ -15,6 +17,12 @@
   <header class="main-header">
     <div class="container header-inner">
       <a class="brand" href="../index.html">EduAdmin</a>
+
+       <div class="edu-ad-slot edu-ad-fitted edu-ad-header"
+         data-ad-type="header-banner-320"
+         aria-label="Advertisement">
+    </div>
+
       <nav class="header-nav" aria-label="Main navigation">
         <a href="../index.html">Home</a>
         <a href="register.html">Create account</a>
@@ -24,13 +32,30 @@
 
   <main class="auth-main login-main">
     <section class="login-intro">
-      <p class="eyebrow">Welcome back</p>
-      <h1>Manage your academy with confidence.</h1>
-      <p>
-        Sign in to access your classes, attendance, learning materials,
-        schedules and fee records.
-      </p>
-    </section>
+
+  <!-- Native Ad Above Welcome Text -->
+  <div class="edu-ad-slot edu-ad-fitted"
+       data-ad-type="native"
+       style="margin: 0 auto 24px; width: 100%;"
+       aria-label="Advertisement">
+  </div>
+
+  <p class="eyebrow">Welcome back</p>
+
+  <h1>Manage your academy with confidence.</h1>
+
+  <p>
+    Sign in to access your classes, attendance, learning materials,
+    schedules and fee records.
+  </p>
+
+    <div class="edu-ad-slot edu-ad-fitted"
+     data-ad-type="banner-300"
+     style="margin: 24px auto 0;"
+     aria-label="Advertisement">
+</div>
+
+</section>
 
     <section class="login-card" aria-labelledby="login-title">
       <div class="auth-heading">

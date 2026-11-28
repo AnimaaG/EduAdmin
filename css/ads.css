@@ -1,86 +1,229 @@
-/* ==========================================================================
-   EduAdmin — Web Ad Layout & Mobile Responsiveness
-   ========================================================================== */
+/* ==========================================================
+   EduAdmin — Centralized Web Advertisement Styles
+   ========================================================== */
+
+
+/* ==========================================================
+   COMMON AD SLOT
+   ========================================================== */
 
 .edu-ad-slot {
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  overflow: hidden;
-  clear: both;
-}
-
-.edu-ad-slot:empty {
-  display: none;
-}
-
-.edu-ad-inner {
   display: flex;
   justify-content: center;
   align-items: center;
   max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  clear: none;
+  box-sizing: border-box;
 }
 
-/* Top bar / header banner spacing */
-.edu-ad-top {
-  margin: 10px auto 14px;
-  padding: 6px 12px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
+.edu-ad-slot:empty,
+.edu-ad-slot[hidden] {
+  display: none !important;
 }
 
-/* Section / card native & rectangle slots */
-.edu-ad-section {
-  margin: 18px auto;
-  padding: 8px;
+.edu-ad-fitted {
+  width: fit-content;
+  max-width: 100%;
+  flex: 0 0 auto;
+  padding: 0;
+  margin: 0;
+  background: transparent;
 }
 
-/* Loading screen ad box (shown while data is loading) */
+.edu-ad-banner-content {
+  flex-shrink: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.edu-ad-banner-content iframe {
+  display: block;
+  border: 0;
+}
+
+
+/* ==========================================================
+   HEADER BANNER — 320x50
+   ========================================================== */
+
+.edu-ad-header {
+  width: 320px;
+  max-width: 100%;
+  flex: 0 0 auto;
+  margin: 0 auto;
+  padding: 0;
+}
+
+
+/* ==========================================================
+   MIDDLE ROW — NATIVE + 728x90
+   ========================================================== */
+
+.edu-ad-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  max-width: 1200px;
+  margin: 6px auto;
+  padding: 0 16px;
+  box-sizing: border-box;
+}
+
+.edu-ad-top-row .edu-ad-left {
+  flex: 1 1 auto;
+  max-width: 380px;
+  min-width: 0;
+}
+
+.edu-ad-top-row .edu-ad-right {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+
+/* ==========================================================
+   BOTTOM ROW — 300x250 + 468x60
+   ========================================================== */
+
+.edu-ad-bottom-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  max-width: 1200px;
+  margin: 12px auto 16px;
+  padding: 0 16px;
+  box-sizing: border-box;
+}
+
+.edu-ad-bottom-row .edu-ad-bottom-left {
+  margin-right: auto;
+}
+
+.edu-ad-bottom-row .edu-ad-bottom-right {
+  margin-left: auto;
+}
+
+
+/* ==========================================================
+   GENERAL PURPOSE AD PLACEMENTS
+   ========================================================== */
+
+.edu-ad-center {
+  margin: 12px auto;
+}
+
+.edu-ad-align-left {
+  margin-right: auto;
+}
+
+.edu-ad-align-right {
+  margin-left: auto;
+}
+
+.edu-ad-vertical {
+  width: 160px;
+  max-width: 100%;
+  flex-shrink: 0;
+}
+
+.edu-ad-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
+}
+
+
+/* ==========================================================
+   LOADING SCREEN AD BOX
+   ========================================================== */
+
 .edu-ad-loading-box {
-  margin-top: 16px;
-  padding: 12px;
-  border-radius: 14px;
+  width: fit-content;
+  max-width: calc(100vw - 24px);
+  margin-top: 12px;
+  padding: 6px;
+  border-radius: 10px;
   background: #ffffff;
   border: 1px solid #e2e8f0;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
 }
 
-/* Desktop (728x90) vs Mobile (320x50) for top & leaderboard slots */
-.edu-ad-desktop-728 {
-  display: none;
-}
 
-.edu-ad-mobile-320 {
-  display: flex;
-}
+/* ==========================================================
+   TABLET RESPONSIVENESS
+   ========================================================== */
 
-@media (min-width: 768px) {
-  .edu-ad-desktop-728 {
-    display: flex;
+@media (max-width: 1100px) {
+
+  .edu-ad-top-row {
+    flex-direction: column;
+    align-items: center;
   }
 
-  .edu-ad-mobile-320 {
-    display: none;
+  .edu-ad-top-row .edu-ad-left {
+    width: 100%;
+    max-width: 380px;
+  }
+
+  .edu-ad-top-row .edu-ad-right {
+    margin-left: 0;
   }
 }
 
-/* Mobile view refinements (aligned with app.css mobile layout) */
+
+/* ==========================================================
+   HEADER RESPONSIVENESS
+   ========================================================== */
+
+@media (max-width: 850px) {
+
+  .main-header .edu-ad-header {
+    display: none !important;
+  }
+}
+
+
+/* ==========================================================
+   MOBILE RESPONSIVENESS
+   ========================================================== */
+
 @media (max-width: 767px) {
-  .edu-ad-top {
-    margin: 8px 12px 10px;
-    padding: 4px 6px;
-    border-radius: 8px;
+
+  .edu-ad-top-row {
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin: 6px auto 8px;
+    padding: 0 12px;
   }
 
-  .edu-ad-section {
-    margin: 12px;
-    padding: 4px;
+  .edu-ad-top-row .edu-ad-left {
+    width: 100%;
+    max-width: 100%;
   }
 
-  .edu-ad-loading-box {
-    max-width: calc(100vw - 24px);
-    padding: 8px;
+  .edu-ad-top-row .edu-ad-right {
+    margin-left: 0;
+  }
+
+  .edu-ad-bottom-row {
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    margin: 10px auto 14px;
+    padding: 0 12px;
+  }
+
+  .edu-ad-bottom-row .edu-ad-bottom-left,
+  .edu-ad-bottom-row .edu-ad-bottom-right {
+    margin: 0;
   }
 }
